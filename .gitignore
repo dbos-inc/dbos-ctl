@@ -1,2 +1,6 @@
 dbos-cli
 openapi.json
+
+# Local test configuration — holds the conductor license key. Never commit.
+# See .env.example.
+.env
