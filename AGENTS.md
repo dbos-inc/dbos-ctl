@@ -8,6 +8,7 @@ This file provides guidance to coding agents when working with code in this repo
 
 - **Branches are the user's to create — do not create branches.** When we're ready to start a work stream, the user creates the feature branch; all work happens there.
 - **Commit freely on the feature branch.** While on a feature branch, make commits as the work progresses.
+- **Check the branch before any git write.** Run `git branch --show-current` before committing (or any write op). If it's `main`, **stop and ask** — never commit directly to `main`, even for a small fix. Don't assume the branch from earlier in the session; the user may have merged and switched back to `main` in between.
 - **One work stream at a time, user-reviewed.** Each roadmap step is roughly one work stream / PR. When a stream is done, **stop** — the user reviews and merges into `main` before the next stream begins. Do not start the next roadmap step until the current one is merged.
 
 ## Repository state
