@@ -22,9 +22,9 @@ generate:
 spec:
 	cd $(CONDUCTOR_DIR) && go run . openapi | jq -S . > $(CURDIR)/$(SPEC)
 
-## build: build the dbos binary (A2 relocates the entrypoint to ./cmd/dbos)
+## build: build the dbos binary (VCS stamps come from go build; no ldflags needed)
 build:
-	go build -o dbos .
+	go build -o dbos ./cmd/dbos
 
 ## test: unit tests only (no Docker)
 test:
