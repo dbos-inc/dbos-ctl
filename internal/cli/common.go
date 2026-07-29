@@ -159,31 +159,6 @@ func notLoggedIn(profile string) error {
 	return fmt.Errorf("not logged in for profile %q (run `dbos login`)", profile)
 }
 
-// apiError formats a non-2xx Conductor response. This is the minimal surface;
-// the error-mapping milestone extends it (401 -> "run dbos login", past-limit,
-// mode gating).
-func apiError(status int, problem *api.ErrorModel, body []byte) error {
-	if problem != nil {
-		var msg string
-		if problem.Title != nil {
-			msg = *problem.Title
-		}
-		if problem.Detail != nil && *problem.Detail != "" {
-			if msg != "" {
-				msg += ": "
-			}
-			msg += *problem.Detail
-		}
-		if msg != "" {
-			return fmt.Errorf("%s (HTTP %d)", msg, status)
-		}
-	}
-	if b := strings.TrimSpace(string(body)); b != "" {
-		return fmt.Errorf("HTTP %d: %s", status, b)
-	}
-	return fmt.Errorf("HTTP %d", status)
-}
-
 // deref returns the pointed-to string, or "" for a nil pointer.
 func deref(s *string) string {
 	if s == nil {

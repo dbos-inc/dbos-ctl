@@ -39,7 +39,7 @@ func runAppList(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	if resp.JSON200 == nil {
-		return apiError(resp.StatusCode(), resp.ApplicationproblemJSONDefault, resp.Body)
+		return apiError(resp.StatusCode(), resp.HTTPResponse.Header, resp.ApplicationproblemJSONDefault, resp.Body)
 	}
 
 	return output.List(cmd.OutOrStdout(), format, *resp.JSON200, appColumns())

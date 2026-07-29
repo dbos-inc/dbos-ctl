@@ -20,17 +20,21 @@ and access tokens across self-hosted and DBOS Cloud deployments.`,
 	SilenceUsage: true,
 }
 
-// Execute runs the root command, exiting non-zero on error (Cobra having
-// already printed it). The finer exit-code contract (usage=2, auth=3,
-// not-found=4) lands with the error-mapping milestone; for now any error is 1.
+// Execute runs the root command, exiting on error (Cobra having already printed
+// it) with the code carried by the error: 1 general, 2 usage, 3 auth-required,
+// 4 not-found (see the Exit codes section of AGENTS.md).
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		os.Exit(1)
+		os.Exit(exitCodeFor(err))
 	}
 }
 
 func init() {
 	rootCmd.Version = resolveBuildInfo().short()
+	// A bad flag is a usage error (exit 2). Cobra still prints it.
+	rootCmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
+		return &exitError{code: 2, msg: err.Error()}
+	})
 	// Register --version ourselves, without a shorthand, so Cobra's default init
 	// does not claim -v for it. -v is reserved for a future --verbose (see the
 	// shorthand-namespace note in AGENTS.md); Cobra still handles this flag.
