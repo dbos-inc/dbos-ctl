@@ -29,12 +29,16 @@ func runAppList(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	c, err := newClient(cmd)
+	s, err := settings(cmd)
+	if err != nil {
+		return err
+	}
+	c, err := newClient(s)
 	if err != nil {
 		return err
 	}
 
-	resp, err := c.ListAppsWithResponse(cmd.Context(), resolvedOrg(cmd))
+	resp, err := c.ListAppsWithResponse(cmd.Context(), s.Org)
 	if err != nil {
 		return err
 	}

@@ -9,44 +9,63 @@ import (
 
 	"github.com/dbos-inc/dbos-cli/internal/api"
 	"github.com/dbos-inc/dbos-cli/internal/client"
+	"github.com/dbos-inc/dbos-cli/internal/config"
 	"github.com/dbos-inc/dbos-cli/internal/output"
 )
 
-// flagOrEnv returns the flag value if the user set it, else $env when non-empty,
-// else the flag's default. This is the flag > env half of the precedence chain;
-// the profile layer (config milestone) slots in below env.
-func flagOrEnv(cmd *cobra.Command, flag, env string) string {
-	if cmd.Flags().Changed(flag) {
-		v, _ := cmd.Flags().GetString(flag)
-		return v
+// settings loads the config and resolves effective settings from the global
+// flags, the environment, and the active profile (flag > env > profile).
+func settings(cmd *cobra.Command) (config.Settings, error) {
+	f, err := config.Load()
+	if err != nil {
+		return config.Settings{}, err
 	}
-	if env != "" {
-		if v := os.Getenv(env); v != "" {
-			return v
-		}
+	profile, err := field(cmd, "profile", "DBOS_PROFILE")
+	if err != nil {
+		return config.Settings{}, err
 	}
-	v, _ := cmd.Flags().GetString(flag)
-	return v
+	url, err := field(cmd, "url", "DBOS_URL")
+	if err != nil {
+		return config.Settings{}, err
+	}
+	org, err := field(cmd, "org", "DBOS_ORG")
+	if err != nil {
+		return config.Settings{}, err
+	}
+	app, err := field(cmd, "app", "DBOS_APP")
+	if err != nil {
+		return config.Settings{}, err
+	}
+	return f.Resolve(config.Inputs{Profile: profile, URL: url, Org: org, App: app})
 }
 
-// resolvedOrg returns the organization: --org > $DBOS_ORG > "local". A no-auth
-// deployment is always org "local".
-func resolvedOrg(cmd *cobra.Command) string {
-	if v := flagOrEnv(cmd, "org", "DBOS_ORG"); v != "" {
-		return v
+// field reads one setting's flag value (with whether the flag was set) and its
+// environment value. GetString only errors if the flag is undefined or
+// non-string — a bug, not user input — but we surface it rather than silently
+// resolving to "".
+func field(cmd *cobra.Command, flag, env string) (config.FieldSource, error) {
+	v, err := cmd.Flags().GetString(flag)
+	if err != nil {
+		return config.FieldSource{}, fmt.Errorf("reading --%s: %w", flag, err)
 	}
-	return "local"
+	return config.FieldSource{
+		Flag:    v,
+		FlagSet: cmd.Flags().Changed(flag),
+		Env:     os.Getenv(env),
+	}, nil
 }
 
-// resolvedFormat returns the validated -o/--output format.
+// resolvedFormat returns the validated -o/--output format. Output is not a
+// profile field (there is no DBOS_OUTPUT), so it comes straight from the flag.
 func resolvedFormat(cmd *cobra.Command) (output.Format, error) {
 	v, _ := cmd.Flags().GetString("output")
 	return output.ParseFormat(v)
 }
 
-// newClient builds a no-auth Conductor client from --url > $DBOS_URL.
-func newClient(cmd *cobra.Command) (*api.ClientWithResponses, error) {
-	return client.New(client.Config{BaseURL: flagOrEnv(cmd, "url", "DBOS_URL")})
+// newClient builds a no-auth Conductor client for the resolved base URL. Bearer
+// injection is added by the auth milestone.
+func newClient(s config.Settings) (*api.ClientWithResponses, error) {
+	return client.New(client.Config{BaseURL: s.URL})
 }
 
 // apiError formats a non-2xx Conductor response. This is the minimal surface;

@@ -17,9 +17,21 @@ func newCmdWithGlobals() *cobra.Command {
 	c := &cobra.Command{}
 	c.Flags().String("url", "", "")
 	c.Flags().String("org", "", "")
+	c.Flags().String("app", "", "")
 	c.Flags().String("output", "table", "")
+	c.Flags().String("profile", "", "")
 	c.SetContext(context.Background())
 	return c
+}
+
+// isolateConfig points config at an empty temp dir and clears DBOS_* env, so a
+// test resolves settings from flags alone, independent of any real user config.
+func isolateConfig(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("DBOS_PROFILE", "")
+	t.Setenv("DBOS_URL", "")
+	t.Setenv("DBOS_ORG", "")
+	t.Setenv("DBOS_APP", "")
 }
 
 const oneAppJSON = `[{"name":"myapp","status":"ACTIVE","language":"python","id":"a1","orgId":"local","dbosCloud":false,"executorTimeoutSecs":0,"privateMode":false}]`
@@ -41,7 +53,7 @@ func appServer(t *testing.T, status int, contentType, body string) *httptest.Ser
 }
 
 func TestRunAppListJSON(t *testing.T) {
-	t.Setenv("DBOS_ORG", "")
+	isolateConfig(t)
 	srv := appServer(t, http.StatusOK, "application/json", oneAppJSON)
 
 	cmd := newCmdWithGlobals()
@@ -59,7 +71,7 @@ func TestRunAppListJSON(t *testing.T) {
 }
 
 func TestRunAppListTable(t *testing.T) {
-	t.Setenv("DBOS_ORG", "")
+	isolateConfig(t)
 	srv := appServer(t, http.StatusOK, "application/json", oneAppJSON)
 
 	cmd := newCmdWithGlobals()
@@ -79,7 +91,7 @@ func TestRunAppListTable(t *testing.T) {
 }
 
 func TestRunAppListError(t *testing.T) {
-	t.Setenv("DBOS_ORG", "")
+	isolateConfig(t)
 	srv := appServer(t, http.StatusForbidden, "application/problem+json",
 		`{"title":"Forbidden","detail":"past limit","status":403}`)
 
