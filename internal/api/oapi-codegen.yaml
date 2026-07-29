@@ -1,0 +1,9 @@
+# oapi-codegen configuration for the Conductor v2 client.
+# Regenerate with `make generate` (never hand-edit the *.gen.go output).
+package: api
+output: internal/api/client.gen.go
+generate:
+  models: true
+  client: true
+output-options:
+  skip-prune: false

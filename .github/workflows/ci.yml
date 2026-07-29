@@ -1,0 +1,27 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # Generated code must match the vendored spec. This needs no conductor and
+      # no jq — only the vendored internal/api/openapi-3.1.json and the Go module
+      # cache — so it is a pure hermetic drift check.
+      - name: generated code is up to date
+        run: |
+          make generate
+          git diff --exit-code
+
+      - run: make lint
+      - run: make build
+      - run: make test

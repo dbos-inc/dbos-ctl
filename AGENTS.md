@@ -4,6 +4,12 @@ This file provides guidance to coding agents when working with code in this repo
 
 **This is a living design doc.** The Roadmap below is the source of truth for what is built and what is not. When you land code, update the roadmap checkboxes and correct any section that has drifted — a stale description here is worse than no description.
 
+## Working agreement
+
+- **Branches are the user's to create — do not create branches.** When we're ready to start a work stream, the user creates the feature branch; all work happens there.
+- **Commit freely on the feature branch.** While on a feature branch, make commits as the work progresses.
+- **One work stream at a time, user-reviewed.** Each roadmap step is roughly one work stream / PR. When a stream is done, **stop** — the user reviews and merges into `main` before the next stream begins. Do not start the next roadmap step until the current one is merged.
+
 ## Repository state
 
 `dbos-cli` is a Go CLI that wraps the **DBOS Conductor v2 API**. As of the last update it is still an unmodified `cobra-cli init` scaffold (single commit, "scaffold"): only `main.go`, `cmd/root.go`, and `cmd/version.go` exist, and their `Short`/`Long` strings are Cobra's placeholder text. Replace that boilerplate as commands land rather than copying it into new files. **A2 restructures this scaffold** — root `main.go` → `cmd/dbos/main.go`, and the `cmd/` command package → `internal/cli` (see Architecture) — so the binary is `dbos`; don't build new commands onto the scaffold's root layout.
@@ -344,7 +350,7 @@ Sliced so that **every step ends with a binary you can run and a test that prove
 
 **A — walking skeleton.** Goal: one real command against a real conductor, as early as possible.
 
-- [ ] **A1. Codegen** — vendor `internal/api/openapi-3.1.json`, `oapi-codegen` (≥ v2.8.0) as a `go tool` dep, `Makefile` (`spec`/`generate`/`build`/`test`/`lint`), commit generated code, CI drift check. `make generate` also emits `internal/api/oauth_gated.go` from the `x-dbos-requires-oauth` extension. *Done when:* `make generate` is idempotent, the generated client compiles, and the gate table lists the 14 OAuth-only operations.
+- [x] **A1. Codegen** — vendor `internal/api/openapi-3.1.json`, `oapi-codegen` (≥ v2.8.0) as a `go tool` dep, `Makefile` (`spec`/`generate`/`build`/`test`/`lint`), commit generated code, CI drift check. `make generate` also emits `internal/api/oauth_gated.go` from the `x-dbos-requires-oauth` extension. *Done when:* `make generate` is idempotent, the generated client compiles, and the gate table lists the 14 OAuth-only operations.
 - [ ] **A2. Root wiring** — entrypoint at `cmd/dbos/main.go`, command tree in `internal/cli`, `Use: "dbos"`, global flags (`-o/--output`, `-a/--app`, `--org`, `--url`, `--profile`), and a real `dbos version` with the ldflags/`ReadBuildInfo` resolution (see Versioning & release) plus `rootCmd.Version` for `--version`. No config file yet; `--url`/`--org` only. *Done when:* `dbos version` prints a commit from a plain `go build` and `dbos --help` is correct.
 - [ ] **A3. Transport + output, minimal** — `internal/client` building the generated client from `--url` with no auth; `internal/output` with `table` (array renderer) and `json`. *Done when:* unit tests cover both renderers.
 - [ ] **A4. `dbos app list`** — the first end-to-end command. *Done when:* it returns real rows from a locally running conductor.

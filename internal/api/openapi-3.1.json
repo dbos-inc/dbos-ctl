@@ -1,0 +1,5862 @@
+{
+  "components": {
+    "schemas": {
+      "AlertingRule": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/AlertingRule.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "appId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lastFiredAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "minIntervalSecs": {
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "receivingAppId": {
+            "type": "string"
+          },
+          "ruleMetadata": {},
+          "ruleType": {
+            "enum": [
+              "WorkflowFailure",
+              "SlowQueue",
+              "UnresponsiveApplication"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "appId",
+          "receivingAppId",
+          "ruleType",
+          "ruleMetadata",
+          "minIntervalSecs",
+          "lastFiredAt"
+        ],
+        "type": "object"
+      },
+      "Application": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/Application.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "dbosCloud": {
+            "type": "boolean"
+          },
+          "executorTimeoutSecs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "gcRowsThreshold": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "gcTimeThresholdMs": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "globalTimeoutMs": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "orgId": {
+            "type": "string"
+          },
+          "privateMode": {
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "AVAILABLE",
+              "UNAVAILABLE"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "orgId",
+          "status",
+          "language",
+          "gcTimeThresholdMs",
+          "gcRowsThreshold",
+          "globalTimeoutMs",
+          "executorTimeoutSecs",
+          "privateMode",
+          "dbosCloud"
+        ],
+        "type": "object"
+      },
+      "ApplicationVersion": {
+        "additionalProperties": false,
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "versionId": {
+            "type": "string"
+          },
+          "versionName": {
+            "type": "string"
+          },
+          "versionTimestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "versionId",
+          "versionName",
+          "versionTimestamp",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "AuditLogEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "details": {
+            "additionalProperties": {},
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "emitTime": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "operation": {
+            "type": "string"
+          },
+          "sourceIp": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "success",
+              "failure"
+            ],
+            "type": "string"
+          },
+          "subject": {
+            "$ref": "#/components/schemas/AuditSubject"
+          },
+          "target": {
+            "$ref": "#/components/schemas/AuditTarget"
+          }
+        },
+        "required": [
+          "id",
+          "emitTime",
+          "operation",
+          "status",
+          "subject",
+          "sourceIp",
+          "details"
+        ],
+        "type": "object"
+      },
+      "AuditSubject": {
+        "additionalProperties": false,
+        "properties": {
+          "display": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "user",
+              "api_key"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "display"
+        ],
+        "type": "object"
+      },
+      "AuditTarget": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "application",
+              "token",
+              "role",
+              "user",
+              "organization",
+              "workflow",
+              "schedule",
+              "alerting_rule"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "id"
+        ],
+        "type": "object"
+      },
+      "BackfillInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/BackfillInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "endTime": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "startTime": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "startTime",
+          "endTime"
+        ],
+        "type": "object"
+      },
+      "BackfillOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/BackfillOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "workflowIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "workflowIds"
+        ],
+        "type": "object"
+      },
+      "BulkCancelInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/BulkCancelInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "cancelChildren": {
+            "type": "boolean"
+          },
+          "workflowIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "workflowIds"
+        ],
+        "type": "object"
+      },
+      "BulkDeleteInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/BulkDeleteInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "deleteChildren": {
+            "type": "boolean"
+          },
+          "workflowIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "workflowIds"
+        ],
+        "type": "object"
+      },
+      "BulkForkFromFailureBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/BulkForkFromFailureBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "appVersion": {
+            "type": "string"
+          },
+          "fromLastFailure": {
+            "description": "Restart each workflow from its own last failed step. Mutually exclusive with fromLastStep, fromStep, and fromStepName.",
+            "type": "boolean"
+          },
+          "fromLastStep": {
+            "description": "Restart each workflow from its own last completed step. Mutually exclusive with fromLastFailure, fromStep, and fromStepName.",
+            "type": "boolean"
+          },
+          "fromStep": {
+            "description": "Restart every workflow from this explicit step index. Mutually exclusive with fromLastFailure, fromLastStep, and fromStepName.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "fromStepName": {
+            "description": "Restart every workflow from the last occurrence of this named step. Mutually exclusive with fromLastFailure, fromLastStep, and fromStep.",
+            "type": "string"
+          },
+          "queueName": {
+            "type": "string"
+          },
+          "queuePartitionKey": {
+            "type": "string"
+          },
+          "workflowIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "workflowIds"
+        ],
+        "type": "object"
+      },
+      "BulkForkFromFailureOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/BulkForkFromFailureOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "workflowIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "workflowIds"
+        ],
+        "type": "object"
+      },
+      "BulkResumeInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/BulkResumeInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "queueName": {
+            "type": "string"
+          },
+          "workflowIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "workflowIds"
+        ],
+        "type": "object"
+      },
+      "CancelWorkflowInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/CancelWorkflowInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "cancelChildren": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "CreateAlertInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/CreateAlertInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "minIntervalSecs": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "receivingAppName": {
+            "type": "string"
+          },
+          "ruleMetadata": {},
+          "ruleType": {
+            "enum": [
+              "WorkflowFailure",
+              "SlowQueue",
+              "UnresponsiveApplication"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "ruleType",
+          "ruleMetadata"
+        ],
+        "type": "object"
+      },
+      "CreateRoleInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/CreateRoleInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 30,
+            "minLength": 3,
+            "pattern": "^[a-zA-Z0-9_]+$",
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "CreateRoleOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/CreateRoleOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "permissions"
+        ],
+        "type": "object"
+      },
+      "CreateTokenInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/CreateTokenInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "appNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "ErrorDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "location": {
+            "description": "Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id'",
+            "type": "string"
+          },
+          "message": {
+            "description": "Error message text",
+            "type": "string"
+          },
+          "value": {
+            "description": "The value at the given location"
+          }
+        },
+        "type": "object"
+      },
+      "ErrorModel": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/ErrorModel.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "detail": {
+            "description": "A human-readable explanation specific to this occurrence of the problem.",
+            "examples": [
+              "Property foo is required but is missing."
+            ],
+            "type": "string"
+          },
+          "errors": {
+            "description": "Optional list of individual error details",
+            "items": {
+              "$ref": "#/components/schemas/ErrorDetail"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "instance": {
+            "description": "A URI reference that identifies the specific occurrence of the problem.",
+            "examples": [
+              "https://example.com/error-log/abc123"
+            ],
+            "format": "uri",
+            "type": "string"
+          },
+          "status": {
+            "description": "HTTP status code",
+            "examples": [
+              400
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "title": {
+            "description": "A short, human-readable summary of the problem type. This value should not change between occurrences of the error.",
+            "examples": [
+              "Bad Request"
+            ],
+            "type": "string"
+          },
+          "type": {
+            "default": "about:blank",
+            "description": "A URI reference to human-readable documentation for the error.",
+            "examples": [
+              "https://example.com/errors/example"
+            ],
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Event": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ],
+        "type": "object"
+      },
+      "Executor": {
+        "additionalProperties": false,
+        "properties": {
+          "appId": {
+            "type": "string"
+          },
+          "appVersion": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "dbosVersion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "executorId": {
+            "type": "string"
+          },
+          "executorMetadata": {
+            "additionalProperties": {},
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "hostId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hostname": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "HEALTHY",
+              "DISCONNECTED",
+              "DEAD"
+            ],
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "executorId",
+          "appId",
+          "appVersion",
+          "status",
+          "hostId",
+          "hostname",
+          "createdAt",
+          "updatedAt",
+          "language",
+          "dbosVersion",
+          "executorMetadata"
+        ],
+        "type": "object"
+      },
+      "ExportWorkflowOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/ExportWorkflowOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "serializedWorkflow": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "serializedWorkflow"
+        ],
+        "type": "object"
+      },
+      "ForkWorkflowInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/ForkWorkflowInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "appVersion": {
+            "type": "string"
+          },
+          "newWorkflowId": {
+            "type": "string"
+          },
+          "queueName": {
+            "type": "string"
+          },
+          "queuePartitionKey": {
+            "type": "string"
+          },
+          "startStep": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ForkWorkflowOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/ForkWorkflowOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "workflowId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "workflowId"
+        ],
+        "type": "object"
+      },
+      "GenerateSecretOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/GenerateSecretOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "secret": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret"
+        ],
+        "type": "object"
+      },
+      "ImportWorkflowInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/ImportWorkflowInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "serializedWorkflow": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "serializedWorkflow"
+        ],
+        "type": "object"
+      },
+      "JoinOrgInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/JoinOrgInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "secret": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret"
+        ],
+        "type": "object"
+      },
+      "Member": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/Member.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "company": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "familyName": {
+            "type": "string"
+          },
+          "givenName": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "orgId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "orgId",
+          "email",
+          "name",
+          "givenName",
+          "familyName",
+          "company"
+        ],
+        "type": "object"
+      },
+      "Metric": {
+        "additionalProperties": false,
+        "properties": {
+          "appId": {
+            "type": "string"
+          },
+          "granularity": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "metricName": {
+            "type": "string"
+          },
+          "metricType": {
+            "description": "Metric type. Known values: workflow_count, step_count (reported by executor SDKs), recovery_count (reported by Conductor). Not an enforced enum; newer SDK versions may report additional values.",
+            "type": "string"
+          },
+          "timeBucket": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "value": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "appId",
+          "metricType",
+          "metricName",
+          "granularity",
+          "timeBucket",
+          "value"
+        ],
+        "type": "object"
+      },
+      "Notification": {
+        "additionalProperties": false,
+        "properties": {
+          "consumed": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "topic": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "topic",
+          "message",
+          "createdAt",
+          "consumed"
+        ],
+        "type": "object"
+      },
+      "OrgMembers": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/OrgMembers.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "orgName": {
+            "type": "string"
+          },
+          "users": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RoleOutput"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "orgName",
+          "users"
+        ],
+        "type": "object"
+      },
+      "Organization": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/Organization.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "auditLogRetentionDays": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "defaultRdsInstanceClassType": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "maxApps": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "maxConductorApps": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "maxDatabaseInstances": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "maxTeamMembers": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "maxVms": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "subscriptionPlan": {
+            "enum": [
+              "free",
+              "pro",
+              "past_limit",
+              "team"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "createdAt",
+          "subscriptionPlan",
+          "maxDatabaseInstances",
+          "maxApps",
+          "maxVms",
+          "defaultRdsInstanceClassType",
+          "maxTeamMembers",
+          "maxConductorApps",
+          "auditLogRetentionDays"
+        ],
+        "type": "object"
+      },
+      "PatchAppInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/PatchAppInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "executorTimeoutSecs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "gcRowsThreshold": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "gcTimeThresholdMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "globalTimeoutMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "privateMode": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "PatchLatestVersionInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/PatchLatestVersionInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "versionName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "versionName"
+        ],
+        "type": "object"
+      },
+      "PutAppInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/PutAppInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "privateMode": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "Queue": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/Queue.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "concurrency": {
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "partitionQueue": {
+            "type": "boolean"
+          },
+          "pollingIntervalSecs": {
+            "format": "double",
+            "type": "number"
+          },
+          "priorityEnabled": {
+            "type": "boolean"
+          },
+          "rateLimitMax": {
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "rateLimitPeriodSecs": {
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "workerConcurrency": {
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "concurrency",
+          "workerConcurrency",
+          "rateLimitMax",
+          "rateLimitPeriodSecs",
+          "priorityEnabled",
+          "partitionQueue",
+          "pollingIntervalSecs"
+        ],
+        "type": "object"
+      },
+      "RegisterUserInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/RegisterUserInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "company": {
+            "type": "string"
+          },
+          "familyName": {
+            "type": "string"
+          },
+          "givenName": {
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 30,
+            "minLength": 3,
+            "pattern": "^[a-z0-9_]+$",
+            "type": "string"
+          },
+          "secret": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "RegisterUserOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/RegisterUserOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "ResumeWorkflowInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/ResumeWorkflowInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "queueName": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "RoleOutput": {
+        "additionalProperties": false,
+        "properties": {
+          "isGlobal": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "isGlobal",
+          "permissions"
+        ],
+        "type": "object"
+      },
+      "Schedule": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/Schedule.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "automaticBackfill": {
+            "type": "boolean"
+          },
+          "context": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cronExpression": {
+            "type": "string"
+          },
+          "cronTimezone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lastFiredAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scheduleId": {
+            "type": "string"
+          },
+          "scheduleName": {
+            "type": "string"
+          },
+          "status": {
+            "description": "Schedule status as reported by DBOS Transact. Known values: ACTIVE, PAUSED. Not an enforced enum; newer SDK versions may report additional values.",
+            "type": "string"
+          },
+          "workflowClass": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workflowName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scheduleId",
+          "scheduleName",
+          "workflowName",
+          "workflowClass",
+          "cronExpression",
+          "status",
+          "context",
+          "lastFiredAt",
+          "automaticBackfill",
+          "cronTimezone"
+        ],
+        "type": "object"
+      },
+      "Step": {
+        "additionalProperties": false,
+        "properties": {
+          "childWorkflowId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "completedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "output": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "stepId": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "stepName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "stepId",
+          "stepName",
+          "output",
+          "error",
+          "childWorkflowId",
+          "startedAt",
+          "completedAt"
+        ],
+        "type": "object"
+      },
+      "StepAggregate": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "group": {
+            "additionalProperties": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": "object"
+          },
+          "maxDurationMs": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "group"
+        ],
+        "type": "object"
+      },
+      "StepAggregatesBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/StepAggregatesBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "completedAfter": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "completedBefore": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "groupByFunctionName": {
+            "type": "boolean"
+          },
+          "groupByStatus": {
+            "type": "boolean"
+          },
+          "selectCount": {
+            "type": "boolean"
+          },
+          "selectMaxDurationMs": {
+            "type": "boolean"
+          },
+          "status": {
+            "description": "Filter by step status as defined by DBOS Transact. Known values: SUCCESS, ERROR. Not an enforced enum; unrecognized values simply match nothing.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "stepName": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "timeBucketSizeMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflowIdPrefix": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "StreamEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "values"
+        ],
+        "type": "object"
+      },
+      "Token": {
+        "additionalProperties": false,
+        "properties": {
+          "appIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "tokenName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tokenName",
+          "createdAt",
+          "permissions",
+          "appIds"
+        ],
+        "type": "object"
+      },
+      "TokenCreated": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/TokenCreated.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          },
+          "tokenName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "tokenName"
+        ],
+        "type": "object"
+      },
+      "TriggerOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/TriggerOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "workflowId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "workflowId"
+        ],
+        "type": "object"
+      },
+      "UpdateOrgInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/UpdateOrgInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "auditLogRetentionDays": {
+            "format": "int32",
+            "maximum": 3650,
+            "minimum": 7,
+            "type": "integer"
+          },
+          "newName": {
+            "maxLength": 30,
+            "minLength": 3,
+            "pattern": "^[a-z0-9_]+$",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UserProfile": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/UserProfile.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "isDbosAdmin": {
+            "description": "Present and true only for DBOS administrators; omitted otherwise.",
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "orgId": {
+            "type": "string"
+          },
+          "orgName": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/RoleOutput"
+          },
+          "subscriptionPlan": {
+            "enum": [
+              "free",
+              "pro",
+              "past_limit",
+              "team"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "orgName",
+          "orgId",
+          "subscriptionPlan",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "Workflow": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/Workflow.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "appVersion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "assumedRole": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "attributes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "completedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deadline": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "deduplicationId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "delayUntil": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dequeuedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "executorId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "forkedFrom": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "input": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "output": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parentWorkflowId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "priority": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "queueName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "queuePartitionKey": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "roles": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scheduleName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "description": "Workflow status as reported by DBOS Transact. Known values: ENQUEUED, DELAYED, PENDING, SUCCESS, ERROR, MAX_RECOVERY_ATTEMPTS_EXCEEDED, CANCELLED. Not an enforced enum; newer SDK versions may report additional values.",
+            "type": "string"
+          },
+          "timeoutMs": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "user": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "wasForkedFrom": {
+            "type": "boolean"
+          },
+          "workflowClass": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workflowConfig": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workflowId": {
+            "type": "string"
+          },
+          "workflowName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "workflowId",
+          "status",
+          "workflowName",
+          "workflowClass",
+          "workflowConfig",
+          "user",
+          "assumedRole",
+          "roles",
+          "input",
+          "output",
+          "error",
+          "createdAt",
+          "updatedAt",
+          "queueName",
+          "appVersion",
+          "executorId",
+          "timeoutMs",
+          "deadline",
+          "deduplicationId",
+          "priority",
+          "queuePartitionKey",
+          "forkedFrom",
+          "wasForkedFrom",
+          "parentWorkflowId",
+          "dequeuedAt",
+          "delayUntil",
+          "completedAt",
+          "attributes",
+          "scheduleName"
+        ],
+        "type": "object"
+      },
+      "WorkflowAggregate": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "group": {
+            "additionalProperties": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": "object"
+          },
+          "maxQueueWaitMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "maxTotalLatencyMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "minCreatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "group"
+        ],
+        "type": "object"
+      },
+      "WorkflowAggregatesBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/WorkflowAggregatesBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "appVersion": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "attributes": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "completedAfter": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "completedBefore": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "dequeuedAfter": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "dequeuedBefore": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "endTime": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "executorId": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "forkedFrom": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "groupByAppVersion": {
+            "type": "boolean"
+          },
+          "groupByExecutorId": {
+            "type": "boolean"
+          },
+          "groupByQueueName": {
+            "type": "boolean"
+          },
+          "groupByStatus": {
+            "type": "boolean"
+          },
+          "groupByWorkflowName": {
+            "type": "boolean"
+          },
+          "hasParent": {
+            "type": "boolean"
+          },
+          "parentWorkflowId": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "queueName": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "scheduleName": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "selectCount": {
+            "type": "boolean"
+          },
+          "selectMaxQueueWaitMs": {
+            "type": "boolean"
+          },
+          "selectMaxTotalLatencyMs": {
+            "type": "boolean"
+          },
+          "selectMinCreatedAt": {
+            "type": "boolean"
+          },
+          "startTime": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "timeBucketSizeMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "user": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "wasForkedFrom": {
+            "type": "boolean"
+          },
+          "workflowIdPrefix": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "workflowIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "workflowName": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "WorkflowSearchBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/WorkflowSearchBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "appVersion": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "attributes": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "completedAfter": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "completedBefore": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "dequeuedAfter": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "dequeuedBefore": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "endTime": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "executorId": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "forkedFrom": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "hasParent": {
+            "type": "boolean"
+          },
+          "limit": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "loadInput": {
+            "type": "boolean"
+          },
+          "loadOutput": {
+            "type": "boolean"
+          },
+          "offset": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "parentWorkflowId": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "queueName": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "queuesOnly": {
+            "type": "boolean"
+          },
+          "scheduleName": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "sortDesc": {
+            "type": "boolean"
+          },
+          "startTime": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "user": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "wasForkedFrom": {
+            "type": "boolean"
+          },
+          "workflowIdPrefix": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "workflowIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "workflowName": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "description": "Conductor API key (see POST /v2/orgs/{orgName}/tokens/{tokenName}), prefixed \"dbos_\".",
+        "scheme": "bearer",
+        "type": "http"
+      },
+      "BearerAuth": {
+        "bearerFormat": "JWT",
+        "description": "Auth0-issued user JWT.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "title": "Conductor API",
+    "version": "2.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/v2/orgs/{orgName}": {
+      "get": {
+        "description": "Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "getOrg",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get org",
+        "tags": [
+          "Orgs"
+        ],
+        "x-dbos-requires-oauth": true
+      },
+      "patch": {
+        "description": "Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "updateOrg",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrgInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Update org",
+        "tags": [
+          "Orgs"
+        ],
+        "x-dbos-requires-oauth": true
+      }
+    },
+    "/v2/orgs/{orgName}/apps": {
+      "get": {
+        "operationId": "listApps",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Application"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List applications",
+        "tags": [
+          "Applications"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}": {
+      "delete": {
+        "operationId": "deleteApp",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete application",
+        "tags": [
+          "Applications"
+        ]
+      },
+      "get": {
+        "operationId": "getApp",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Application"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get application",
+        "tags": [
+          "Applications"
+        ]
+      },
+      "patch": {
+        "operationId": "updateApp",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchAppInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Update application",
+        "tags": [
+          "Applications"
+        ]
+      },
+      "put": {
+        "operationId": "registerApp",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutAppInputBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Register application",
+        "tags": [
+          "Applications"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/alerting-rules": {
+      "get": {
+        "operationId": "listAlertingRules",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AlertingRule"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List alerting rules",
+        "tags": [
+          "Alerting"
+        ]
+      },
+      "post": {
+        "operationId": "createAlertingRule",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAlertInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertingRule"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create alerting rule",
+        "tags": [
+          "Alerting"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/alerting-rules/{ruleId}": {
+      "delete": {
+        "operationId": "deleteAlertingRule",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ruleId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete alerting rule",
+        "tags": [
+          "Alerting"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/executors": {
+      "get": {
+        "operationId": "listExecutors",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Executor"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List executors",
+        "tags": [
+          "Executors"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/metrics": {
+      "get": {
+        "operationId": "listMetrics",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "startTime",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "endTime",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Metric"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List metrics",
+        "tags": [
+          "Metrics"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/queues": {
+      "get": {
+        "operationId": "listQueues",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Queue"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List queues",
+        "tags": [
+          "Queues"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/queues/{queueName}": {
+      "get": {
+        "operationId": "getQueue",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "queueName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Queue"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get queue",
+        "tags": [
+          "Queues"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/schedules": {
+      "get": {
+        "operationId": "listSchedules",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter by schedule status as defined by DBOS Transact. Known values: ACTIVE, PAUSED. Not an enforced enum; unrecognized values simply match nothing.",
+            "explode": false,
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "description": "Filter by schedule status as defined by DBOS Transact. Known values: ACTIVE, PAUSED. Not an enforced enum; unrecognized values simply match nothing.",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "workflowName",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "scheduleNamePrefix",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "loadContext",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Schedule"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List schedules",
+        "tags": [
+          "Schedules"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/schedules/{scheduleName}": {
+      "get": {
+        "operationId": "getSchedule",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "scheduleName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Schedule"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get schedule",
+        "tags": [
+          "Schedules"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/schedules/{scheduleName}/backfill": {
+      "post": {
+        "operationId": "backfillSchedule",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "scheduleName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackfillInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackfillOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Backfill schedule",
+        "tags": [
+          "Schedules"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/schedules/{scheduleName}/pause": {
+      "post": {
+        "operationId": "pauseSchedule",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "scheduleName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Pause schedule",
+        "tags": [
+          "Schedules"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/schedules/{scheduleName}/resume": {
+      "post": {
+        "operationId": "resumeSchedule",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "scheduleName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Resume schedule",
+        "tags": [
+          "Schedules"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/schedules/{scheduleName}/trigger": {
+      "post": {
+        "operationId": "triggerSchedule",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "scheduleName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerOutputBody"
+                }
+              }
+            },
+            "description": "Created",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Trigger schedule",
+        "tags": [
+          "Schedules"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/steps/aggregates": {
+      "post": {
+        "operationId": "getStepAggregates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepAggregatesBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StepAggregate"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get step aggregates",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/versions": {
+      "get": {
+        "operationId": "listAppVersions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ApplicationVersion"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List application versions",
+        "tags": [
+          "Applications"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/versions/latest": {
+      "patch": {
+        "operationId": "setLatestAppVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchLatestVersionInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Set latest application version",
+        "tags": [
+          "Applications"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows": {
+      "get": {
+        "operationId": "listWorkflows",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "workflowName",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "sortDesc",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "loadInput",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "loadOutput",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Workflow"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List workflows",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows/aggregates": {
+      "post": {
+        "operationId": "getWorkflowAggregates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowAggregatesBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkflowAggregate"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get workflow aggregates",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows/bulk-cancel": {
+      "post": {
+        "operationId": "bulkCancelWorkflows",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkCancelInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Bulk cancel workflows",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows/bulk-delete": {
+      "post": {
+        "operationId": "bulkDeleteWorkflows",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkDeleteInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Bulk delete workflows",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows/bulk-fork-from-failure": {
+      "post": {
+        "operationId": "bulkForkWorkflowsFromFailure",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkForkFromFailureBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkForkFromFailureOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Bulk fork workflows from failure",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows/bulk-resume": {
+      "post": {
+        "operationId": "bulkResumeWorkflows",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkResumeInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Bulk resume workflows",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows/import": {
+      "post": {
+        "operationId": "importWorkflow",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportWorkflowInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Import workflow",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows/search": {
+      "post": {
+        "operationId": "searchWorkflows",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowSearchBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Workflow"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Search workflows",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}": {
+      "delete": {
+        "operationId": "deleteWorkflow",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workflowId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "deleteChildren",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete workflow",
+        "tags": [
+          "Workflows"
+        ]
+      },
+      "get": {
+        "operationId": "getWorkflow",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workflowId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workflow"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get workflow",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/cancel": {
+      "post": {
+        "operationId": "cancelWorkflow",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workflowId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelWorkflowInputBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Cancel workflow",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/events": {
+      "get": {
+        "operationId": "listWorkflowEvents",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workflowId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Event"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List workflow events",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/export": {
+      "get": {
+        "operationId": "exportWorkflow",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workflowId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "exportChildren",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportWorkflowOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Export workflow",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/fork": {
+      "post": {
+        "operationId": "forkWorkflow",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workflowId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForkWorkflowInputBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForkWorkflowOutputBody"
+                }
+              }
+            },
+            "description": "Created",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Fork workflow",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/notifications": {
+      "get": {
+        "operationId": "listWorkflowNotifications",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workflowId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Notification"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List workflow notifications",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/restart": {
+      "post": {
+        "operationId": "restartWorkflow",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workflowId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Restart workflow",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/resume": {
+      "post": {
+        "operationId": "resumeWorkflow",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workflowId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeWorkflowInputBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Resume workflow",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/steps": {
+      "get": {
+        "operationId": "listWorkflowSteps",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workflowId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Step"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List workflow steps",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/streams": {
+      "get": {
+        "operationId": "listWorkflowStreams",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workflowId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StreamEntry"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List workflow streams",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/audit-logs": {
+      "get": {
+        "description": "Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "listAuditLogs",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "startTime",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "endTime",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "operation",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "subject",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "target",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditLogEntry"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List audit logs",
+        "tags": [
+          "Audit"
+        ],
+        "x-dbos-requires-oauth": true
+      }
+    },
+    "/v2/orgs/{orgName}/join": {
+      "post": {
+        "description": "Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "joinOrg",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinOrgInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Join org",
+        "tags": [
+          "Orgs"
+        ],
+        "x-dbos-requires-oauth": true
+      }
+    },
+    "/v2/orgs/{orgName}/members": {
+      "get": {
+        "description": "Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "listMembers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgMembers"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List members",
+        "tags": [
+          "Orgs"
+        ],
+        "x-dbos-requires-oauth": true
+      }
+    },
+    "/v2/orgs/{orgName}/members/{username}": {
+      "delete": {
+        "description": "Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "removeMember",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Member"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Remove member",
+        "tags": [
+          "Orgs"
+        ],
+        "x-dbos-requires-oauth": true
+      }
+    },
+    "/v2/orgs/{orgName}/members/{username}/roles/{roleName}": {
+      "put": {
+        "description": "Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "grantRole",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "roleName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-zA-Z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Grant role",
+        "tags": [
+          "Roles"
+        ],
+        "x-dbos-requires-oauth": true
+      }
+    },
+    "/v2/orgs/{orgName}/permissions": {
+      "get": {
+        "description": "Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "listPermissions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List permissions",
+        "tags": [
+          "Roles"
+        ],
+        "x-dbos-requires-oauth": true
+      }
+    },
+    "/v2/orgs/{orgName}/roles": {
+      "get": {
+        "description": "Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "listRoles",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RoleOutput"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List roles",
+        "tags": [
+          "Roles"
+        ],
+        "x-dbos-requires-oauth": true
+      },
+      "post": {
+        "description": "Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "createRole",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoleInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateRoleOutputBody"
+                }
+              }
+            },
+            "description": "Created",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create role",
+        "tags": [
+          "Roles"
+        ],
+        "x-dbos-requires-oauth": true
+      }
+    },
+    "/v2/orgs/{orgName}/roles/{roleName}": {
+      "delete": {
+        "description": "Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "deleteRole",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "roleName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-zA-Z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete role",
+        "tags": [
+          "Roles"
+        ],
+        "x-dbos-requires-oauth": true
+      }
+    },
+    "/v2/orgs/{orgName}/secrets": {
+      "post": {
+        "description": "Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "generateSecret",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerateSecretOutputBody"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Generate join secret",
+        "tags": [
+          "Orgs"
+        ],
+        "x-dbos-requires-oauth": true
+      }
+    },
+    "/v2/orgs/{orgName}/tokens": {
+      "get": {
+        "operationId": "listTokens",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Token"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List tokens",
+        "tags": [
+          "Tokens"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/tokens/{tokenName}": {
+      "delete": {
+        "operationId": "deleteToken",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "tokenName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete token",
+        "tags": [
+          "Tokens"
+        ]
+      },
+      "post": {
+        "operationId": "createToken",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "tokenName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTokenInputBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenCreated"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create token",
+        "tags": [
+          "Tokens"
+        ]
+      }
+    },
+    "/v2/users": {
+      "post": {
+        "description": "Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "registerUser",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterUserInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterUserOutputBody"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Register user",
+        "tags": [
+          "Users"
+        ],
+        "x-dbos-requires-oauth": true
+      }
+    },
+    "/v2/users/me": {
+      "get": {
+        "description": "Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "getCurrentUser",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get current user",
+        "tags": [
+          "Users"
+        ],
+        "x-dbos-requires-oauth": true
+      }
+    }
+  },
+  "security": [
+    {
+      "ApiKeyAuth": []
+    },
+    {
+      "BearerAuth": []
+    }
+  ],
+  "servers": [
+    {
+      "url": "/"
+    }
+  ]
+}
