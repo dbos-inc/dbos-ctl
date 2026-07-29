@@ -13,7 +13,7 @@ This file provides guidance to coding agents when working with code in this repo
 
 ## Repository state
 
-`dbos-cli` is a Go CLI that wraps the **DBOS Conductor API**. The entrypoint is `cmd/dbos/main.go` (a thin `package main` calling `cli.Execute()`) and the command tree lives in `internal/cli` — build new commands there, each in its own file registering on `rootCmd` from its `init()`. `internal/api` holds the generated client + OAuth-gate table. Milestone **A** (walking skeleton — codegen, root wiring, transport/output, `app list`, and the container integration harness) is complete; **B1** (config profiles: `internal/config` + `dbos config`) has landed. **No per-file copyright/license headers** — `LICENSE` (MIT, DBOS, Inc.) covers the whole repo, matching every sibling DBOS repo (`~/conductor`, `~/cloud`, `~/go-transact`); new `.go` files start straight at `package` (an optional package-doc comment is fine).
+`dbos-cli` is a Go CLI that wraps the **DBOS Conductor API**. The entrypoint is `cmd/dbos/main.go` (a thin `package main` calling `cli.Execute()`) and the command tree lives in `internal/cli` — build new commands there, each in its own file registering on `rootCmd` from its `init()`. `internal/api` holds the generated client + OAuth-gate table. Milestone **A** (walking skeleton — codegen, root wiring, transport/output, `app list`, and the container integration harness) is complete; milestone **B** (config: `internal/config` + `dbos config` profiles, and the `internal/creds` credential store) has landed. **No per-file copyright/license headers** — `LICENSE` (MIT, DBOS, Inc.) covers the whole repo, matching every sibling DBOS repo (`~/conductor`, `~/cloud`, `~/go-transact`); new `.go` files start straight at `package` (an optional package-doc comment is fine).
 
 Licensed MIT (`LICENSE`, copyright DBOS, Inc., matching `~/ts-transact/LICENSE`); this repo is intended to be public, so keep README and help text publishable.
 
@@ -360,7 +360,7 @@ Sliced so that **every step ends with a binary you can run and a test that prove
 **B — configuration.** Named targets so nothing after this retypes `--url`, and a place to persist a login.
 
 - [x] **B1. Profiles** — `internal/config`, precedence flag > env > profile, `dbos config list|use|set|show`. Retrofits A4's `app list` off bare `--url` onto named profiles and gives every later milestone a configured target.
-- [ ] **B2. Credential store** — `internal/creds`: the `Store` interface with its one v1 backend (per-profile `0600` file under `os.UserConfigDir()/dbos/`, read-only `./.dbos/credentials` fallback). The interface is the seam the F7 keychain backend drops into.
+- [x] **B2. Credential store** — `internal/creds`: the `Store` interface with its one v1 backend (per-profile `0600` file under `os.UserConfigDir()/dbos/`, read-only `./.dbos/credentials` fallback). The interface is the seam the F7 keychain backend drops into.
 
 **C — auth.** Unlocks authenticated (bearer) reach — cloud and self-hosted OIDC — for every milestone that follows. Each step is independently testable; C1 needs no conductor at all.
 
