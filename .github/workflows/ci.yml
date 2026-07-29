@@ -25,3 +25,22 @@ jobs:
       - run: make lint
       - run: make build
       - run: make test
+
+  integration:
+    # Container-backed (tier 3). Runs only when a conductor image with the API
+    # is configured: CI has no conductor checkout, and the harness fails (rather
+    # than assume a location) with no source set — so gate the whole job on the
+    # CONDUCTOR_IMAGE repo variable. Set it once such an image is published. The
+    # license key still gates the tier at runtime (fork PRs get no secret → skip).
+    if: ${{ vars.CONDUCTOR_IMAGE != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: integration tests
+        env:
+          DBOS_CONDUCTOR_LICENSE_KEY: ${{ secrets.CONDUCTOR_LOCAL_LICENSE_KEY }}
+          CONDUCTOR_IMAGE: ${{ vars.CONDUCTOR_IMAGE }}
+        run: make test-integration

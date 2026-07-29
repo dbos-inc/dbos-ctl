@@ -30,6 +30,10 @@ build:
 test:
 	go test ./...
 
+## test-integration: container-backed tests (needs Docker; see Testing in AGENTS.md)
+test-integration:
+	go test -tags integration -timeout 20m ./...
+
 ## lint: go vet + gofmt check
 lint:
 	go vet ./...
