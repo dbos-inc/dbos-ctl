@@ -1,6 +1,6 @@
 module github.com/dbos-inc/dbos-cli
 
-go 1.26
+go 1.25
 
 require github.com/spf13/cobra v1.10.2
 

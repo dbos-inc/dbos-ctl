@@ -1,4 +1,7 @@
-dbos-cli
+# Built binary (root-anchored so it doesn't match the cmd/dbos/ source dir).
+/dbos
+# goreleaser output.
+/dist/
 openapi.json
 
 # Local test configuration — holds the conductor license key. Never commit.
