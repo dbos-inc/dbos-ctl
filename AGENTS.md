@@ -12,7 +12,7 @@ This file provides guidance to coding agents when working with code in this repo
 
 ## Repository state
 
-`dbos-cli` is a Go CLI that wraps the **DBOS Conductor v2 API**. As of the last update it is still an unmodified `cobra-cli init` scaffold (single commit, "scaffold"): only `main.go`, `cmd/root.go`, and `cmd/version.go` exist, and their `Short`/`Long` strings are Cobra's placeholder text. Replace that boilerplate as commands land rather than copying it into new files. **A2 restructures this scaffold** — root `main.go` → `cmd/dbos/main.go`, and the `cmd/` command package → `internal/cli` (see Architecture) — so the binary is `dbos`; don't build new commands onto the scaffold's root layout.
+`dbos-cli` is a Go CLI that wraps the **DBOS Conductor v2 API**. As of the last update it is still an unmodified `cobra-cli init` scaffold (single commit, "scaffold"): only `main.go`, `cmd/root.go`, and `cmd/version.go` exist, and their `Short`/`Long` strings are Cobra's placeholder text. Replace that boilerplate as commands land rather than copying it into new files. **No per-file copyright/license headers** — `LICENSE` (MIT, DBOS, Inc.) covers the whole repo, matching every sibling DBOS repo (`~/conductor`, `~/cloud`, `~/go-transact`); new `.go` files start straight at `package` (an optional package-doc comment is fine). **A2 restructures this scaffold** — root `main.go` → `cmd/dbos/main.go`, and the `cmd/` command package → `internal/cli` (see Architecture) — so the binary is `dbos`; don't build new commands onto the scaffold's root layout.
 
 Licensed MIT (`LICENSE`, copyright DBOS, Inc., matching `~/ts-transact/LICENSE`); this repo is intended to be public, so keep README and help text publishable.
 
