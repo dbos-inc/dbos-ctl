@@ -1,15 +1,20 @@
 package cli
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/dbos-inc/dbos-cli/internal/api"
+	"github.com/dbos-inc/dbos-cli/internal/auth"
 	"github.com/dbos-inc/dbos-cli/internal/client"
 	"github.com/dbos-inc/dbos-cli/internal/config"
+	"github.com/dbos-inc/dbos-cli/internal/creds"
 	"github.com/dbos-inc/dbos-cli/internal/output"
 )
 
@@ -24,7 +29,7 @@ func settings(cmd *cobra.Command) (config.Settings, error) {
 	if err != nil {
 		return config.Settings{}, err
 	}
-	url, err := field(cmd, "url", "DBOS_URL")
+	urlSrc, err := field(cmd, "url", "DBOS_URL")
 	if err != nil {
 		return config.Settings{}, err
 	}
@@ -36,7 +41,7 @@ func settings(cmd *cobra.Command) (config.Settings, error) {
 	if err != nil {
 		return config.Settings{}, err
 	}
-	return f.Resolve(config.Inputs{Profile: profile, URL: url, Org: org, App: app})
+	return f.Resolve(config.Inputs{Profile: profile, URL: urlSrc, Org: org, App: app})
 }
 
 // field reads one setting's flag value (with whether the flag was set) and its
@@ -62,10 +67,96 @@ func resolvedFormat(cmd *cobra.Command) (output.Format, error) {
 	return output.ParseFormat(v)
 }
 
-// newClient builds a no-auth Conductor client for the resolved base URL. Bearer
-// injection is added by the auth milestone.
-func newClient(s config.Settings) (*api.ClientWithResponses, error) {
-	return client.New(client.Config{BaseURL: s.URL})
+// clientFor resolves settings and builds a Conductor client with the bearer
+// token attached (empty for a no-auth request). It returns the settings too, so
+// callers get the resolved org/app.
+func clientFor(cmd *cobra.Command) (*api.ClientWithResponses, config.Settings, error) {
+	s, err := settings(cmd)
+	if err != nil {
+		return nil, s, err
+	}
+	token, err := bearerToken(cmd, s)
+	if err != nil {
+		return nil, s, err
+	}
+	c, err := client.New(client.Config{BaseURL: s.URL, Token: token})
+	return c, s, err
+}
+
+// bearerToken resolves the bearer token for a request, or "" for a no-auth
+// request. Precedence: $DBOS_TOKEN (which implies bearer) > the profile's stored
+// login. A dbos_ API key is sent as-is; an OIDC access token is refreshed when
+// it has expired.
+func bearerToken(cmd *cobra.Command, s config.Settings) (string, error) {
+	if t := os.Getenv("DBOS_TOKEN"); t != "" {
+		return t, nil
+	}
+	if s.Auth != config.AuthBearer {
+		return "", nil
+	}
+	store, err := creds.NewFileStore()
+	if err != nil {
+		return "", err
+	}
+	c, err := store.Load(s.Profile)
+	if errors.Is(err, creds.ErrNotFound) {
+		return "", notLoggedIn(s.Profile)
+	}
+	if err != nil {
+		return "", err
+	}
+	if strings.HasPrefix(c.Token, "dbos_") {
+		return c.Token, nil // static API key: never refreshed
+	}
+	if c.ExpiresAt > 0 && time.Now().Unix() >= c.ExpiresAt {
+		return refreshStored(cmd.Context(), s, store, c)
+	}
+	return c.Token, nil
+}
+
+// refreshStored exchanges the stored refresh token for a fresh access token and
+// persists it, returning the new access token.
+func refreshStored(ctx context.Context, s config.Settings, store creds.Store, c *creds.Creds) (string, error) {
+	if c.RefreshToken == "" {
+		return "", fmt.Errorf("session for profile %q has expired; run `dbos login`", s.Profile)
+	}
+	oidc, err := effectiveOIDC(s)
+	if err != nil {
+		return "", err
+	}
+	tok, err := auth.Refresh(ctx, auth.Config{Issuer: oidc.Issuer, ClientID: oidc.ClientID, Audience: oidc.Audience}, c.RefreshToken)
+	if err != nil {
+		return "", fmt.Errorf("refreshing session for profile %q (try `dbos login`): %w", s.Profile, err)
+	}
+	updated := *c
+	updated.Token = tok.AccessToken
+	if tok.RefreshToken != "" {
+		updated.RefreshToken = tok.RefreshToken
+	}
+	if tok.ExpiresIn > 0 {
+		updated.ExpiresAt = time.Now().Add(time.Duration(tok.ExpiresIn) * time.Second).Unix()
+	}
+	if err := store.Save(s.Profile, &updated); err != nil {
+		return "", err
+	}
+	return updated.Token, nil
+}
+
+// effectiveOIDC returns the OIDC config for login/refresh. Resolve populates it
+// for cloud profiles (from the domain) and self-hosted OIDC profiles (from the
+// oidc block); a target with neither can't run the device flow.
+func effectiveOIDC(s config.Settings) (config.OIDC, error) {
+	if s.OIDC == nil || s.OIDC.Issuer == "" {
+		return config.OIDC{}, fmt.Errorf("profile %q has no login config; set --issuer and --client-id with `dbos config set`", s.Profile)
+	}
+	return *s.OIDC, nil
+}
+
+func notLoggedIn(profile string) error {
+	if profile == "" {
+		return fmt.Errorf("not logged in (run `dbos login`)")
+	}
+	return fmt.Errorf("not logged in for profile %q (run `dbos login`)", profile)
 }
 
 // apiError formats a non-2xx Conductor response. This is the minimal surface;

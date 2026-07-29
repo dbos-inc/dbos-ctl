@@ -109,6 +109,37 @@ func Login(ctx context.Context, cfg Config, prompt func(DeviceAuth)) (*Token, er
 	return pollToken(ctx, hc, prov, cfg, da)
 }
 
+// Refresh exchanges a refresh token for a fresh access token (RFC 6749 §6),
+// rediscovering the token endpoint from the issuer. A rotated refresh token, if
+// the provider returns one, is on the result.
+func Refresh(ctx context.Context, cfg Config, refreshToken string) (*Token, error) {
+	hc := cfg.HTTPClient
+	if hc == nil {
+		hc = http.DefaultClient
+	}
+	prov, err := Discover(ctx, hc, cfg.Issuer)
+	if err != nil {
+		return nil, err
+	}
+	form := url.Values{}
+	form.Set("grant_type", "refresh_token")
+	form.Set("refresh_token", refreshToken)
+	form.Set("client_id", cfg.ClientID)
+	resp, err := postForm(ctx, hc, prov.TokenEndpoint, form)
+	if err != nil {
+		return nil, fmt.Errorf("refreshing token: %w", err)
+	}
+	unused := 0
+	tok, _, err := parseTokenResponse(resp, &unused)
+	if err != nil {
+		return nil, err
+	}
+	if tok == nil {
+		return nil, errors.New("refresh did not return a token")
+	}
+	return tok, nil
+}
+
 func requestDeviceCode(ctx context.Context, hc *http.Client, prov *Provider, cfg Config) (*DeviceAuth, error) {
 	form := url.Values{}
 	form.Set("client_id", cfg.ClientID)

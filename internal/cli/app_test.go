@@ -32,6 +32,7 @@ func isolateConfig(t *testing.T) {
 	t.Setenv("DBOS_URL", "")
 	t.Setenv("DBOS_ORG", "")
 	t.Setenv("DBOS_APP", "")
+	t.Setenv("DBOS_TOKEN", "")
 }
 
 const oneAppJSON = `[{"name":"myapp","status":"ACTIVE","language":"python","id":"a1","orgId":"local","dbosCloud":false,"executorTimeoutSecs":0,"privateMode":false}]`

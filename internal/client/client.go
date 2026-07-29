@@ -1,10 +1,10 @@
 // Package client builds a configured Conductor API client from a resolved base
-// URL. This is the no-auth path; bearer injection for authenticated
-// deployments is added by the auth milestone via a request editor, which is why
-// New already funnels through a single construction point.
+// URL and optional bearer token. A single construction point attaches the
+// Authorization header via a request editor when a token is present.
 package client
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -25,12 +25,17 @@ type Config struct {
 	// generated /v2/... operation paths land correctly.
 	BaseURL string
 
+	// Token, when non-empty, is sent as `Authorization: Bearer <token>` on every
+	// request. Empty means no authentication (selfhosted). The value is either an
+	// OIDC access token or a dbos_ API key — both are bearer tokens to conductor.
+	Token string
+
 	// HTTPClient, when set, replaces the default HTTP client — tests point it at
 	// an httptest server; production leaves it nil.
 	HTTPClient api.HttpRequestDoer
 }
 
-// New builds a Conductor API client. It performs no authentication.
+// New builds a Conductor API client, attaching a bearer token when one is set.
 func New(cfg Config) (*api.ClientWithResponses, error) {
 	base := strings.TrimSpace(cfg.BaseURL)
 	if base == "" {
@@ -44,7 +49,16 @@ func New(cfg Config) (*api.ClientWithResponses, error) {
 	if doer == nil {
 		doer = &http.Client{Timeout: defaultTimeout}
 	}
-	return api.NewClientWithResponses(base, api.WithHTTPClient(doer))
+
+	opts := []api.ClientOption{api.WithHTTPClient(doer)}
+	if cfg.Token != "" {
+		token := cfg.Token
+		opts = append(opts, api.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
+			req.Header.Set("Authorization", "Bearer "+token)
+			return nil
+		}))
+	}
+	return api.NewClientWithResponses(base, opts...)
 }
 
 // validateBaseURL rejects obviously-unusable URLs up front, so the failure

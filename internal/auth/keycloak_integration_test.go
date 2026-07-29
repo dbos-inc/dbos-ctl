@@ -73,7 +73,7 @@ func startKeycloak(t *testing.T) string {
 // that returns a real authorization_pending. The final approval is a human
 // browser step (there is no API for it) and tests Keycloak's UI, not our code;
 // the token-success path is covered by the mock in auth_test.go.
-func TestDeviceFlowAgainstKeycloak(t *testing.T) {
+func TestAuthAgainstKeycloak(t *testing.T) {
 	base := startKeycloak(t)
 	issuer := base + "/realms/dbos"
 
@@ -147,7 +147,8 @@ func TestDeviceFlowAgainstKeycloak(t *testing.T) {
 		t.Fatalf("password grant: %s: %s", pwResp.Status, strings.TrimSpace(string(pwBody)))
 	}
 	var minted struct {
-		AccessToken string `json:"access_token"`
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
 	}
 	if err := json.Unmarshal(pwBody, &minted); err != nil {
 		t.Fatal(err)
@@ -156,5 +157,19 @@ func TestDeviceFlowAgainstKeycloak(t *testing.T) {
 	if strings.Count(minted.AccessToken, ".") != 2 {
 		t.Fatalf("expected a signed JWT, got %q", minted.AccessToken)
 	}
+	if minted.RefreshToken == "" {
+		t.Fatal("password grant returned no refresh token")
+	}
 	t.Logf("real Keycloak minted a signed JWT (%d bytes)", len(minted.AccessToken))
+
+	// Exercise our refresh code (RFC 6749 refresh grant) against real Keycloak:
+	// the refresh token above should yield a fresh access token.
+	refreshed, err := Refresh(ctx, cfg, minted.RefreshToken)
+	if err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	if strings.Count(refreshed.AccessToken, ".") != 2 {
+		t.Fatalf("refreshed token is not a JWT: %q", refreshed.AccessToken)
+	}
+	t.Logf("real Keycloak: auth.Refresh returned a fresh JWT (%d bytes)", len(refreshed.AccessToken))
 }

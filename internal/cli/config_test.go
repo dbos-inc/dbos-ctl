@@ -20,8 +20,35 @@ func newConfigSetCmd() *cobra.Command {
 	c.Flags().String("issuer", "", "")
 	c.Flags().String("audience", "", "")
 	c.Flags().String("client-id", "", "")
+	c.Flags().String("domain", "", "")
 	c.SetContext(context.Background())
 	return c
+}
+
+func TestConfigSetDomain(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	set := newConfigSetCmd()
+	_ = set.Flags().Set("domain", "staging.dev.dbos.dev")
+	set.SetOut(&bytes.Buffer{})
+	if err := runConfigSet(set, []string{"staging"}); err != nil {
+		t.Fatal(err)
+	}
+	f, err := config.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := f.Profiles["staging"].Domain; got != "staging.dev.dbos.dev" {
+		t.Errorf("domain = %q, not saved", got)
+	}
+
+	// A URL passed as --domain is rejected.
+	set2 := newConfigSetCmd()
+	_ = set2.Flags().Set("domain", "https://staging.dev.dbos.dev")
+	set2.SetOut(&bytes.Buffer{})
+	if err := runConfigSet(set2, []string{"bad"}); err == nil {
+		t.Error("a URL as --domain should error")
+	}
 }
 
 func TestConfigSetUseListShow(t *testing.T) {

@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -50,6 +51,10 @@ func init() {
 	configSetCmd.Flags().String("issuer", "", "OIDC issuer URL (bearer profiles)")
 	configSetCmd.Flags().String("audience", "", "OIDC audience (bearer profiles)")
 	configSetCmd.Flags().String("client-id", "", "OIDC client ID (bearer profiles)")
+	// A DBOS Cloud profile: derives url + bearer auth + the Auth0 tenant.
+	// Hidden — non-production clusters are for internal use.
+	configSetCmd.Flags().String("domain", "", "DBOS Cloud domain")
+	_ = configSetCmd.Flags().MarkHidden("domain")
 
 	configCmd.AddCommand(configListCmd, configShowCmd, configUseCmd, configSetCmd)
 	rootCmd.AddCommand(configCmd)
@@ -98,14 +103,20 @@ func runConfigShow(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("profile %q not found", name)
 	}
 
-	auth := p.Auth
-	if auth == "" {
-		auth = config.AuthNone
-	}
 	w := cmd.OutOrStdout()
 	fmt.Fprintf(w, "name      %s\n", name)
-	fmt.Fprintf(w, "auth      %s\n", auth)
-	fmt.Fprintf(w, "url       %s\n", p.URL)
+	if p.Domain != "" {
+		// A cloud profile derives url + bearer auth from the domain.
+		fmt.Fprintf(w, "domain    %s\n", p.Domain)
+		fmt.Fprintf(w, "auth      bearer\n")
+	} else {
+		auth := p.Auth
+		if auth == "" {
+			auth = config.AuthNone
+		}
+		fmt.Fprintf(w, "auth      %s\n", auth)
+		fmt.Fprintf(w, "url       %s\n", p.URL)
+	}
 	if p.Org != "" {
 		fmt.Fprintf(w, "org       %s\n", p.Org)
 	}
@@ -175,6 +186,13 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 		if cmd.Flags().Changed("client-id") {
 			p.OIDC.ClientID, _ = cmd.Flags().GetString("client-id")
 		}
+	}
+	if cmd.Flags().Changed("domain") {
+		d, _ := cmd.Flags().GetString("domain")
+		if strings.Contains(d, "/") {
+			return fmt.Errorf("--domain should be a bare host like cloud.dbos.dev, not a URL")
+		}
+		p.Domain = d
 	}
 
 	if f.Profiles == nil {
