@@ -54,6 +54,12 @@ func List[T any](w io.Writer, format Format, rows []T, cols []Column[T]) error {
 	}
 }
 
+// JSON renders a single value as indented JSON — the raw API shape for a
+// single-object response, as List does for arrays.
+func JSON(w io.Writer, v any) error {
+	return writeJSON(w, v)
+}
+
 func writeJSON(w io.Writer, v any) error {
 	b, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
