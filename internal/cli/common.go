@@ -142,6 +142,16 @@ func effectiveOrg(ctx context.Context, c *api.ClientWithResponses, s config.Sett
 	return resp.JSON200.OrgName, nil
 }
 
+// effectiveApp resolves the application name for an app-scoped request. Its
+// value is already flag > env > profile (Resolve fills s.App); this only turns
+// an empty result into a clear error naming how to set it.
+func effectiveApp(s config.Settings) (string, error) {
+	if s.App == "" {
+		return "", fmt.Errorf("no application set; pass -a/--app, set $DBOS_APP, or add an app to the profile")
+	}
+	return s.App, nil
+}
+
 // storedOrg returns the organization captured at login for the profile, or ""
 // if there is no stored login (or it predates org capture — e.g. a TS-CLI login
 // without an organization).

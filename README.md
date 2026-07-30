@@ -95,6 +95,10 @@ Two ways to bypass the flow:
 | `dbos app update <name>` | Update tuning settings (e.g. `--executor-timeout-secs`, `--private-mode`) |
 | `dbos app set-version <name> <version>` | Set the application's latest version |
 | `dbos app delete <name>` | Delete an application (prompts to confirm; `--force` required when non-interactive) |
+| `dbos workflow list` | List workflows, filterable (`--status`, `--name`, `--since 1h`, …; alias `wf`) |
+| `dbos workflow get <id>` | Show a workflow's details (app-scoped, needs `--app`) |
+| `dbos workflow steps <id>` | List a workflow's steps |
+| `dbos workflow events <id>` | List a workflow's events |
 | `dbos api-key list` | List API keys (aliases: `token`, `apikey`) |
 | `dbos api-key create <name>` | Create an API key — prints the secret once; scope with `--app`/`--permission` |
 | `dbos api-key delete <name>` | Delete an API key |

@@ -425,6 +425,14 @@ func fmtTime(t time.Time) string {
 	return t.UTC().Format(time.RFC3339)
 }
 
+// fmtTimePtr renders an optional API timestamp for a cell, empty for nil.
+func fmtTimePtr(t *time.Time) string {
+	if t == nil {
+		return ""
+	}
+	return fmtTime(*t)
+}
+
 // derefInt64 renders an optional int64 field, empty for nil.
 func derefInt64(p *int64) string {
 	if p == nil {

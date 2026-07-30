@@ -17,9 +17,15 @@ import (
 	"github.com/dbos-inc/dbos-cli/internal/conductortest"
 )
 
-// spikeWorkflow is a trivial registered workflow so the executor has something
-// to run (needed later for the metrics read).
-func spikeWorkflow(_ dbos.Context, in string) (string, error) { return in, nil }
+// spikeWorkflow is a trivial registered workflow that runs one step and sets one
+// event, so the executor has something to run (metrics) and `workflow steps` /
+// `workflow events` have a row to return.
+func spikeWorkflow(ctx dbos.Context, in string) (string, error) {
+	if err := dbos.SetEvent(ctx, "status", "done"); err != nil {
+		return "", err
+	}
+	return dbos.RunAsStep(ctx, func(context.Context) (string, error) { return in, nil })
+}
 
 // startExecutor launches an in-process Go DBOS app that connects to the harness
 // conductor as an executor for appName, backed by a temp-file SQLite system DB
@@ -47,6 +53,88 @@ func startExecutor(t *testing.T, conductorHTTPURL, apiKey, appName string) dbos.
 	}
 	t.Cleanup(func() { _ = dbos.Shutdown(dctx, 5*time.Second) })
 	return dctx
+}
+
+// TestWorkflowReadsIntegration (E1a) reuses the executor fixture: it runs a
+// workflow on a connected executor and reads it back through the CLI — `workflow
+// get` (dispatched live to the executor, exercising the detail renderer),
+// `workflow steps` (the one step), and `workflow events` (empty but valid).
+func TestWorkflowReadsIntegration(t *testing.T) {
+	baseURL := conductortest.Start(t)
+	const appName = "e1-app"
+
+	seed, err := newSeedClient(baseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registerAppOrFail(t, seed, "local", appName)
+	apiKey := mintKeyOrFail(t, seed, "local", appName+"-key")
+
+	dctx := startExecutor(t, baseURL, apiKey, appName)
+	h, err := dbos.RunWorkflow(dctx, spikeWorkflow, "hi")
+	if err != nil {
+		t.Fatalf("run workflow: %v", err)
+	}
+	if _, err := h.GetResult(); err != nil {
+		t.Fatalf("workflow result: %v", err)
+	}
+	id := h.GetWorkflowID()
+
+	wfCmd := func() (*cobra.Command, *strings.Builder) {
+		cmd := newCmdWithGlobals()
+		_ = cmd.Flags().Set("url", baseURL)
+		_ = cmd.Flags().Set("org", "local")
+		_ = cmd.Flags().Set("app", appName)
+		out := &strings.Builder{}
+		cmd.SetOut(out)
+		return cmd, out
+	}
+
+	// workflow get — dispatched live to the executor; poll (tolerating a brief
+	// not-yet-visible window) until it returns the workflow.
+	var getOut string
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		cmd, out := wfCmd()
+		if err := runWorkflowGet(cmd, []string{id}); err == nil && strings.Contains(out.String(), id) {
+			getOut = out.String()
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	if !strings.Contains(getOut, id) {
+		t.Fatalf("workflow get never returned %q", id)
+	}
+	if !strings.Contains(getOut, "SUCCESS") {
+		t.Errorf("expected SUCCESS status in:\n%s", getOut)
+	}
+
+	// workflow steps — the workflow ran one step.
+	stepsCmd, stepsOut := wfCmd()
+	if err := runWorkflowSteps(stepsCmd, []string{id}); err != nil {
+		t.Fatalf("workflow steps: %v", err)
+	}
+	if strings.Count(strings.TrimSpace(stepsOut.String()), "\n") < 1 {
+		t.Errorf("expected at least one step:\n%s", stepsOut.String())
+	}
+
+	// workflow events — the workflow set a "status" event.
+	eventsCmd, eventsOut := wfCmd()
+	if err := runWorkflowEvents(eventsCmd, []string{id}); err != nil {
+		t.Fatalf("workflow events: %v", err)
+	}
+	if !strings.Contains(eventsOut.String(), "status") {
+		t.Errorf("expected the 'status' event:\n%s", eventsOut.String())
+	}
+
+	// workflow list — the workflow appears in the (unfiltered) search.
+	listCmd, listOut := wfCmd()
+	if err := runWorkflowList(listCmd, nil); err != nil {
+		t.Fatalf("workflow list: %v", err)
+	}
+	if !strings.Contains(listOut.String(), id) {
+		t.Errorf("workflow list missing %q:\n%s", id, listOut.String())
+	}
 }
 
 // pollForRow polls an app read (built on a fresh org-scoped command each try)
