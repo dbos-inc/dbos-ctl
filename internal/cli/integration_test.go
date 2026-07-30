@@ -204,6 +204,54 @@ func TestAppRegisterDeleteIntegration(t *testing.T) {
 	}
 }
 
+// TestAppReadsBareIntegration covers the D2 reads that don't need a live
+// executor, against a real no-auth Conductor: `app get` returns the registered
+// app's details (exercising the detail renderer end to end), and `app executors`
+// succeeds with an empty list (it's DB-backed, so a bare app is valid). The
+// versions/metrics reads dispatch to a live executor, so they're covered by the
+// executor-fixture test, not here.
+func TestAppReadsBareIntegration(t *testing.T) {
+	baseURL := conductortest.Start(t)
+	ctx := context.Background()
+	const appName = "d2-reads"
+
+	seed, err := api.NewClientWithResponses(baseURL)
+	if err != nil {
+		t.Fatalf("client: %v", err)
+	}
+	reg, err := seed.RegisterAppWithResponse(ctx, "local", appName, api.RegisterAppJSONRequestBody{})
+	if err != nil {
+		t.Fatalf("register app: %v", err)
+	}
+	if reg.StatusCode() >= 300 {
+		t.Fatalf("register app: HTTP %d: %s", reg.StatusCode(), reg.Body)
+	}
+
+	appCmd := func() (*cobra.Command, *bytes.Buffer) {
+		cmd := newCmdWithGlobals()
+		_ = cmd.Flags().Set("url", baseURL)
+		_ = cmd.Flags().Set("org", "local")
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		return cmd, &out
+	}
+
+	// app get → the registered app's details.
+	get, out := appCmd()
+	if err := runAppGet(get, []string{appName}); err != nil {
+		t.Fatalf("app get: %v", err)
+	}
+	if got := out.String(); !strings.Contains(got, appName) {
+		t.Errorf("app get missing the app name:\n%s", got)
+	}
+
+	// app executors → empty list, no error (DB-backed; no executor connected).
+	execs, _ := appCmd()
+	if err := runAppExecutors(execs, []string{appName}); err != nil {
+		t.Errorf("app executors on a bare app should succeed (empty), got: %v", err)
+	}
+}
+
 // saveBearerProfile writes a single current bearer profile at url, optionally
 // scoped to org.
 func saveBearerProfile(t *testing.T, url, org string) {

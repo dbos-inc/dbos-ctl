@@ -1,6 +1,6 @@
 // Package output renders command results as an aligned table or raw JSON,
-// selected by the -o/--output flag. Array responses go through List; the
-// single-object key/value detail view lands with the app-reads milestone.
+// selected by the -o/--output flag. Array responses go through List; a single
+// object goes through Detail as an aligned label/value block.
 package output
 
 import (
@@ -58,6 +58,46 @@ func List[T any](w io.Writer, format Format, rows []T, cols []Column[T]) error {
 // single-object response, as List does for arrays.
 func JSON(w io.Writer, v any) error {
 	return writeJSON(w, v)
+}
+
+// Field projects one labeled value from a detail object of type T — Detail's
+// single-object analog of Column.
+type Field[T any] struct {
+	Label string
+	Value func(T) string
+}
+
+// Detail renders a single object: an aligned "label  value" block in table
+// format, or the raw object as indented JSON. As with List, json is deliberately
+// the raw API shape and ignores the field projection. A field whose projected
+// value is empty is omitted from the table (nil/absent API fields don't clutter
+// the view); json still shows it.
+func Detail[T any](w io.Writer, format Format, v T, fields []Field[T]) error {
+	switch format {
+	case FormatJSON:
+		return writeJSON(w, v)
+	case FormatTable:
+		return writeDetail(w, v, fields)
+	default:
+		return fmt.Errorf("unknown output format %q", format)
+	}
+}
+
+func writeDetail[T any](w io.Writer, v T, fields []Field[T]) error {
+	if len(fields) == 0 {
+		return fmt.Errorf("detail output requires at least one field")
+	}
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	for _, f := range fields {
+		val := f.Value(v)
+		if val == "" {
+			continue // omit empty/absent fields from the detail view
+		}
+		if _, err := fmt.Fprintf(tw, "%s\t%s\n", f.Label, val); err != nil {
+			return err
+		}
+	}
+	return tw.Flush()
 }
 
 func writeJSON(w io.Writer, v any) error {

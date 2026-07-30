@@ -5,8 +5,10 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -398,6 +400,127 @@ func TestRunAppDeleteError(t *testing.T) {
 	err := runAppDelete(cmd, []string{"ghost"})
 	if err == nil || !strings.Contains(err.Error(), "Not Found") {
 		t.Errorf("want a Not Found error, got %v", err)
+	}
+}
+
+// appReadServer serves 200 JSON at exactly wantPath, capturing the request
+// query so a test can assert params (e.g. the metrics window) were sent.
+func appReadServer(t *testing.T, wantPath, body string) (*httptest.Server, *url.Values) {
+	t.Helper()
+	var gotQuery url.Values
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != wantPath {
+			t.Errorf("unexpected request path %q", r.URL.Path)
+			http.Error(w, "unexpected path", http.StatusNotFound)
+			return
+		}
+		gotQuery = r.URL.Query()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(srv.Close)
+	return srv, &gotQuery
+}
+
+func appReadCmd(t *testing.T, url string) (*cobra.Command, *bytes.Buffer) {
+	t.Helper()
+	cmd := newCmdWithGlobals()
+	_ = cmd.Flags().Set("url", url)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	return cmd, &out
+}
+
+func TestRunAppGet(t *testing.T) {
+	isolateConfig(t)
+	const body = `{"name":"myapp","id":"a1","status":"ACTIVE","language":"python","orgId":"local","dbosCloud":false,"privateMode":false,"executorTimeoutSecs":60,"gcRowsThreshold":null,"gcTimeThresholdMs":null,"globalTimeoutMs":null}`
+	srv, _ := appReadServer(t, "/v2/orgs/local/apps/myapp", body)
+
+	cmd, out := appReadCmd(t, srv.URL)
+	if err := runAppGet(cmd, []string{"myapp"}); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	for _, want := range []string{"name", "myapp", "status", "ACTIVE", "language", "python", "executorTimeoutSecs", "60"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("app get detail missing %q:\n%s", want, got)
+		}
+	}
+	// Absent (null) pointer fields are omitted from the detail table.
+	if strings.Contains(got, "gcRowsThreshold") {
+		t.Errorf("app get should omit the null gcRowsThreshold field:\n%s", got)
+	}
+}
+
+func TestRunAppGetJSON(t *testing.T) {
+	isolateConfig(t)
+	const body = `{"name":"myapp","id":"a1","status":"ACTIVE","language":"python","orgId":"local","dbosCloud":false,"privateMode":false,"executorTimeoutSecs":60,"gcRowsThreshold":null,"gcTimeThresholdMs":null,"globalTimeoutMs":null}`
+	srv, _ := appReadServer(t, "/v2/orgs/local/apps/myapp", body)
+
+	cmd, out := appReadCmd(t, srv.URL)
+	_ = cmd.Flags().Set("output", "json")
+	if err := runAppGet(cmd, []string{"myapp"}); err != nil {
+		t.Fatal(err)
+	}
+	// json is the raw shape, so even the null gc fields appear.
+	if got := out.String(); !strings.Contains(got, `"gcRowsThreshold"`) || !strings.Contains(got, `"name": "myapp"`) {
+		t.Errorf("app get -o json not the raw shape:\n%s", got)
+	}
+}
+
+func TestRunAppVersions(t *testing.T) {
+	isolateConfig(t)
+	const body = `[{"versionName":"v1","versionId":"ver-1","versionTimestamp":"2026-07-30T10:00:00Z","createdAt":"2026-07-30T10:00:00Z"}]`
+	srv, _ := appReadServer(t, "/v2/orgs/local/apps/myapp/versions", body)
+
+	cmd, out := appReadCmd(t, srv.URL)
+	if err := runAppVersions(cmd, []string{"myapp"}); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	for _, want := range []string{"NAME", "ID", "TIMESTAMP", "v1", "ver-1"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("app versions missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestRunAppExecutors(t *testing.T) {
+	isolateConfig(t)
+	const body = `[{"executorId":"exec-1","status":"HEALTHY","appId":"a1","appVersion":"v1","language":"go","hostname":"host-1","createdAt":"2026-07-30T10:00:00Z","updatedAt":"2026-07-30T10:00:00Z"}]`
+	srv, _ := appReadServer(t, "/v2/orgs/local/apps/myapp/executors", body)
+
+	cmd, out := appReadCmd(t, srv.URL)
+	if err := runAppExecutors(cmd, []string{"myapp"}); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	for _, want := range []string{"EXECUTOR", "STATUS", "exec-1", "HEALTHY", "host-1", "go"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("app executors missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestRunAppMetrics(t *testing.T) {
+	isolateConfig(t)
+	const body = `[{"appId":"a1","granularity":60,"metricName":"workflow_count","metricType":"workflow_count","timeBucket":"2026-07-30T10:00:00Z","value":5}]`
+	srv, query := appReadServer(t, "/v2/orgs/local/apps/myapp/metrics", body)
+
+	cmd, out := appReadCmd(t, srv.URL)
+	cmd.Flags().Duration("since", 24*time.Hour, "")
+	if err := runAppMetrics(cmd, []string{"myapp"}); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	for _, want := range []string{"METRIC", "VALUE", "workflow_count", "5"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("app metrics missing %q:\n%s", want, got)
+		}
+	}
+	// The required window must be sent as query params.
+	if query.Get("startTime") == "" || query.Get("endTime") == "" {
+		t.Errorf("metrics request missing time window: %v", query)
 	}
 }
 

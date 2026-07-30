@@ -88,3 +88,51 @@ func TestListUnknownFormat(t *testing.T) {
 		t.Error("unknown format = nil error, want error")
 	}
 }
+
+func testFields() []Field[row] {
+	return []Field[row]{
+		{Label: "name", Value: func(r row) string { return r.Name }},
+		{Label: "status", Value: func(r row) string { return r.Status }},
+	}
+}
+
+func TestDetailTable(t *testing.T) {
+	var buf bytes.Buffer
+	if err := Detail(&buf, FormatTable, row{"app1", "RUNNING"}, testFields()); err != nil {
+		t.Fatal(err)
+	}
+	want := "name    app1\nstatus  RUNNING\n"
+	if got := buf.String(); got != want {
+		t.Errorf("detail table mismatch:\n got: %q\nwant: %q", got, want)
+	}
+}
+
+func TestDetailTableOmitsEmpty(t *testing.T) {
+	var buf bytes.Buffer
+	// An empty projected value (an absent/nil API field) is left out entirely.
+	if err := Detail(&buf, FormatTable, row{"app1", ""}, testFields()); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := buf.String(), "name  app1\n"; got != want {
+		t.Errorf("detail omit-empty mismatch:\n got: %q\nwant: %q", got, want)
+	}
+}
+
+func TestDetailJSON(t *testing.T) {
+	var buf bytes.Buffer
+	// json is the raw object; the field projection (and omit-empty) do not apply.
+	if err := Detail(&buf, FormatJSON, row{"app1", ""}, testFields()); err != nil {
+		t.Fatal(err)
+	}
+	want := "{\n  \"name\": \"app1\",\n  \"status\": \"\"\n}\n"
+	if got := buf.String(); got != want {
+		t.Errorf("detail json mismatch:\n got: %q\nwant: %q", got, want)
+	}
+}
+
+func TestDetailNoFields(t *testing.T) {
+	var buf bytes.Buffer
+	if err := Detail(&buf, FormatTable, row{"a", "b"}, nil); err == nil {
+		t.Error("detail with no fields = nil error, want error")
+	}
+}
