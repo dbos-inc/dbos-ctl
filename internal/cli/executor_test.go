@@ -314,6 +314,94 @@ func TestQueueScheduleReadsIntegration(t *testing.T) {
 	}
 }
 
+// TestScheduleMutationsIntegration (E4) sets up a schedule on the fixture and
+// exercises the mutations through the CLI: pause (verified via get→PAUSED),
+// resume (→ACTIVE), trigger (prints a started workflow ID), and backfill.
+func TestScheduleMutationsIntegration(t *testing.T) {
+	baseURL := conductortest.Start(t)
+	const appName = "e4-app"
+	const schedName = "e4-sched"
+
+	seed, err := newSeedClient(baseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registerAppOrFail(t, seed, "local", appName)
+	apiKey := mintKeyOrFail(t, seed, "local", appName+"-key")
+
+	dctx := startExecutor(t, baseURL, apiKey, appName, func(c dbos.Context) {
+		dbos.RegisterWorkflow(c, scheduledWorkflow)
+	})
+	if err := dbos.CreateSchedule(dctx, dbos.ScheduleSpec{
+		ScheduleName: schedName,
+		Schedule:     "0 0 0 * * *",
+		Workflow:     scheduledWorkflow,
+	}); err != nil {
+		t.Fatalf("create schedule: %v", err)
+	}
+
+	appCmd := func() (*cobra.Command, *strings.Builder) {
+		cmd := newCmdWithGlobals()
+		cmd.Flags().String("since", "", "") // for backfill
+		cmd.Flags().String("until", "", "")
+		_ = cmd.Flags().Set("url", baseURL)
+		_ = cmd.Flags().Set("org", "local")
+		_ = cmd.Flags().Set("app", appName)
+		out := &strings.Builder{}
+		cmd.SetOut(out)
+		return cmd, out
+	}
+	waitFor := func(name string, run func(*cobra.Command) error, want string) {
+		deadline := time.Now().Add(30 * time.Second)
+		var last string
+		for time.Now().Before(deadline) {
+			cmd, out := appCmd()
+			if err := run(cmd); err == nil {
+				last = out.String()
+				if strings.Contains(last, want) {
+					return
+				}
+			}
+			time.Sleep(time.Second)
+		}
+		t.Fatalf("%s never contained %q; last:\n%s", name, want, last)
+	}
+
+	// Wait for the schedule to be visible (executor connects asynchronously).
+	waitFor("schedule list", func(c *cobra.Command) error { return runScheduleList(c, nil) }, schedName)
+
+	// pause → get reports PAUSED.
+	pc, _ := appCmd()
+	if err := runSchedulePause(pc, []string{schedName}); err != nil {
+		t.Fatalf("schedule pause: %v", err)
+	}
+	waitFor("schedule get after pause", func(c *cobra.Command) error { return runScheduleGet(c, []string{schedName}) }, "PAUSED")
+
+	// resume → get reports ACTIVE.
+	rc, _ := appCmd()
+	if err := runScheduleResume(rc, []string{schedName}); err != nil {
+		t.Fatalf("schedule resume: %v", err)
+	}
+	waitFor("schedule get after resume", func(c *cobra.Command) error { return runScheduleGet(c, []string{schedName}) }, "ACTIVE")
+
+	// trigger → a started workflow ID on stdout.
+	tc, tout := appCmd()
+	if err := runScheduleTrigger(tc, []string{schedName}); err != nil {
+		t.Fatalf("schedule trigger: %v", err)
+	}
+	if strings.TrimSpace(tout.String()) == "" {
+		t.Errorf("schedule trigger printed no workflow ID")
+	}
+
+	// backfill over a window succeeds (the replayed IDs may be empty for the range).
+	bc, _ := appCmd()
+	_ = bc.Flags().Set("since", "1h")
+	_ = bc.Flags().Set("until", "0s")
+	if err := runScheduleBackfill(bc, []string{schedName}); err != nil {
+		t.Fatalf("schedule backfill: %v", err)
+	}
+}
+
 // pollForRow polls an app read (built on a fresh org-scoped command each try)
 // until its table has at least one data row, or the timeout passes. It returns
 // the last output and whether a row appeared.

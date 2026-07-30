@@ -103,6 +103,9 @@ Two ways to bypass the flow:
 | `dbos workflow fork <id>` | Fork a workflow into a new execution (prints the new ID; `--start-step`, `--new-id`) |
 | `dbos queue list \| get <name>` | Inspect queue definitions (app-scoped, needs `--app`) |
 | `dbos schedule list \| get <name>` | Inspect scheduled workflows |
+| `dbos schedule pause \| resume <name>` | Pause / resume a schedule |
+| `dbos schedule trigger <name>` | Fire a schedule now (prints the started workflow ID) |
+| `dbos schedule backfill <name> --since --until` | Replay a schedule over a window (prints the started workflow IDs) |
 | `dbos api-key list` | List API keys (aliases: `token`, `apikey`) |
 | `dbos api-key create <name>` | Create an API key — prints the secret once; scope with `--app`/`--permission` |
 | `dbos api-key delete <name>` | Delete an API key |
