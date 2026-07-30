@@ -192,6 +192,215 @@ func TestRunAppListUsesStoredOrg(t *testing.T) {
 	}
 }
 
+func TestConfirm(t *testing.T) {
+	cases := []struct {
+		in   string
+		want bool
+	}{
+		{"y\n", true}, {"yes\n", true}, {"Y\n", true}, {"YES\n", true},
+		{" y \n", true},
+		{"n\n", false}, {"no\n", false}, {"\n", false}, {"", false}, {"maybe\n", false},
+	}
+	for _, c := range cases {
+		var out bytes.Buffer
+		got, err := confirm(strings.NewReader(c.in), &out, "Delete?")
+		if err != nil {
+			t.Fatalf("confirm(%q): %v", c.in, err)
+		}
+		if got != c.want {
+			t.Errorf("confirm(%q) = %v, want %v", c.in, got, c.want)
+		}
+		if !strings.Contains(out.String(), "Delete? [y/N]") {
+			t.Errorf("confirm did not write the prompt: %q", out.String())
+		}
+	}
+}
+
+// appItemServer handles PUT/DELETE on /v2/orgs/local/apps/<name>, echoing the
+// method it saw so a test can assert the CLI used the right verb.
+func appItemServer(t *testing.T, name string, status int, contentType, body string) (*httptest.Server, *string) {
+	t.Helper()
+	var gotMethod string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v2/orgs/local/apps/"+name {
+			t.Errorf("unexpected request path %q", r.URL.Path)
+			http.Error(w, "unexpected path", http.StatusNotFound)
+			return
+		}
+		gotMethod = r.Method
+		if contentType != "" {
+			w.Header().Set("Content-Type", contentType)
+		}
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(srv.Close)
+	return srv, &gotMethod
+}
+
+func TestRunAppRegister(t *testing.T) {
+	isolateConfig(t)
+	srv, method := appItemServer(t, "myapp", http.StatusOK, "", "")
+
+	cmd := newCmdWithGlobals()
+	_ = cmd.Flags().Set("url", srv.URL)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	if err := runAppRegister(cmd, []string{"myapp"}); err != nil {
+		t.Fatal(err)
+	}
+	if *method != http.MethodPut {
+		t.Errorf("register used %s, want PUT", *method)
+	}
+	if got := out.String(); !strings.Contains(got, `registered app "myapp"`) {
+		t.Errorf("unexpected register output: %q", got)
+	}
+}
+
+func TestRunAppRegisterError(t *testing.T) {
+	isolateConfig(t)
+	srv, _ := appItemServer(t, "myapp", http.StatusForbidden, "application/problem+json",
+		`{"title":"Forbidden","detail":"nope","status":403}`)
+
+	cmd := newCmdWithGlobals()
+	_ = cmd.Flags().Set("url", srv.URL)
+	cmd.SetOut(&bytes.Buffer{})
+	err := runAppRegister(cmd, []string{"myapp"})
+	if err == nil || !strings.Contains(err.Error(), "Forbidden") {
+		t.Errorf("want a Forbidden error, got %v", err)
+	}
+}
+
+// setInteractive forces the prompt-or-not decision for a test, restoring it
+// afterward, so neither path depends on the test process's real stdin.
+func setInteractive(t *testing.T, v bool) {
+	t.Helper()
+	prev := isInteractive
+	isInteractive = func() bool { return v }
+	t.Cleanup(func() { isInteractive = prev })
+}
+
+func newDeleteCmd(t *testing.T, url string) *cobra.Command {
+	t.Helper()
+	cmd := newCmdWithGlobals()
+	cmd.Flags().Bool("force", false, "")
+	_ = cmd.Flags().Set("url", url)
+	return cmd
+}
+
+// TestRunAppDeleteNonInteractiveRequiresForce: a non-TTY stdin can't answer the
+// prompt, so without --force the delete is refused and nothing is sent.
+func TestRunAppDeleteNonInteractiveRequiresForce(t *testing.T) {
+	isolateConfig(t)
+	setInteractive(t, false)
+	srv, method := appItemServer(t, "myapp", http.StatusOK, "", "")
+
+	cmd := newDeleteCmd(t, srv.URL)
+	cmd.SetOut(&bytes.Buffer{})
+	err := runAppDelete(cmd, []string{"myapp"})
+	if err == nil || !strings.Contains(err.Error(), "--force") {
+		t.Fatalf("want a refusal mentioning --force, got %v", err)
+	}
+	if *method != "" {
+		t.Errorf("a refused delete still sent %q to the server", *method)
+	}
+}
+
+// TestRunAppDeleteNonInteractiveForce: the CI path — non-TTY, but --force lets
+// the delete proceed.
+func TestRunAppDeleteNonInteractiveForce(t *testing.T) {
+	isolateConfig(t)
+	setInteractive(t, false)
+	srv, method := appItemServer(t, "myapp", http.StatusOK, "", "")
+
+	cmd := newDeleteCmd(t, srv.URL)
+	_ = cmd.Flags().Set("force", "true")
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	if err := runAppDelete(cmd, []string{"myapp"}); err != nil {
+		t.Fatal(err)
+	}
+	if *method != http.MethodDelete {
+		t.Errorf("--force delete used %s, want DELETE", *method)
+	}
+	if got := out.String(); !strings.Contains(got, `deleted app "myapp"`) {
+		t.Errorf("unexpected delete output: %q", got)
+	}
+}
+
+// TestRunAppDeleteConfirmYes: interactive, user answers "y", delete proceeds.
+func TestRunAppDeleteConfirmYes(t *testing.T) {
+	isolateConfig(t)
+	setInteractive(t, true)
+	srv, method := appItemServer(t, "myapp", http.StatusOK, "", "")
+
+	cmd := newDeleteCmd(t, srv.URL)
+	cmd.SetIn(strings.NewReader("y\n"))
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	if err := runAppDelete(cmd, []string{"myapp"}); err != nil {
+		t.Fatal(err)
+	}
+	if *method != http.MethodDelete {
+		t.Errorf("after confirming, delete used %q, want DELETE", *method)
+	}
+}
+
+// TestRunAppDeleteConfirmNo: interactive, user answers "n", nothing is deleted.
+func TestRunAppDeleteConfirmNo(t *testing.T) {
+	isolateConfig(t)
+	setInteractive(t, true)
+	srv, method := appItemServer(t, "myapp", http.StatusOK, "", "")
+
+	cmd := newDeleteCmd(t, srv.URL)
+	cmd.SetIn(strings.NewReader("n\n"))
+	cmd.SetOut(&bytes.Buffer{})
+	var errBuf bytes.Buffer
+	cmd.SetErr(&errBuf)
+	if err := runAppDelete(cmd, []string{"myapp"}); err != nil {
+		t.Fatal(err)
+	}
+	if *method != "" {
+		t.Errorf("declining the prompt still sent %q to the server", *method)
+	}
+	if !strings.Contains(errBuf.String(), "aborted") {
+		t.Errorf("expected an abort notice, got %q", errBuf.String())
+	}
+}
+
+// TestRunAppDeleteForce: --force skips the prompt even when interactive.
+func TestRunAppDeleteForce(t *testing.T) {
+	isolateConfig(t)
+	setInteractive(t, true) // would prompt, but --force must not read stdin
+	srv, method := appItemServer(t, "myapp", http.StatusOK, "", "")
+
+	cmd := newDeleteCmd(t, srv.URL)
+	_ = cmd.Flags().Set("force", "true")
+	cmd.SetIn(strings.NewReader("")) // no input available; a prompt would hang/EOF-abort
+	cmd.SetOut(&bytes.Buffer{})
+	if err := runAppDelete(cmd, []string{"myapp"}); err != nil {
+		t.Fatal(err)
+	}
+	if *method != http.MethodDelete {
+		t.Errorf("--force delete used %q, want DELETE", *method)
+	}
+}
+
+func TestRunAppDeleteError(t *testing.T) {
+	isolateConfig(t)
+	setInteractive(t, false)
+	srv, _ := appItemServer(t, "ghost", http.StatusNotFound, "application/problem+json",
+		`{"title":"Not Found","detail":"no such app","status":404}`)
+
+	cmd := newDeleteCmd(t, srv.URL)
+	_ = cmd.Flags().Set("force", "true") // reach the server (a bare non-TTY delete is refused first)
+	cmd.SetOut(&bytes.Buffer{})
+	err := runAppDelete(cmd, []string{"ghost"})
+	if err == nil || !strings.Contains(err.Error(), "Not Found") {
+		t.Errorf("want a Not Found error, got %v", err)
+	}
+}
+
 func TestRunAppListError(t *testing.T) {
 	isolateConfig(t)
 	srv := appServer(t, http.StatusForbidden, "application/problem+json",

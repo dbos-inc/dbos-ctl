@@ -87,6 +87,8 @@ Two ways to bypass the flow:
 | `dbos login` / `dbos logout` | Acquire / discard credentials for the current profile |
 | `dbos whoami` | Show the logged-in identity (`local` on a no-auth target) |
 | `dbos app list` | List applications in the org |
+| `dbos app register <name>` | Register an application |
+| `dbos app delete <name>` | Delete an application (prompts to confirm; `--force` required when non-interactive) |
 | `dbos config list \| show \| use \| set` | Manage profiles |
 | `dbos version` (or `--version`) | Print version information |
 

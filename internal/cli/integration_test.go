@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+
 	"github.com/dbos-inc/dbos-cli/internal/api"
 	"github.com/dbos-inc/dbos-cli/internal/client"
 	"github.com/dbos-inc/dbos-cli/internal/conductortest"
@@ -153,6 +155,53 @@ func TestOAuthRoundTripsIntegration(t *testing.T) {
 			t.Errorf("app list (dbos_ key) missing seeded app %q:\n%s", appName, got)
 		}
 	})
+}
+
+// TestAppRegisterDeleteIntegration proves the D1 create/destroy round-trip
+// through the CLI against a real no-auth Conductor: register an app, see it in
+// the list, delete it (--force, no prompt), and confirm it's gone. This is the
+// fixture primitive every later app read/write is exercised against.
+func TestAppRegisterDeleteIntegration(t *testing.T) {
+	baseURL := conductortest.Start(t)
+	const appName = "d1-roundtrip"
+
+	// appCmd builds a command targeting the harness's local org, with a fresh
+	// output buffer.
+	appCmd := func() (*cobra.Command, *bytes.Buffer) {
+		cmd := newCmdWithGlobals()
+		_ = cmd.Flags().Set("url", baseURL)
+		_ = cmd.Flags().Set("org", "local")
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		return cmd, &out
+	}
+	listContains := func() bool {
+		cmd, out := appCmd()
+		if err := runAppList(cmd, nil); err != nil {
+			t.Fatalf("app list: %v", err)
+		}
+		return strings.Contains(out.String(), appName)
+	}
+
+	// register → present in the list.
+	reg, _ := appCmd()
+	if err := runAppRegister(reg, []string{appName}); err != nil {
+		t.Fatalf("app register: %v", err)
+	}
+	if !listContains() {
+		t.Fatalf("registered app %q is not in the list", appName)
+	}
+
+	// delete (--force) → gone from the list.
+	del, _ := appCmd()
+	del.Flags().Bool("force", false, "")
+	_ = del.Flags().Set("force", "true")
+	if err := runAppDelete(del, []string{appName}); err != nil {
+		t.Fatalf("app delete: %v", err)
+	}
+	if listContains() {
+		t.Errorf("app %q still present after delete", appName)
+	}
 }
 
 // saveBearerProfile writes a single current bearer profile at url, optionally
