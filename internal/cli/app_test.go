@@ -653,6 +653,40 @@ func TestRunAppSetVersionError(t *testing.T) {
 	}
 }
 
+// TestRequestRespectsContextCancellation proves the mechanism Execute's signal
+// handling relies on: cancelling the command's context aborts an in-flight
+// request instead of hanging, so Ctrl-C cleanly interrupts a slow call.
+func TestRequestRespectsContextCancellation(t *testing.T) {
+	isolateConfig(t)
+	// A server that hangs until the client cancels the request.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	defer srv.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cmd := newCmdWithGlobals()
+	cmd.SetContext(ctx)
+	_ = cmd.Flags().Set("url", srv.URL)
+	cmd.SetOut(&bytes.Buffer{})
+
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+	}()
+
+	done := make(chan error, 1)
+	go func() { done <- runAppList(cmd, nil) }()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("expected a cancellation error, got nil")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("request did not abort on context cancellation")
+	}
+}
+
 func TestRunAppListError(t *testing.T) {
 	isolateConfig(t)
 	srv := appServer(t, http.StatusForbidden, "application/problem+json",

@@ -153,6 +153,7 @@ dbos workflow list -a myapp --status PENDING -o ids | dbos workflow cancel -a my
 | `2` | Usage error (bad flags/arguments) |
 | `3` | Authentication required (HTTP 401) — run `dbos login` |
 | `4` | Not found (HTTP 404) |
+| `130` | Interrupted (Ctrl-C) |
 
 ## Development
 
