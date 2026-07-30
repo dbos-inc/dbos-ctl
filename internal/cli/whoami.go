@@ -19,6 +19,8 @@ var whoamiCmd = &cobra.Command{
 }
 
 func init() {
+	// whoami resolves an identity from /v2/users/me; it is org/app-agnostic.
+	addRequestFlags(whoamiCmd, "profile", "url", "output")
 	rootCmd.AddCommand(whoamiCmd)
 }
 

@@ -28,6 +28,10 @@ var logoutCmd = &cobra.Command{
 }
 
 func init() {
+	// login authenticates a profile (and may target an ad-hoc --url); logout
+	// only needs to know which profile's credentials to drop.
+	addRequestFlags(loginCmd, "profile", "url")
+	addRequestFlags(logoutCmd, "profile")
 	rootCmd.AddCommand(loginCmd, logoutCmd)
 }
 

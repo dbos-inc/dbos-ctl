@@ -44,20 +44,48 @@ func settings(cmd *cobra.Command) (config.Settings, error) {
 	return f.Resolve(config.Inputs{Profile: profile, URL: urlSrc, Org: org, App: app})
 }
 
-// field reads one setting's flag value (with whether the flag was set) and its
-// environment value. GetString only errors if the flag is undefined or
-// non-string — a bug, not user input — but we surface it rather than silently
-// resolving to "".
-func field(cmd *cobra.Command, flag, env string) (config.FieldSource, error) {
-	v, err := cmd.Flags().GetString(flag)
-	if err != nil {
-		return config.FieldSource{}, fmt.Errorf("reading --%s: %w", flag, err)
+// addRequestFlags installs the request-shaping flags a command honors, by name.
+// The definitions live here so every command spells a flag identically, and so
+// each command's --help lists only the subset it actually uses (whoami has no
+// --org; config makes no request and declares none of these). An unknown name
+// is a programmer error.
+func addRequestFlags(cmd *cobra.Command, names ...string) {
+	f := cmd.Flags()
+	for _, n := range names {
+		switch n {
+		case "profile":
+			f.String("profile", "", "config profile to use (overrides $DBOS_PROFILE)")
+		case "url":
+			f.String("url", "", "Conductor base URL (overrides $DBOS_URL and the profile)")
+		case "org":
+			f.String("org", "", "organization (overrides $DBOS_ORG and the profile)")
+		case "app":
+			f.StringP("app", "a", "", "application name (overrides $DBOS_APP and the profile)")
+		case "output":
+			f.StringP("output", "o", "table", "output format: table, json")
+		default:
+			panic("addRequestFlags: unknown flag " + n)
+		}
 	}
-	return config.FieldSource{
-		Flag:    v,
-		FlagSet: cmd.Flags().Changed(flag),
-		Env:     os.Getenv(env),
-	}, nil
+}
+
+// field reads one setting's flag value (with whether the flag was set) and its
+// environment value. A command only declares the request flags it honors, so a
+// flag this command does not define contributes no flag value — env and profile
+// still apply. GetString errors only on a non-string flag — a bug — which we
+// surface rather than silently resolving to "".
+func field(cmd *cobra.Command, flag, env string) (config.FieldSource, error) {
+	var src config.FieldSource
+	if cmd.Flags().Lookup(flag) != nil {
+		v, err := cmd.Flags().GetString(flag)
+		if err != nil {
+			return config.FieldSource{}, fmt.Errorf("reading --%s: %w", flag, err)
+		}
+		src.Flag = v
+		src.FlagSet = cmd.Flags().Changed(flag)
+	}
+	src.Env = os.Getenv(env)
+	return src, nil
 }
 
 // resolvedFormat returns the validated -o/--output format. Output is not a

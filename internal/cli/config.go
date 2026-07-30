@@ -47,6 +47,11 @@ field is left untouched unless named. --url/--org/--app are the global flags;
 }
 
 func init() {
+	// config set writes the local config file, so these name the values to
+	// store — not the request-shaping overrides the operational commands take.
+	configSetCmd.Flags().String("url", "", "self-hosted Conductor base URL")
+	configSetCmd.Flags().String("org", "", "default organization for this profile")
+	configSetCmd.Flags().String("app", "", "default application for this profile")
 	configSetCmd.Flags().String("auth", "", "authentication: none or bearer")
 	configSetCmd.Flags().String("issuer", "", "OIDC issuer URL (bearer profiles)")
 	configSetCmd.Flags().String("audience", "", "OIDC audience (bearer profiles)")

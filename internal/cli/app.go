@@ -20,6 +20,9 @@ var appListCmd = &cobra.Command{
 }
 
 func init() {
+	// app list is org-scoped (it lists every app in the org), so it honors
+	// --org but not --app.
+	addRequestFlags(appListCmd, "profile", "url", "org", "output")
 	appCmd.AddCommand(appListCmd)
 	rootCmd.AddCommand(appCmd)
 }

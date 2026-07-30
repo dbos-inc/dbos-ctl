@@ -39,13 +39,4 @@ func init() {
 	// does not claim -v for it. -v is reserved for a future --verbose (see the
 	// shorthand-namespace note in AGENTS.md); Cobra still handles this flag.
 	rootCmd.Flags().Bool("version", false, "print version information")
-
-	// Global (persistent) flags. Declared here so they show in `dbos --help`;
-	// they are consumed once config/profiles and the client land.
-	pf := rootCmd.PersistentFlags()
-	pf.StringP("output", "o", "table", "output format: table, json, ids")
-	pf.StringP("app", "a", "", "application name (overrides $DBOS_APP and the profile)")
-	pf.String("org", "", "organization (overrides $DBOS_ORG and the profile)")
-	pf.String("url", "", "Conductor base URL (overrides $DBOS_URL and the profile)")
-	pf.String("profile", "", "config profile to use (overrides $DBOS_PROFILE)")
 }

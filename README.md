@@ -28,7 +28,7 @@ dbos app list
 
 # A self-hosted Conductor with no auth
 dbos config set local --auth none --url http://localhost:8090
-dbos --profile local app list
+dbos app list --profile local
 ```
 
 ## Profiles
@@ -100,6 +100,10 @@ wins and the profile is the fallback:
 | Application | `-a`, `--app` | `DBOS_APP` |
 | Bearer token | — | `DBOS_TOKEN` |
 | Output format | `-o`, `--output` | — |
+
+Flags are scoped to the command that uses them, so pass them **after** the
+command name (`dbos app list --org acme`), and each command's `--help` lists
+only the flags it honors.
 
 ## Output
 
