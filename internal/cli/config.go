@@ -52,7 +52,9 @@ func init() {
 	configSetCmd.Flags().String("audience", "", "OIDC audience (bearer profiles)")
 	configSetCmd.Flags().String("client-id", "", "OIDC client ID (bearer profiles)")
 	// A DBOS Cloud profile: derives url + bearer auth + the Auth0 tenant.
-	// Hidden — non-production clusters are for internal use.
+	configSetCmd.Flags().Bool("cloud", false, "make this a DBOS Cloud profile")
+	// --domain overrides the production cloud domain for non-production
+	// clusters; it implies --cloud. Hidden — internal use only.
 	configSetCmd.Flags().String("domain", "", "DBOS Cloud domain")
 	_ = configSetCmd.Flags().MarkHidden("domain")
 
@@ -187,19 +189,33 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 			p.OIDC.ClientID, _ = cmd.Flags().GetString("client-id")
 		}
 	}
-	if cmd.Flags().Changed("domain") {
-		d, _ := cmd.Flags().GetString("domain")
-		if strings.Contains(d, "/") {
-			return fmt.Errorf("--domain should be a bare host like cloud.dbos.dev, not a URL")
+	// --cloud (or --domain, which implies it) makes a DBOS Cloud profile:
+	// the domain derives url + bearer auth + the Auth0 tenant, so a self-hosted
+	// --url alongside them would contradict. --domain overrides the production
+	// domain. (--url is a global persistent flag, so this conflict is checked
+	// here rather than via MarkFlagsMutuallyExclusive.)
+	cloudFlags := cmd.Flags().Changed("cloud") || cmd.Flags().Changed("domain")
+	if cloudFlags && cmd.Flags().Changed("url") {
+		return fmt.Errorf("--cloud and --url are mutually exclusive (cloud derives its url from the domain)")
+	}
+	if cloudFlags {
+		domain := config.CloudProdDomain
+		if cmd.Flags().Changed("domain") {
+			d, _ := cmd.Flags().GetString("domain")
+			if strings.Contains(d, "/") {
+				return fmt.Errorf("--domain should be a bare host like cloud.dbos.dev, not a URL")
+			}
+			domain = d
 		}
-		p.Domain = d
+		p.Domain = domain
+		p.URL = "" // cloud derives its url from the domain
 	}
 
-	// A profile with neither a self-hosted URL nor a domain targets DBOS Cloud:
-	// default it to the production domain (`dbos config set cloud` just works).
-	// The hidden --domain overrides this for non-production clusters.
+	// A profile must target either DBOS Cloud (--cloud) or a self-hosted
+	// conductor (--url). This only bites a genuinely unconfigured profile: an
+	// upsert that edits other fields keeps whichever was already set.
 	if p.URL == "" && p.Domain == "" {
-		p.Domain = config.CloudProdDomain
+		return fmt.Errorf("specify --cloud for a DBOS Cloud profile, or --url for a self-hosted conductor")
 	}
 
 	if f.Profiles == nil {

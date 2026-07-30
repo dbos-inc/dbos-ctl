@@ -20,6 +20,7 @@ func newConfigSetCmd() *cobra.Command {
 	c.Flags().String("issuer", "", "")
 	c.Flags().String("audience", "", "")
 	c.Flags().String("client-id", "", "")
+	c.Flags().Bool("cloud", false, "")
 	c.Flags().String("domain", "", "")
 	c.SetContext(context.Background())
 	return c
@@ -119,11 +120,12 @@ func TestConfigSetUseListShow(t *testing.T) {
 	}
 }
 
-func TestConfigSetDefaultsToCloud(t *testing.T) {
+func TestConfigSetCloud(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	// No --url and no --domain → DBOS Cloud production.
+	// --cloud → the DBOS Cloud production domain.
 	set := newConfigSetCmd()
+	_ = set.Flags().Set("cloud", "true")
 	set.SetOut(&bytes.Buffer{})
 	if err := runConfigSet(set, []string{"cloud"}); err != nil {
 		t.Fatal(err)
@@ -133,18 +135,69 @@ func TestConfigSetDefaultsToCloud(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got := f.Profiles["cloud"].Domain; got != config.CloudProdDomain {
-		t.Errorf("domain = %q, want %q (default cloud)", got, config.CloudProdDomain)
+		t.Errorf("domain = %q, want %q", got, config.CloudProdDomain)
 	}
 
-	// A self-hosted profile (has --url) is not defaulted to a cloud domain.
+	// --cloud on a profile that previously had a url clears the url.
 	set2 := newConfigSetCmd()
 	_ = set2.Flags().Set("url", "http://localhost:8090")
 	set2.SetOut(&bytes.Buffer{})
-	if err := runConfigSet(set2, []string{"local"}); err != nil {
+	if err := runConfigSet(set2, []string{"switch"}); err != nil {
 		t.Fatal(err)
 	}
-	if f, _ = config.Load(); f.Profiles["local"].Domain != "" {
-		t.Errorf("self-hosted profile got domain %q, want empty", f.Profiles["local"].Domain)
+	set3 := newConfigSetCmd()
+	_ = set3.Flags().Set("cloud", "true")
+	set3.SetOut(&bytes.Buffer{})
+	if err := runConfigSet(set3, []string{"switch"}); err != nil {
+		t.Fatal(err)
+	}
+	if f, _ = config.Load(); f.Profiles["switch"].URL != "" {
+		t.Errorf("--cloud left a stale url %q", f.Profiles["switch"].URL)
+	}
+	if f.Profiles["switch"].Domain != config.CloudProdDomain {
+		t.Errorf("--cloud domain = %q, want prod", f.Profiles["switch"].Domain)
+	}
+}
+
+func TestConfigSetCloudURLConflict(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	set := newConfigSetCmd()
+	_ = set.Flags().Set("cloud", "true")
+	_ = set.Flags().Set("url", "http://localhost:8090")
+	set.SetOut(&bytes.Buffer{})
+	if err := runConfigSet(set, []string{"x"}); err == nil {
+		t.Error("--cloud with --url should error")
+	}
+}
+
+func TestConfigSetRequiresTarget(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	// Neither --cloud nor --url on a new profile is an error, not a silent
+	// cloud default.
+	set := newConfigSetCmd()
+	set.SetOut(&bytes.Buffer{})
+	if err := runConfigSet(set, []string{"nowhere"}); err == nil {
+		t.Error("a profile with neither --cloud nor --url should error")
+	}
+
+	// Editing an existing profile's other fields does not require re-stating the
+	// target — the upsert keeps the url that was already set.
+	seed := newConfigSetCmd()
+	_ = seed.Flags().Set("url", "http://localhost:8090")
+	seed.SetOut(&bytes.Buffer{})
+	if err := runConfigSet(seed, []string{"local"}); err != nil {
+		t.Fatal(err)
+	}
+	edit := newConfigSetCmd()
+	_ = edit.Flags().Set("org", "acme")
+	edit.SetOut(&bytes.Buffer{})
+	if err := runConfigSet(edit, []string{"local"}); err != nil {
+		t.Fatalf("editing an existing profile should not require a target flag: %v", err)
+	}
+	f, _ := config.Load()
+	if f.Profiles["local"].URL != "http://localhost:8090" || f.Profiles["local"].Org != "acme" {
+		t.Errorf("upsert did not preserve url / apply org: %+v", f.Profiles["local"])
 	}
 }
 

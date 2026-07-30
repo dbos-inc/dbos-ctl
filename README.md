@@ -20,8 +20,8 @@ go install github.com/dbos-inc/dbos-cli/cmd/dbos@latest
 ## Quick start
 
 ```sh
-# DBOS Cloud (the default target — no URL needed)
-dbos config set cloud
+# DBOS Cloud
+dbos config set cloud --cloud
 dbos login                       # opens the device-authorization flow
 dbos profile                     # confirm who you're logged in as
 dbos app list
@@ -51,9 +51,10 @@ There are three common shapes:
 |---|---|---|---|
 | **Self-hosted, no auth** | `config set x --auth none --url http://host:8090` | none | always `local` |
 | **Self-hosted + OIDC** | `config set x --auth bearer --url http://host:8090 --issuer <url> --client-id <id> [--audience <aud>]` | user JWT or `dbos_` key | real |
-| **DBOS Cloud** | `config set x` | Auth0 JWT | real |
+| **DBOS Cloud** | `config set x --cloud` | Auth0 JWT | real |
 
-DBOS Cloud is the default: a profile with no `--url` targets `cloud.dbos.dev`
+A profile must target either DBOS Cloud (`--cloud`) or a self-hosted Conductor
+(`--url`); the two are mutually exclusive. `--cloud` points at `cloud.dbos.dev`
 and derives everything else (the `/conductor` URL, bearer auth, and the Auth0
 tenant) automatically.
 
