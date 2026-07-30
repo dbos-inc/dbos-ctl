@@ -10,19 +10,19 @@ import (
 	"github.com/dbos-inc/dbos-cli/internal/config"
 )
 
-func TestRunProfileLocal(t *testing.T) {
+func TestRunWhoamiLocal(t *testing.T) {
 	isolateConfig(t)
 	cmd := newCmdWithGlobals()
 	_ = cmd.Flags().Set("url", "http://localhost:8090") // selfhosted, auth none
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 
-	if err := runProfile(cmd, nil); err != nil {
+	if err := runWhoami(cmd, nil); err != nil {
 		t.Fatal(err)
 	}
 	got := out.String()
 	if !strings.Contains(got, "name   local") || !strings.Contains(got, "org    local") {
-		t.Errorf("selfhosted profile should report local identity:\n%s", got)
+		t.Errorf("selfhosted whoami should report local identity:\n%s", got)
 	}
 }
 
@@ -52,7 +52,7 @@ func bearerProfileCmd(t *testing.T, url string) *bytes.Buffer {
 	return &bytes.Buffer{}
 }
 
-func TestRunProfileBearer(t *testing.T) {
+func TestRunWhoamiBearer(t *testing.T) {
 	isolateConfig(t)
 	t.Setenv("DBOS_TOKEN", "dbos_x")
 	srv := userMe(t)
@@ -60,18 +60,18 @@ func TestRunProfileBearer(t *testing.T) {
 
 	cmd := newCmdWithGlobals()
 	cmd.SetOut(out)
-	if err := runProfile(cmd, nil); err != nil {
+	if err := runWhoami(cmd, nil); err != nil {
 		t.Fatal(err)
 	}
 	got := out.String()
 	for _, want := range []string{"alice", "a@example.com", "acme", "team"} {
 		if !strings.Contains(got, want) {
-			t.Errorf("profile output missing %q:\n%s", want, got)
+			t.Errorf("whoami output missing %q:\n%s", want, got)
 		}
 	}
 }
 
-func TestRunProfileBearerJSON(t *testing.T) {
+func TestRunWhoamiBearerJSON(t *testing.T) {
 	isolateConfig(t)
 	t.Setenv("DBOS_TOKEN", "dbos_x")
 	srv := userMe(t)
@@ -80,7 +80,7 @@ func TestRunProfileBearerJSON(t *testing.T) {
 	cmd := newCmdWithGlobals()
 	_ = cmd.Flags().Set("output", "json")
 	cmd.SetOut(out)
-	if err := runProfile(cmd, nil); err != nil {
+	if err := runWhoami(cmd, nil); err != nil {
 		t.Fatal(err)
 	}
 	// json is the raw API shape, so fields the table view drops (orgId) appear.

@@ -95,7 +95,7 @@ func TestOAuthRoundTripsIntegration(t *testing.T) {
 	orgName := me.JSON200.OrgName
 
 	// Round-trip 1: the JWT reads its own profile back through the CLI.
-	t.Run("jwt profile", func(t *testing.T) {
+	t.Run("jwt whoami", func(t *testing.T) {
 		isolateConfig(t)
 		t.Setenv("DBOS_TOKEN", token)
 		saveBearerProfile(t, oc.BaseURL, "")
@@ -103,11 +103,11 @@ func TestOAuthRoundTripsIntegration(t *testing.T) {
 		cmd := newCmdWithGlobals()
 		var out bytes.Buffer
 		cmd.SetOut(&out)
-		if err := runProfile(cmd, nil); err != nil {
-			t.Fatalf("profile: %v", err)
+		if err := runWhoami(cmd, nil); err != nil {
+			t.Fatalf("whoami: %v", err)
 		}
 		if got := out.String(); !strings.Contains(got, username) || !strings.Contains(got, email) {
-			t.Errorf("profile output missing registered identity:\n%s", got)
+			t.Errorf("whoami output missing registered identity:\n%s", got)
 		}
 	})
 

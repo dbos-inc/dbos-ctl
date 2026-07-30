@@ -11,18 +11,18 @@ import (
 	"github.com/dbos-inc/dbos-cli/internal/output"
 )
 
-var profileCmd = &cobra.Command{
-	Use:   "profile",
+var whoamiCmd = &cobra.Command{
+	Use:   "whoami",
 	Short: "Show the logged-in identity",
 	Args:  cobra.NoArgs,
-	RunE:  runProfile,
+	RunE:  runWhoami,
 }
 
 func init() {
-	rootCmd.AddCommand(profileCmd)
+	rootCmd.AddCommand(whoamiCmd)
 }
 
-func runProfile(cmd *cobra.Command, _ []string) error {
+func runWhoami(cmd *cobra.Command, _ []string) error {
 	format, err := resolvedFormat(cmd)
 	if err != nil {
 		return err
@@ -35,7 +35,7 @@ func runProfile(cmd *cobra.Command, _ []string) error {
 	// Selfhosted (no auth): /v2/users/me does not exist, so report the static
 	// local identity rather than calling the API.
 	if s.Auth != config.AuthBearer {
-		return renderProfile(cmd, format, nil)
+		return renderWhoami(cmd, format, nil)
 	}
 
 	token, err := bearerToken(cmd, s)
@@ -53,12 +53,12 @@ func runProfile(cmd *cobra.Command, _ []string) error {
 	if resp.JSON200 == nil {
 		return apiError(resp.StatusCode(), resp.HTTPResponse.Header, resp.ApplicationproblemJSONDefault, resp.Body)
 	}
-	return renderProfile(cmd, format, resp.JSON200)
+	return renderWhoami(cmd, format, resp.JSON200)
 }
 
-// renderProfile prints a user profile; u is nil for the selfhosted local
+// renderWhoami prints a user profile; u is nil for the selfhosted local
 // identity. json emits the raw API shape (List's single-object counterpart).
-func renderProfile(cmd *cobra.Command, format output.Format, u *api.UserProfile) error {
+func renderWhoami(cmd *cobra.Command, format output.Format, u *api.UserProfile) error {
 	w := cmd.OutOrStdout()
 
 	if format == output.FormatJSON {

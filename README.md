@@ -23,7 +23,7 @@ go install github.com/dbos-inc/dbos-cli/cmd/dbos@latest
 # DBOS Cloud
 dbos config set cloud --cloud
 dbos login                       # opens the device-authorization flow
-dbos profile                     # confirm who you're logged in as
+dbos whoami                      # confirm who you're logged in as
 dbos app list
 
 # A self-hosted Conductor with no auth
@@ -75,14 +75,14 @@ Two ways to bypass the flow:
 - **`DBOS_TOKEN`** — a bearer token used as-is for one invocation.
 - **`dbos_…` API keys** — set as `DBOS_TOKEN` (or stored); sent verbatim. These
   authenticate machine-to-machine calls (e.g. `app list`) but carry no user
-  identity, so `dbos profile` needs a user login, not a key.
+  identity, so `dbos whoami` needs a user login, not a key.
 
 ## Commands
 
 | Command | Description |
 |---|---|
 | `dbos login` / `dbos logout` | Acquire / discard credentials for the current profile |
-| `dbos profile` | Show the logged-in identity (`local` on a no-auth target) |
+| `dbos whoami` | Show the logged-in identity (`local` on a no-auth target) |
 | `dbos app list` | List applications in the org |
 | `dbos config list \| show \| use \| set` | Manage profiles |
 | `dbos version` (or `--version`) | Print version information |
@@ -109,7 +109,7 @@ scripting (never truncated or reprojected):
 ```sh
 dbos app list                    # aligned table
 dbos app list -o json            # raw JSON array
-dbos profile -o json             # raw UserProfile
+dbos whoami -o json              # raw UserProfile
 ```
 
 ## Exit codes
