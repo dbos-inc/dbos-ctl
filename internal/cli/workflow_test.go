@@ -200,6 +200,214 @@ func TestParseSearchTime(t *testing.T) {
 	}
 }
 
+type mutationRec struct {
+	path, method string
+	body         map[string]any
+}
+
+// mutationServer records the last request's path/method/body and 200s, so a
+// test can assert single-vs-bulk dispatch and the request body.
+func mutationServer(t *testing.T) (*httptest.Server, *mutationRec) {
+	t.Helper()
+	rec := &mutationRec{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rec.path, rec.method = r.URL.Path, r.Method
+		if raw, _ := io.ReadAll(r.Body); len(raw) > 0 {
+			_ = json.Unmarshal(raw, &rec.body)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+	return srv, rec
+}
+
+func newWorkflowMutCmd(t *testing.T, url string) (*cobra.Command, *bytes.Buffer) {
+	t.Helper()
+	cmd := newCmdWithGlobals()
+	cmd.Flags().Bool("children", false, "")
+	cmd.Flags().String("queue", "", "")
+	_ = cmd.Flags().Set("url", url)
+	_ = cmd.Flags().Set("app", "myapp")
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	return cmd, &out
+}
+
+func TestRunWorkflowCancelSingle(t *testing.T) {
+	isolateConfig(t)
+	srv, rec := mutationServer(t)
+
+	cmd, out := newWorkflowMutCmd(t, srv.URL)
+	if err := runWorkflowCancel(cmd, []string{"wf-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if rec.path != "/v2/orgs/local/apps/myapp/workflows/wf-1/cancel" {
+		t.Errorf("single cancel hit %q, want the per-workflow cancel path", rec.path)
+	}
+	if !strings.Contains(out.String(), "cancelled 1 workflow") {
+		t.Errorf("unexpected output: %q", out.String())
+	}
+}
+
+func TestRunWorkflowCancelBulk(t *testing.T) {
+	isolateConfig(t)
+	srv, rec := mutationServer(t)
+
+	cmd, _ := newWorkflowMutCmd(t, srv.URL)
+	_ = cmd.Flags().Set("children", "true")
+	if err := runWorkflowCancel(cmd, []string{"wf-1", "wf-2"}); err != nil {
+		t.Fatal(err)
+	}
+	if rec.path != "/v2/orgs/local/apps/myapp/workflows/bulk-cancel" {
+		t.Errorf("multi cancel hit %q, want the bulk-cancel path", rec.path)
+	}
+	if wids, _ := rec.body["workflowIds"].([]any); len(wids) != 2 {
+		t.Errorf("bulk cancel body workflowIds = %v, want 2", rec.body["workflowIds"])
+	}
+	if rec.body["cancelChildren"] != true {
+		t.Errorf("--children not sent: %v", rec.body["cancelChildren"])
+	}
+}
+
+// TestRunWorkflowCancelStdin: a literal "-" reads IDs from stdin, and multiple
+// IDs dispatch to bulk.
+func TestRunWorkflowCancelStdin(t *testing.T) {
+	isolateConfig(t)
+	srv, rec := mutationServer(t)
+
+	cmd, _ := newWorkflowMutCmd(t, srv.URL)
+	cmd.SetIn(strings.NewReader("wf-1\n\nwf-2\n")) // blank line skipped
+	if err := runWorkflowCancel(cmd, []string{"-"}); err != nil {
+		t.Fatal(err)
+	}
+	if rec.path != "/v2/orgs/local/apps/myapp/workflows/bulk-cancel" {
+		t.Errorf("stdin cancel hit %q, want bulk-cancel", rec.path)
+	}
+	if wids, _ := rec.body["workflowIds"].([]any); len(wids) != 2 {
+		t.Errorf("stdin IDs not collected: %v", rec.body["workflowIds"])
+	}
+}
+
+// TestRunWorkflowCancelIDsOutput: -o ids echoes the affected IDs for piping.
+func TestRunWorkflowCancelIDsOutput(t *testing.T) {
+	isolateConfig(t)
+	srv, _ := mutationServer(t)
+
+	cmd, out := newWorkflowMutCmd(t, srv.URL)
+	_ = cmd.Flags().Set("output", "ids")
+	if err := runWorkflowCancel(cmd, []string{"wf-1", "wf-2"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "wf-1\nwf-2\n" {
+		t.Errorf("-o ids output = %q, want the bare IDs", got)
+	}
+}
+
+func TestRunWorkflowDeleteSingleVsBulk(t *testing.T) {
+	isolateConfig(t)
+	// single → DELETE on the per-workflow path
+	srv, rec := mutationServer(t)
+	cmd, _ := newWorkflowMutCmd(t, srv.URL)
+	if err := runWorkflowDelete(cmd, []string{"wf-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if rec.method != http.MethodDelete || rec.path != "/v2/orgs/local/apps/myapp/workflows/wf-1" {
+		t.Errorf("single delete = %s %s, want DELETE on the per-workflow path", rec.method, rec.path)
+	}
+	// multi → bulk-delete
+	cmd2, _ := newWorkflowMutCmd(t, srv.URL)
+	if err := runWorkflowDelete(cmd2, []string{"wf-1", "wf-2"}); err != nil {
+		t.Fatal(err)
+	}
+	if rec.path != "/v2/orgs/local/apps/myapp/workflows/bulk-delete" {
+		t.Errorf("multi delete hit %q, want bulk-delete", rec.path)
+	}
+}
+
+// TestRunWorkflowListIDs: `workflow list -o ids` prints bare workflow IDs.
+func TestRunWorkflowListIDs(t *testing.T) {
+	isolateConfig(t)
+	srv, _ := searchServer(t, "/v2/orgs/local/apps/myapp/workflows/search", "["+oneWorkflowJSON+"]")
+
+	cmd, out := newWorkflowListCmd(t, srv.URL)
+	_ = cmd.Flags().Set("output", "ids")
+	if err := runWorkflowList(cmd, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(out.String()); got != "wf-1" {
+		t.Errorf("workflow list -o ids = %q, want the bare workflow ID", got)
+	}
+}
+
+// forkServer captures the fork request and returns a new workflow ID.
+func forkServer(t *testing.T, wantPath, newID string) (*httptest.Server, *map[string]any) {
+	t.Helper()
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != wantPath || r.Method != http.MethodPost {
+			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
+			http.Error(w, "unexpected request", http.StatusNotFound)
+			return
+		}
+		if raw, _ := io.ReadAll(r.Body); len(raw) > 0 {
+			_ = json.Unmarshal(raw, &gotBody)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"workflowId":"` + newID + `"}`))
+	}))
+	t.Cleanup(srv.Close)
+	return srv, &gotBody
+}
+
+func newWorkflowForkCmd(t *testing.T, url string) *cobra.Command {
+	t.Helper()
+	cmd := newCmdWithGlobals()
+	cmd.Flags().String("new-id", "", "")
+	cmd.Flags().Int32("start-step", 0, "")
+	cmd.Flags().String("queue", "", "")
+	cmd.Flags().String("app-version", "", "")
+	_ = cmd.Flags().Set("url", url)
+	_ = cmd.Flags().Set("app", "myapp")
+	return cmd
+}
+
+func TestRunWorkflowFork(t *testing.T) {
+	isolateConfig(t)
+	srv, body := forkServer(t, "/v2/orgs/local/apps/myapp/workflows/wf-1/fork", "wf-1-fork")
+
+	cmd := newWorkflowForkCmd(t, srv.URL)
+	_ = cmd.Flags().Set("start-step", "2")
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	if err := runWorkflowFork(cmd, []string{"wf-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if (*body)["startStep"] != float64(2) {
+		t.Errorf("startStep = %v, want 2", (*body)["startStep"])
+	}
+	// scalar output: the bare new workflow ID.
+	if got := out.String(); got != "wf-1-fork\n" {
+		t.Errorf("fork output = %q, want the bare new ID", got)
+	}
+}
+
+func TestRunWorkflowForkJSON(t *testing.T) {
+	isolateConfig(t)
+	srv, _ := forkServer(t, "/v2/orgs/local/apps/myapp/workflows/wf-1/fork", "wf-1-fork")
+
+	cmd := newWorkflowForkCmd(t, srv.URL)
+	_ = cmd.Flags().Set("output", "json")
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	if err := runWorkflowFork(cmd, []string{"wf-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); !strings.Contains(got, `"workflowId": "wf-1-fork"`) {
+		t.Errorf("fork -o json not the raw shape:\n%s", got)
+	}
+}
+
 // TestRunWorkflowNoApp: an app-scoped workflow read with no app configured fails
 // with a clear error before sending.
 func TestRunWorkflowNoApp(t *testing.T) {

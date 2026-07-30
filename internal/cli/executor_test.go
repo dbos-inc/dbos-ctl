@@ -137,6 +137,103 @@ func TestWorkflowReadsIntegration(t *testing.T) {
 	}
 }
 
+// TestWorkflowMutationsIntegration (E2) exercises the mutation pipeline live: it
+// runs a workflow, lists it as `-o ids`, pipes those IDs into `workflow delete -`
+// (stdin), and confirms the workflow is gone.
+func TestWorkflowMutationsIntegration(t *testing.T) {
+	baseURL := conductortest.Start(t)
+	const appName = "e2-app"
+
+	seed, err := newSeedClient(baseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registerAppOrFail(t, seed, "local", appName)
+	apiKey := mintKeyOrFail(t, seed, "local", appName+"-key")
+
+	dctx := startExecutor(t, baseURL, apiKey, appName)
+	h, err := dbos.RunWorkflow(dctx, spikeWorkflow, "hi")
+	if err != nil {
+		t.Fatalf("run workflow: %v", err)
+	}
+	if _, err := h.GetResult(); err != nil {
+		t.Fatalf("workflow result: %v", err)
+	}
+	id := h.GetWorkflowID()
+
+	wfCmd := func(stdin string) (*cobra.Command, *strings.Builder) {
+		cmd := newCmdWithGlobals()
+		cmd.Flags().Bool("children", false, "") // delete reads --children
+		_ = cmd.Flags().Set("url", baseURL)
+		_ = cmd.Flags().Set("org", "local")
+		_ = cmd.Flags().Set("app", appName)
+		if stdin != "" {
+			cmd.SetIn(strings.NewReader(stdin))
+		}
+		out := &strings.Builder{}
+		cmd.SetOut(out)
+		return cmd, out
+	}
+
+	// fork the workflow into a new execution; the new ID is retrievable.
+	fcmd, fout := wfCmd("")
+	if err := runWorkflowFork(fcmd, []string{id}); err != nil {
+		t.Fatalf("workflow fork: %v", err)
+	}
+	forkID := strings.TrimSpace(fout.String())
+	if forkID == "" || forkID == id {
+		t.Fatalf("fork returned no new workflow ID: %q", forkID)
+	}
+	forked := false
+	for i := 0; i < 15; i++ {
+		g, _ := wfCmd("")
+		if err := runWorkflowGet(g, []string{forkID}); err == nil {
+			forked = true
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	if !forked {
+		t.Errorf("forked workflow %q not retrievable", forkID)
+	}
+
+	// list -o ids until the workflow shows up.
+	var ids string
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		cmd, out := wfCmd("")
+		_ = cmd.Flags().Set("output", "ids")
+		if err := runWorkflowList(cmd, nil); err == nil && strings.Contains(out.String(), id) {
+			ids = out.String()
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	if !strings.Contains(ids, id) {
+		t.Fatalf("workflow %q never appeared in list -o ids", id)
+	}
+
+	// delete - (IDs from stdin, the piped `list -o ids` output).
+	del, _ := wfCmd(ids)
+	if err := runWorkflowDelete(del, []string{"-"}); err != nil {
+		t.Fatalf("workflow delete -: %v", err)
+	}
+
+	// get → gone.
+	gone := false
+	for i := 0; i < 10; i++ {
+		g, _ := wfCmd("")
+		if err := runWorkflowGet(g, []string{id}); err != nil {
+			gone = true
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	if !gone {
+		t.Errorf("workflow %q still retrievable after delete", id)
+	}
+}
+
 // pollForRow polls an app read (built on a fresh org-scoped command each try)
 // until its table has at least one data row, or the timeout passes. It returns
 // the last output and whether a row appeared.

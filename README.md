@@ -95,10 +95,12 @@ Two ways to bypass the flow:
 | `dbos app update <name>` | Update tuning settings (e.g. `--executor-timeout-secs`, `--private-mode`) |
 | `dbos app set-version <name> <version>` | Set the application's latest version |
 | `dbos app delete <name>` | Delete an application (prompts to confirm; `--force` required when non-interactive) |
-| `dbos workflow list` | List workflows, filterable (`--status`, `--name`, `--since 1h`, …; alias `wf`) |
+| `dbos workflow list` | List workflows, filterable (`--status`, `--name`, `--since 1h`, …); returns all matching by default, `--limit`/`--offset` to bound |
 | `dbos workflow get <id>` | Show a workflow's details (app-scoped, needs `--app`) |
 | `dbos workflow steps <id>` | List a workflow's steps |
 | `dbos workflow events <id>` | List a workflow's events |
+| `dbos workflow cancel\|resume\|restart\|delete <id>...` | Mutate one or more workflows (variadic; `-` reads IDs from stdin; `--children` on cancel/delete) |
+| `dbos workflow fork <id>` | Fork a workflow into a new execution (prints the new ID; `--start-step`, `--new-id`) |
 | `dbos api-key list` | List API keys (aliases: `token`, `apikey`) |
 | `dbos api-key create <name>` | Create an API key — prints the secret once; scope with `--app`/`--permission` |
 | `dbos api-key delete <name>` | Delete an API key |
@@ -133,6 +135,13 @@ scripting (never truncated or reprojected):
 dbos app list                    # aligned table
 dbos app list -o json            # raw JSON array
 dbos whoami -o json              # raw UserProfile
+```
+
+Commands with a natural ID also accept `-o ids` (one ID per line), for piping —
+a literal `-` reads IDs from stdin:
+
+```sh
+dbos workflow list -a myapp --status PENDING -o ids | dbos workflow cancel -a myapp -
 ```
 
 ## Exit codes

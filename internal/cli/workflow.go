@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"bufio"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -20,8 +22,11 @@ var workflowCmd = &cobra.Command{
 var workflowListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List workflows (search-backed, filterable)",
-	Args:  cobra.NoArgs,
-	RunE:  runWorkflowList,
+	Long: `List workflows, filtered by the flags below. Without --limit this returns
+all matching workflows (so 'workflow list -o ids | workflow cancel -' acts on the
+whole set); pass --limit/--offset to bound or page.`,
+	Args: cobra.NoArgs,
+	RunE: runWorkflowList,
 }
 
 var workflowGetCmd = &cobra.Command{
@@ -43,6 +48,41 @@ var workflowEventsCmd = &cobra.Command{
 	Short: "List a workflow's events",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runWorkflowEvents,
+}
+
+var workflowCancelCmd = &cobra.Command{
+	Use:   "cancel <workflow-id>...",
+	Short: "Cancel one or more workflows",
+	Args:  cobra.MinimumNArgs(1),
+	RunE:  runWorkflowCancel,
+}
+
+var workflowResumeCmd = &cobra.Command{
+	Use:   "resume <workflow-id>...",
+	Short: "Resume one or more workflows",
+	Args:  cobra.MinimumNArgs(1),
+	RunE:  runWorkflowResume,
+}
+
+var workflowRestartCmd = &cobra.Command{
+	Use:   "restart <workflow-id>...",
+	Short: "Restart one or more workflows",
+	Args:  cobra.MinimumNArgs(1),
+	RunE:  runWorkflowRestart,
+}
+
+var workflowDeleteCmd = &cobra.Command{
+	Use:   "delete <workflow-id>...",
+	Short: "Delete one or more workflows",
+	Args:  cobra.MinimumNArgs(1),
+	RunE:  runWorkflowDelete,
+}
+
+var workflowForkCmd = &cobra.Command{
+	Use:   "fork <workflow-id>",
+	Short: "Fork a workflow into a new execution",
+	Args:  cobra.ExactArgs(1),
+	RunE:  runWorkflowFork,
 }
 
 func init() {
@@ -68,7 +108,24 @@ func init() {
 	lf.Bool("desc", false, "sort newest first")
 	lf.Bool("queued", false, "only workflows currently on a queue")
 
-	workflowCmd.AddCommand(workflowListCmd, workflowGetCmd, workflowStepsCmd, workflowEventsCmd)
+	// Mutations are app-scoped too; they take workflow IDs positionally (a
+	// literal `-` reads them from stdin) and support -o ids.
+	for _, c := range []*cobra.Command{workflowCancelCmd, workflowResumeCmd, workflowRestartCmd, workflowDeleteCmd} {
+		addRequestFlags(c, "profile", "url", "org", "app", "output")
+	}
+	workflowCancelCmd.Flags().Bool("children", false, "also cancel child workflows")
+	workflowDeleteCmd.Flags().Bool("children", false, "also delete child workflows")
+	workflowResumeCmd.Flags().String("queue", "", "resume onto this queue")
+
+	// fork is single-workflow and returns the new workflow ID (scalar output).
+	addRequestFlags(workflowForkCmd, "profile", "url", "org", "app", "output")
+	workflowForkCmd.Flags().String("new-id", "", "ID for the forked workflow (default: generated)")
+	workflowForkCmd.Flags().Int32("start-step", 0, "step to fork from")
+	workflowForkCmd.Flags().String("queue", "", "enqueue the fork onto this queue")
+	workflowForkCmd.Flags().String("app-version", "", "application version for the fork")
+
+	workflowCmd.AddCommand(workflowListCmd, workflowGetCmd, workflowStepsCmd, workflowEventsCmd,
+		workflowCancelCmd, workflowResumeCmd, workflowRestartCmd, workflowDeleteCmd, workflowForkCmd)
 	rootCmd.AddCommand(workflowCmd)
 }
 
@@ -91,6 +148,9 @@ func runWorkflowList(cmd *cobra.Command, _ []string) error {
 	}
 	if resp.JSON200 == nil {
 		return apiError(resp.StatusCode(), resp.HTTPResponse.Header, resp.ApplicationproblemJSONDefault, resp.Body)
+	}
+	if format == output.FormatIDs {
+		return output.WriteIDs(cmd.OutOrStdout(), workflowIDs(*resp.JSON200))
 	}
 	return output.List(cmd.OutOrStdout(), format, *resp.JSON200, workflowListColumns())
 }
@@ -167,6 +227,237 @@ func workflowListColumns() []output.Column[api.Workflow] {
 		{Header: "QUEUE", Value: func(w api.Workflow) string { return deref(w.QueueName) }},
 		{Header: "CREATED", Value: func(w api.Workflow) string { return fmtTime(w.CreatedAt) }},
 	}
+}
+
+func workflowIDs(ws []api.Workflow) []string {
+	ids := make([]string, len(ws))
+	for i, w := range ws {
+		ids[i] = w.WorkflowId
+	}
+	return ids
+}
+
+func runWorkflowCancel(cmd *cobra.Command, args []string) error {
+	format, err := resolvedFormat(cmd)
+	if err != nil {
+		return err
+	}
+	ids, err := collectWorkflowIDs(cmd, args)
+	if err != nil {
+		return err
+	}
+	c, org, app, err := workflowTarget(cmd)
+	if err != nil {
+		return err
+	}
+	children := optBool(cmd, "children")
+	if len(ids) == 1 {
+		resp, err := c.CancelWorkflowWithResponse(cmd.Context(), org, app, ids[0],
+			api.CancelWorkflowJSONRequestBody{CancelChildren: children})
+		if err != nil {
+			return err
+		}
+		if err := checkStatus(resp.StatusCode(), resp.HTTPResponse, resp.ApplicationproblemJSONDefault, resp.Body); err != nil {
+			return err
+		}
+	} else {
+		resp, err := c.BulkCancelWorkflowsWithResponse(cmd.Context(), org, app,
+			api.BulkCancelWorkflowsJSONRequestBody{WorkflowIds: ids, CancelChildren: children})
+		if err != nil {
+			return err
+		}
+		if err := checkStatus(resp.StatusCode(), resp.HTTPResponse, resp.ApplicationproblemJSONDefault, resp.Body); err != nil {
+			return err
+		}
+	}
+	return reportMutation(cmd, format, "cancelled", ids)
+}
+
+func runWorkflowResume(cmd *cobra.Command, args []string) error {
+	format, err := resolvedFormat(cmd)
+	if err != nil {
+		return err
+	}
+	ids, err := collectWorkflowIDs(cmd, args)
+	if err != nil {
+		return err
+	}
+	c, org, app, err := workflowTarget(cmd)
+	if err != nil {
+		return err
+	}
+	queue := optString(cmd, "queue")
+	if len(ids) == 1 {
+		resp, err := c.ResumeWorkflowWithResponse(cmd.Context(), org, app, ids[0],
+			api.ResumeWorkflowJSONRequestBody{QueueName: queue})
+		if err != nil {
+			return err
+		}
+		if err := checkStatus(resp.StatusCode(), resp.HTTPResponse, resp.ApplicationproblemJSONDefault, resp.Body); err != nil {
+			return err
+		}
+	} else {
+		resp, err := c.BulkResumeWorkflowsWithResponse(cmd.Context(), org, app,
+			api.BulkResumeWorkflowsJSONRequestBody{WorkflowIds: ids, QueueName: queue})
+		if err != nil {
+			return err
+		}
+		if err := checkStatus(resp.StatusCode(), resp.HTTPResponse, resp.ApplicationproblemJSONDefault, resp.Body); err != nil {
+			return err
+		}
+	}
+	return reportMutation(cmd, format, "resumed", ids)
+}
+
+// runWorkflowRestart loops single restarts — there is no bulk-restart endpoint.
+func runWorkflowRestart(cmd *cobra.Command, args []string) error {
+	format, err := resolvedFormat(cmd)
+	if err != nil {
+		return err
+	}
+	ids, err := collectWorkflowIDs(cmd, args)
+	if err != nil {
+		return err
+	}
+	c, org, app, err := workflowTarget(cmd)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		resp, err := c.RestartWorkflowWithResponse(cmd.Context(), org, app, id)
+		if err != nil {
+			return err
+		}
+		if err := checkStatus(resp.StatusCode(), resp.HTTPResponse, resp.ApplicationproblemJSONDefault, resp.Body); err != nil {
+			return err
+		}
+	}
+	return reportMutation(cmd, format, "restarted", ids)
+}
+
+func runWorkflowDelete(cmd *cobra.Command, args []string) error {
+	format, err := resolvedFormat(cmd)
+	if err != nil {
+		return err
+	}
+	ids, err := collectWorkflowIDs(cmd, args)
+	if err != nil {
+		return err
+	}
+	c, org, app, err := workflowTarget(cmd)
+	if err != nil {
+		return err
+	}
+	children := optBool(cmd, "children")
+	if len(ids) == 1 {
+		resp, err := c.DeleteWorkflowWithResponse(cmd.Context(), org, app, ids[0],
+			&api.DeleteWorkflowParams{DeleteChildren: children})
+		if err != nil {
+			return err
+		}
+		if err := checkStatus(resp.StatusCode(), resp.HTTPResponse, resp.ApplicationproblemJSONDefault, resp.Body); err != nil {
+			return err
+		}
+	} else {
+		resp, err := c.BulkDeleteWorkflowsWithResponse(cmd.Context(), org, app,
+			api.BulkDeleteWorkflowsJSONRequestBody{WorkflowIds: ids, DeleteChildren: children})
+		if err != nil {
+			return err
+		}
+		if err := checkStatus(resp.StatusCode(), resp.HTTPResponse, resp.ApplicationproblemJSONDefault, resp.Body); err != nil {
+			return err
+		}
+	}
+	return reportMutation(cmd, format, "deleted", ids)
+}
+
+// runWorkflowFork forks one workflow and prints the new workflow ID (scalar
+// convention — bare on stdout, so `$(dbos workflow fork x)` is usable), or the
+// raw ForkWorkflowOutputBody under -o json.
+func runWorkflowFork(cmd *cobra.Command, args []string) error {
+	format, err := resolvedFormat(cmd)
+	if err != nil {
+		return err
+	}
+	body := api.ForkWorkflowJSONRequestBody{
+		NewWorkflowId: optString(cmd, "new-id"),
+		QueueName:     optString(cmd, "queue"),
+		AppVersion:    optString(cmd, "app-version"),
+	}
+	if cmd.Flags().Changed("start-step") {
+		v, _ := cmd.Flags().GetInt32("start-step")
+		body.StartStep = &v
+	}
+	c, org, app, err := workflowTarget(cmd)
+	if err != nil {
+		return err
+	}
+	resp, err := c.ForkWorkflowWithResponse(cmd.Context(), org, app, args[0], body)
+	if err != nil {
+		return err
+	}
+	if resp.JSON201 == nil {
+		return apiError(resp.StatusCode(), resp.HTTPResponse.Header, resp.ApplicationproblemJSONDefault, resp.Body)
+	}
+	if format == output.FormatJSON {
+		return output.JSON(cmd.OutOrStdout(), resp.JSON201)
+	}
+	fmt.Fprintln(cmd.OutOrStdout(), resp.JSON201.WorkflowId)
+	return nil
+}
+
+// collectWorkflowIDs returns the workflow IDs from args, expanding a literal "-"
+// to IDs read from stdin (one per line, blanks skipped) so
+// `dbos workflow list -o ids | dbos workflow cancel -` works.
+func collectWorkflowIDs(cmd *cobra.Command, args []string) ([]string, error) {
+	var ids []string
+	for _, a := range args {
+		if a != "-" {
+			ids = append(ids, a)
+			continue
+		}
+		sc := bufio.NewScanner(cmd.InOrStdin())
+		for sc.Scan() {
+			if line := strings.TrimSpace(sc.Text()); line != "" {
+				ids = append(ids, line)
+			}
+		}
+		if err := sc.Err(); err != nil {
+			return nil, err
+		}
+	}
+	if len(ids) == 0 {
+		return nil, fmt.Errorf("no workflow IDs given")
+	}
+	return ids, nil
+}
+
+// reportMutation prints the affected IDs (one per line) for -o ids, else a human
+// confirmation.
+func reportMutation(cmd *cobra.Command, format output.Format, verb string, ids []string) error {
+	if format == output.FormatIDs {
+		return output.WriteIDs(cmd.OutOrStdout(), ids)
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "%s %d workflow(s)\n", verb, len(ids))
+	return nil
+}
+
+// optBool / optString return a flag's value as a pointer only if it was passed,
+// so an unset flag is omitted from the request body.
+func optBool(cmd *cobra.Command, flag string) *bool {
+	if cmd.Flags().Changed(flag) {
+		v, _ := cmd.Flags().GetBool(flag)
+		return &v
+	}
+	return nil
+}
+
+func optString(cmd *cobra.Command, flag string) *string {
+	if cmd.Flags().Changed(flag) {
+		v, _ := cmd.Flags().GetString(flag)
+		return &v
+	}
+	return nil
 }
 
 // workflowTarget resolves the client plus the org and app an app-scoped workflow

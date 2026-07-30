@@ -17,16 +17,31 @@ type Format string
 const (
 	FormatTable Format = "table"
 	FormatJSON  Format = "json"
+	// FormatIDs prints one identifier per line, for piping into commands that
+	// read IDs from stdin. Only commands with a natural ID honor it (see WriteIDs);
+	// others reject it.
+	FormatIDs Format = "ids"
 )
 
 // ParseFormat validates an -o/--output value.
 func ParseFormat(s string) (Format, error) {
 	switch Format(s) {
-	case FormatTable, FormatJSON:
+	case FormatTable, FormatJSON, FormatIDs:
 		return Format(s), nil
 	default:
-		return "", fmt.Errorf("unknown output format %q (want: table, json)", s)
+		return "", fmt.Errorf("unknown output format %q (want: table, json, ids)", s)
 	}
+}
+
+// WriteIDs prints one identifier per line — the FormatIDs rendering, so
+// `... -o ids | dbos workflow cancel -` pipelines work.
+func WriteIDs(w io.Writer, ids []string) error {
+	for _, id := range ids {
+		if _, err := fmt.Fprintln(w, id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Column projects one table column from a row of type T.
@@ -50,7 +65,7 @@ func List[T any](w io.Writer, format Format, rows []T, cols []Column[T]) error {
 	case FormatTable:
 		return writeTable(w, rows, cols)
 	default:
-		return fmt.Errorf("unknown output format %q", format)
+		return fmt.Errorf("output format %q is not supported by this command (try table or json)", format)
 	}
 }
 
@@ -79,7 +94,7 @@ func Detail[T any](w io.Writer, format Format, v T, fields []Field[T]) error {
 	case FormatTable:
 		return writeDetail(w, v, fields)
 	default:
-		return fmt.Errorf("unknown output format %q", format)
+		return fmt.Errorf("output format %q is not supported by this command (try table or json)", format)
 	}
 }
 

@@ -130,6 +130,31 @@ func TestDetailJSON(t *testing.T) {
 	}
 }
 
+func TestParseFormatIDs(t *testing.T) {
+	if _, err := ParseFormat("ids"); err != nil {
+		t.Errorf(`ParseFormat("ids") = %v, want nil`, err)
+	}
+}
+
+func TestWriteIDs(t *testing.T) {
+	var buf bytes.Buffer
+	if err := WriteIDs(&buf, []string{"wf-1", "wf-2"}); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := buf.String(), "wf-1\nwf-2\n"; got != want {
+		t.Errorf("WriteIDs = %q, want %q", got, want)
+	}
+}
+
+func TestListRejectsIDs(t *testing.T) {
+	var buf bytes.Buffer
+	// List doesn't render ids itself — a command with no ID support surfaces a
+	// clear error rather than silently doing nothing.
+	if err := List(&buf, FormatIDs, []row{{"a", "b"}}, testCols()); err == nil {
+		t.Error("List with ids format = nil error, want unsupported-format error")
+	}
+}
+
 func TestDetailNoFields(t *testing.T) {
 	var buf bytes.Buffer
 	if err := Detail(&buf, FormatTable, row{"a", "b"}, nil); err == nil {

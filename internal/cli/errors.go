@@ -28,6 +28,19 @@ func exitCodeFor(err error) int {
 	return 1
 }
 
+// checkStatus turns a non-2xx response into an apiError, for the empty-body
+// (no typed JSON2xx) operations where success is just the status code.
+func checkStatus(status int, resp *http.Response, problem *api.ErrorModel, body []byte) error {
+	if status < 200 || status >= 300 {
+		var h http.Header
+		if resp != nil {
+			h = resp.Header
+		}
+		return apiError(status, h, problem, body)
+	}
+	return nil
+}
+
 // apiError maps a non-2xx Conductor response to an error with a helpful message
 // and the right exit code: 401 -> "run dbos login" (3), 404 -> (4), a past-limit
 // 403 -> the upgrade hint, everything else -> (1). A Teams-only 403 needs no
