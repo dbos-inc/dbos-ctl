@@ -113,6 +113,23 @@ func TestOAuthRoundTripsIntegration(t *testing.T) {
 		}
 	})
 
+	// Round-trip 1b: the OAuth-gated `permission list` returns the catalog.
+	t.Run("jwt permission list", func(t *testing.T) {
+		isolateConfig(t)
+		t.Setenv("DBOS_TOKEN", token)
+		saveBearerProfile(t, oc.BaseURL, orgName)
+
+		cmd := newCmdWithGlobals()
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		if err := runPermissionList(cmd, nil); err != nil {
+			t.Fatalf("permission list: %v", err)
+		}
+		if got := out.String(); !strings.Contains(got, "application.read") {
+			t.Errorf("permission list missing a known permission:\n%s", got)
+		}
+	})
+
 	// Round-trip 2: a dbos_ API key (minted via the API with application.read)
 	// lists an app through the CLI — the passthrough path getCurrentUser can't
 	// reach, since API-key callers carry no user identity.
@@ -249,6 +266,54 @@ func TestAppReadsBareIntegration(t *testing.T) {
 	execs, _ := appCmd()
 	if err := runAppExecutors(execs, []string{appName}); err != nil {
 		t.Errorf("app executors on a bare app should succeed (empty), got: %v", err)
+	}
+}
+
+// TestAPIKeyRoundTripIntegration proves the D3 flow through the CLI against a
+// real no-auth Conductor: create a key (capturing the once-shown secret), see it
+// in the list, delete it, and confirm it's gone. Creating a key in no-auth mode
+// also confirms the token endpoints work with the `local` org — a data point for
+// the D4 executor-fixture harness-mode question.
+func TestAPIKeyRoundTripIntegration(t *testing.T) {
+	baseURL := conductortest.Start(t)
+	const keyName = "d3-ci"
+
+	keyCmd := func() (*cobra.Command, *bytes.Buffer) {
+		cmd := newCmdWithGlobals()
+		_ = cmd.Flags().Set("url", baseURL)
+		_ = cmd.Flags().Set("org", "local")
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		cmd.SetErr(&bytes.Buffer{})
+		return cmd, &out
+	}
+	listHas := func() bool {
+		cmd, out := keyCmd()
+		if err := runAPIKeyList(cmd, nil); err != nil {
+			t.Fatalf("api-key list: %v", err)
+		}
+		return strings.Contains(out.String(), keyName)
+	}
+
+	// create → the minted dbos_ secret on stdout.
+	create, out := keyCmd()
+	if err := runAPIKeyCreate(create, []string{keyName}); err != nil {
+		t.Fatalf("api-key create: %v", err)
+	}
+	if token := strings.TrimSpace(out.String()); !strings.HasPrefix(token, "dbos_") {
+		t.Fatalf("minted secret %q is not a dbos_ key", token)
+	}
+	if !listHas() {
+		t.Fatalf("created key %q not in the list", keyName)
+	}
+
+	// delete → gone from the list.
+	del, _ := keyCmd()
+	if err := runAPIKeyDelete(del, []string{keyName}); err != nil {
+		t.Fatalf("api-key delete: %v", err)
+	}
+	if listHas() {
+		t.Errorf("key %q still present after delete", keyName)
 	}
 }
 

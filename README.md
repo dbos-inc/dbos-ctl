@@ -93,6 +93,10 @@ Two ways to bypass the flow:
 | `dbos app metrics <name>` | List an application's metrics (`--since`, default 24h) |
 | `dbos app register <name>` | Register an application |
 | `dbos app delete <name>` | Delete an application (prompts to confirm; `--force` required when non-interactive) |
+| `dbos api-key list` | List API keys (aliases: `token`, `apikey`) |
+| `dbos api-key create <name>` | Create an API key — prints the secret once; scope with `--app`/`--permission` |
+| `dbos api-key delete <name>` | Delete an API key |
+| `dbos permission list` | List grantable permissions (OAuth-mode self-host or DBOS Cloud; not no-auth) |
 | `dbos config list \| show \| use \| set` | Manage profiles |
 | `dbos version` (or `--version`) | Print version information |
 

@@ -72,17 +72,16 @@ func addRequestFlags(cmd *cobra.Command, names ...string) {
 // field reads one setting's flag value (with whether the flag was set) and its
 // environment value. A command only declares the request flags it honors, so a
 // flag this command does not define contributes no flag value — env and profile
-// still apply. GetString errors only on a non-string flag — a bug — which we
-// surface rather than silently resolving to "".
+// still apply. Only a string flag participates: a command may legitimately give
+// a same-named flag another type (e.g. `api-key create`'s repeatable `--app`
+// scope), which contributes no string value here — env/profile still resolve it.
 func field(cmd *cobra.Command, flag, env string) (config.FieldSource, error) {
 	var src config.FieldSource
 	if cmd.Flags().Lookup(flag) != nil {
-		v, err := cmd.Flags().GetString(flag)
-		if err != nil {
-			return config.FieldSource{}, fmt.Errorf("reading --%s: %w", flag, err)
+		if v, err := cmd.Flags().GetString(flag); err == nil {
+			src.Flag = v
+			src.FlagSet = cmd.Flags().Changed(flag)
 		}
-		src.Flag = v
-		src.FlagSet = cmd.Flags().Changed(flag)
 	}
 	src.Env = os.Getenv(env)
 	return src, nil
