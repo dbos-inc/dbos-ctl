@@ -33,8 +33,12 @@ func runAppList(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
+	org, err := effectiveOrg(cmd.Context(), c, s)
+	if err != nil {
+		return err
+	}
 
-	resp, err := c.ListAppsWithResponse(cmd.Context(), s.Org)
+	resp, err := c.ListAppsWithResponse(cmd.Context(), org)
 	if err != nil {
 		return err
 	}

@@ -126,9 +126,20 @@ func TestRunLoginLogout(t *testing.T) {
 	isolateConfig(t)
 	srv := oidcMock(t)
 
-	// A bearer profile whose OIDC points at the mock issuer.
+	// A mock conductor so login's best-effort identity lookup resolves.
+	cond := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v2/users/me" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"name":"alice","email":"a@x","orgName":"acme","orgId":"o1","createdAt":"2026-01-01T00:00:00Z","subscriptionPlan":"free"}`))
+	}))
+	t.Cleanup(cond.Close)
+
+	// A bearer profile whose OIDC points at the mock issuer and URL at conductor.
 	f := &config.File{Current: "p", Profiles: map[string]config.Profile{
-		"p": {Auth: config.AuthBearer, URL: "http://localhost:8090", OIDC: &config.OIDC{Issuer: srv.URL, ClientID: "dbos-cli"}},
+		"p": {Auth: config.AuthBearer, URL: cond.URL, OIDC: &config.OIDC{Issuer: srv.URL, ClientID: "dbos-cli"}},
 	}}
 	if err := config.Save(f); err != nil {
 		t.Fatal(err)
@@ -151,6 +162,10 @@ func TestRunLoginLogout(t *testing.T) {
 	}
 	if c.Token != "JWT" || c.RefreshToken != "RT" || c.ExpiresAt == 0 {
 		t.Errorf("stored creds wrong: %+v", c)
+	}
+	// login captured the identity for later org resolution.
+	if c.Organization != "acme" || c.UserName != "alice" {
+		t.Errorf("login did not persist identity: org=%q user=%q", c.Organization, c.UserName)
 	}
 
 	if err := runLogout(cmd, nil); err != nil {

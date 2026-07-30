@@ -83,6 +83,53 @@ func clientFor(cmd *cobra.Command) (*api.ClientWithResponses, config.Settings, e
 	return c, s, err
 }
 
+// effectiveOrg resolves the organization for an org-scoped request. An
+// explicitly configured org (flag > env > profile) always wins. Otherwise a
+// no-auth self-hosted target is the hardcoded "local" org (Resolve fills this in
+// too), while an authenticated target — cloud or self-hosted OIDC — uses the org
+// captured at login, so the user need not know their org name and no extra
+// request is made. c is only used for the live-lookup fallback (an ad-hoc token
+// with no stored login).
+func effectiveOrg(ctx context.Context, c *api.ClientWithResponses, s config.Settings) (string, error) {
+	if s.Org != "" {
+		return s.Org, nil
+	}
+	if s.Auth != config.AuthBearer {
+		return "local", nil
+	}
+	// `dbos login` captured the org, so prefer it — no extra request. An ad-hoc
+	// $DBOS_TOKEN may be a different identity than any stored login, so for it we
+	// derive live rather than trust the stored org.
+	if os.Getenv("DBOS_TOKEN") == "" {
+		if org := storedOrg(s.Profile); org != "" {
+			return org, nil
+		}
+	}
+	resp, err := c.GetCurrentUserWithResponse(ctx)
+	if err != nil {
+		return "", err
+	}
+	if resp.JSON200 == nil {
+		return "", apiError(resp.StatusCode(), resp.HTTPResponse.Header, resp.ApplicationproblemJSONDefault, resp.Body)
+	}
+	return resp.JSON200.OrgName, nil
+}
+
+// storedOrg returns the organization captured at login for the profile, or ""
+// if there is no stored login (or it predates org capture — e.g. a TS-CLI login
+// without an organization).
+func storedOrg(profile string) string {
+	store, err := creds.NewFileStore()
+	if err != nil {
+		return ""
+	}
+	c, err := store.Load(profile)
+	if err != nil {
+		return ""
+	}
+	return c.Organization
+}
+
 // bearerToken resolves the bearer token for a request, or "" for a no-auth
 // request. Precedence: $DBOS_TOKEN (which implies bearer) > the profile's stored
 // login. A dbos_ API key is sent as-is; an OIDC access token is refreshed when

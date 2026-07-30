@@ -3,11 +3,13 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/dbos-inc/dbos-cli/internal/auth"
+	"github.com/dbos-inc/dbos-cli/internal/client"
 	"github.com/dbos-inc/dbos-cli/internal/creds"
 )
 
@@ -68,6 +70,19 @@ func runLogin(cmd *cobra.Command, _ []string) error {
 	c := &creds.Creds{Token: tok.AccessToken, RefreshToken: tok.RefreshToken}
 	if tok.ExpiresIn > 0 {
 		c.ExpiresAt = time.Now().Add(time.Duration(tok.ExpiresIn) * time.Second).Unix()
+	}
+	// Capture the identity now so org-scoped commands need no extra lookup later.
+	// Best-effort: a brand-new user may not be registered yet, so a failure here
+	// must not fail the login.
+	if cl, err := client.New(client.Config{
+		BaseURL:    s.URL,
+		Token:      tok.AccessToken,
+		HTTPClient: &http.Client{Timeout: 10 * time.Second}, // best-effort; never block login
+	}); err == nil {
+		if resp, err := cl.GetCurrentUserWithResponse(cmd.Context()); err == nil && resp.JSON200 != nil {
+			c.Organization = resp.JSON200.OrgName
+			c.UserName = resp.JSON200.Name
+		}
 	}
 	if err := store.Save(s.Profile, c); err != nil {
 		return err
