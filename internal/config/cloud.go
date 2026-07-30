@@ -8,7 +8,7 @@ package config
 // Targeting a non-production cloud is intentionally undocumented — it exists for
 // DBOS-internal clusters, and the `dbos config set --domain` flag is hidden.
 const (
-	cloudProdDomain    = "cloud.dbos.dev"
+	CloudProdDomain    = "cloud.dbos.dev"
 	cloudConductorPath = "/conductor" // the cloud reverse-proxy prefix
 
 	prodAuth0Issuer   = "https://login.dbos.dev/"
@@ -27,7 +27,7 @@ func cloudURL(domain string) string {
 
 // cloudOIDC returns the Auth0 login config for a DBOS Cloud domain.
 func cloudOIDC(domain string) OIDC {
-	if domain == cloudProdDomain {
+	if domain == CloudProdDomain {
 		return OIDC{Issuer: prodAuth0Issuer, ClientID: prodAuth0ClientID, Audience: cloudAudience}
 	}
 	return OIDC{Issuer: nonprodAuth0Issuer, ClientID: nonprodAuth0ClientID, Audience: cloudAudience}

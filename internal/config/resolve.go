@@ -67,8 +67,8 @@ func (f *File) Resolve(in Inputs) (Settings, error) {
 	}
 	resolvedURL := in.URL.pick(profileURL)
 	if domain == "" {
-		if u, err := url.Parse(resolvedURL); err == nil && u.Host == cloudProdDomain {
-			domain = cloudProdDomain
+		if u, err := url.Parse(resolvedURL); err == nil && u.Host == CloudProdDomain {
+			domain = CloudProdDomain
 		}
 	}
 

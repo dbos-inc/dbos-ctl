@@ -37,9 +37,16 @@ const (
 	condPort  = "8090/tcp"
 )
 
-// Start brings up Postgres + Conductor on a shared network and returns the
-// Conductor base URL. The whole stack is torn down via t.Cleanup.
+// Start brings up Postgres + Conductor (no auth) on a shared network and
+// returns the Conductor base URL. The whole stack is torn down via t.Cleanup.
 func Start(t *testing.T) string {
+	return startStack(t, nil, nil)
+}
+
+// startStack is the shared launcher: it brings up Postgres + Conductor with any
+// extra environment (e.g. the OAuth knobs) and host-access ports (so the
+// container can reach a host-run OIDC mock via host.testcontainers.internal).
+func startStack(t *testing.T, extraEnv map[string]string, hostPorts []int) string {
 	t.Helper()
 	loadDotEnv()
 
@@ -82,15 +89,25 @@ func Start(t *testing.T) string {
 	// check is fine.
 	dbURL := fmt.Sprintf("postgresql://%s:%s@%s:5432/%s?sslmode=disable", pgUser, pgPass, pgAlias, pgDB)
 
+	env := map[string]string{
+		"DBOS__CONDUCTOR_DB_URL":     dbURL,
+		"DBOS_CONDUCTOR_LICENSE_KEY": licenseKey,
+	}
+	for k, v := range extraEnv {
+		env[k] = v
+	}
+
 	req := testcontainers.ContainerRequest{
-		Env: map[string]string{
-			"DBOS__CONDUCTOR_DB_URL":     dbURL,
-			"DBOS_CONDUCTOR_LICENSE_KEY": licenseKey,
-		},
+		Env:            env,
 		ExposedPorts:   []string{condPort},
 		Networks:       []string{nw.Name},
 		NetworkAliases: map[string][]string{nw.Name: {condAlias}},
 		WaitingFor:     wait.ForHTTP("/healthz").WithPort(condPort).WithStartupTimeout(3 * time.Minute),
+	}
+	if len(hostPorts) > 0 {
+		// Expose these host ports to the container via host.testcontainers.internal
+		// (an SSH reverse tunnel), so Conductor can fetch JWKS from a host-run mock.
+		req.HostAccessPorts = hostPorts
 	}
 	var buildLog bytes.Buffer
 	if image != "" {

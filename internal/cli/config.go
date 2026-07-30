@@ -195,6 +195,13 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 		p.Domain = d
 	}
 
+	// A profile with neither a self-hosted URL nor a domain targets DBOS Cloud:
+	// default it to the production domain (`dbos config set cloud` just works).
+	// The hidden --domain overrides this for non-production clusters.
+	if p.URL == "" && p.Domain == "" {
+		p.Domain = config.CloudProdDomain
+	}
+
 	if f.Profiles == nil {
 		f.Profiles = map[string]config.Profile{}
 	}

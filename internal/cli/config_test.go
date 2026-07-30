@@ -119,6 +119,35 @@ func TestConfigSetUseListShow(t *testing.T) {
 	}
 }
 
+func TestConfigSetDefaultsToCloud(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	// No --url and no --domain → DBOS Cloud production.
+	set := newConfigSetCmd()
+	set.SetOut(&bytes.Buffer{})
+	if err := runConfigSet(set, []string{"cloud"}); err != nil {
+		t.Fatal(err)
+	}
+	f, err := config.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := f.Profiles["cloud"].Domain; got != config.CloudProdDomain {
+		t.Errorf("domain = %q, want %q (default cloud)", got, config.CloudProdDomain)
+	}
+
+	// A self-hosted profile (has --url) is not defaulted to a cloud domain.
+	set2 := newConfigSetCmd()
+	_ = set2.Flags().Set("url", "http://localhost:8090")
+	set2.SetOut(&bytes.Buffer{})
+	if err := runConfigSet(set2, []string{"local"}); err != nil {
+		t.Fatal(err)
+	}
+	if f, _ = config.Load(); f.Profiles["local"].Domain != "" {
+		t.Errorf("self-hosted profile got domain %q, want empty", f.Profiles["local"].Domain)
+	}
+}
+
 func TestConfigSetInvalidAuth(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	set := newConfigSetCmd()
