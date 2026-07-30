@@ -101,6 +101,8 @@ Two ways to bypass the flow:
 | `dbos workflow events <id>` | List a workflow's events |
 | `dbos workflow cancel\|resume\|restart\|delete <id>...` | Mutate one or more workflows (variadic; `-` reads IDs from stdin; `--children` on cancel/delete) |
 | `dbos workflow fork <id>` | Fork a workflow into a new execution (prints the new ID; `--start-step`, `--new-id`) |
+| `dbos queue list \| get <name>` | Inspect queue definitions (app-scoped, needs `--app`) |
+| `dbos schedule list \| get <name>` | Inspect scheduled workflows |
 | `dbos api-key list` | List API keys (aliases: `token`, `apikey`) |
 | `dbos api-key create <name>` | Create an API key — prints the secret once; scope with `--app`/`--permission` |
 | `dbos api-key delete <name>` | Delete an API key |

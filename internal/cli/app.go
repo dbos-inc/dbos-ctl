@@ -441,6 +441,27 @@ func derefInt64(p *int64) string {
 	return strconv.FormatInt(*p, 10)
 }
 
+// derefInt32 renders an optional int32 field, empty for nil.
+func derefInt32(p *int32) string {
+	if p == nil {
+		return ""
+	}
+	return strconv.FormatInt(int64(*p), 10)
+}
+
+// fmtFloat renders a float without a fixed precision (drops trailing zeros).
+func fmtFloat(f float64) string {
+	return strconv.FormatFloat(f, 'g', -1, 64)
+}
+
+// derefFloat renders an optional float field, empty for nil.
+func derefFloat(p *float64) string {
+	if p == nil {
+		return ""
+	}
+	return fmtFloat(*p)
+}
+
 func appColumns() []output.Column[api.Application] {
 	return []output.Column[api.Application]{
 		{Header: "NAME", Value: func(a api.Application) string { return a.Name }},

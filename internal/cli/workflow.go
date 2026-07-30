@@ -138,7 +138,7 @@ func runWorkflowList(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	c, org, app, err := workflowTarget(cmd)
+	c, org, app, err := appScopedTarget(cmd)
 	if err != nil {
 		return err
 	}
@@ -246,7 +246,7 @@ func runWorkflowCancel(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c, org, app, err := workflowTarget(cmd)
+	c, org, app, err := appScopedTarget(cmd)
 	if err != nil {
 		return err
 	}
@@ -282,7 +282,7 @@ func runWorkflowResume(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c, org, app, err := workflowTarget(cmd)
+	c, org, app, err := appScopedTarget(cmd)
 	if err != nil {
 		return err
 	}
@@ -319,7 +319,7 @@ func runWorkflowRestart(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c, org, app, err := workflowTarget(cmd)
+	c, org, app, err := appScopedTarget(cmd)
 	if err != nil {
 		return err
 	}
@@ -344,7 +344,7 @@ func runWorkflowDelete(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c, org, app, err := workflowTarget(cmd)
+	c, org, app, err := appScopedTarget(cmd)
 	if err != nil {
 		return err
 	}
@@ -388,7 +388,7 @@ func runWorkflowFork(cmd *cobra.Command, args []string) error {
 		v, _ := cmd.Flags().GetInt32("start-step")
 		body.StartStep = &v
 	}
-	c, org, app, err := workflowTarget(cmd)
+	c, org, app, err := appScopedTarget(cmd)
 	if err != nil {
 		return err
 	}
@@ -460,9 +460,9 @@ func optString(cmd *cobra.Command, flag string) *string {
 	return nil
 }
 
-// workflowTarget resolves the client plus the org and app an app-scoped workflow
-// request needs.
-func workflowTarget(cmd *cobra.Command) (*api.ClientWithResponses, string, string, error) {
+// appScopedTarget resolves the client plus the org and app that an app-scoped
+// request (workflow, queue, schedule) needs.
+func appScopedTarget(cmd *cobra.Command) (*api.ClientWithResponses, string, string, error) {
 	c, s, err := clientFor(cmd)
 	if err != nil {
 		return nil, "", "", err
@@ -483,7 +483,7 @@ func runWorkflowGet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c, org, app, err := workflowTarget(cmd)
+	c, org, app, err := appScopedTarget(cmd)
 	if err != nil {
 		return err
 	}
@@ -502,7 +502,7 @@ func runWorkflowSteps(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c, org, app, err := workflowTarget(cmd)
+	c, org, app, err := appScopedTarget(cmd)
 	if err != nil {
 		return err
 	}
@@ -521,7 +521,7 @@ func runWorkflowEvents(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c, org, app, err := workflowTarget(cmd)
+	c, org, app, err := appScopedTarget(cmd)
 	if err != nil {
 		return err
 	}

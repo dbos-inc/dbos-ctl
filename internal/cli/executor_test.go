@@ -27,12 +27,19 @@ func spikeWorkflow(ctx dbos.Context, in string) (string, error) {
 	return dbos.RunAsStep(ctx, func(context.Context) (string, error) { return in, nil })
 }
 
+// scheduledWorkflow is a cron-schedulable workflow (its signature is
+// (Context, ScheduledWorkflowInput)), so E3 can attach a schedule to it.
+func scheduledWorkflow(_ dbos.Context, _ dbos.ScheduledWorkflowInput) (any, error) {
+	return nil, nil
+}
+
 // startExecutor launches an in-process Go DBOS app that connects to the harness
 // conductor as an executor for appName, backed by a temp-file SQLite system DB
 // (no Postgres needed). The connection happens in the background after Launch,
-// so callers poll the CLI reads until the executor appears. Shutdown is
-// registered as a cleanup.
-func startExecutor(t *testing.T, conductorHTTPURL, apiKey, appName string) dbos.Context {
+// so callers poll the CLI reads until the executor appears. beforeLaunch hooks
+// run after the base registration but before Launch (e.g. to register extra
+// workflows). Shutdown is registered as a cleanup.
+func startExecutor(t *testing.T, conductorHTTPURL, apiKey, appName string, beforeLaunch ...func(dbos.Context)) dbos.Context {
 	t.Helper()
 	// The SDK appends /websocket/<app>/<key>; against a local conductor the base
 	// is a bare ws://host:port (the /conductor/v1alpha1 prefix is cloud-only).
@@ -48,6 +55,9 @@ func startExecutor(t *testing.T, conductorHTTPURL, apiKey, appName string) dbos.
 		t.Fatalf("new dbos context: %v", err)
 	}
 	dbos.RegisterWorkflow(dctx, spikeWorkflow)
+	for _, fn := range beforeLaunch {
+		fn(dctx)
+	}
 	if err := dbos.Launch(dctx); err != nil {
 		t.Fatalf("launch dbos app: %v", err)
 	}
@@ -231,6 +241,76 @@ func TestWorkflowMutationsIntegration(t *testing.T) {
 	}
 	if !gone {
 		t.Errorf("workflow %q still retrievable after delete", id)
+	}
+}
+
+// TestQueueScheduleReadsIntegration (E3) registers a queue and a schedule on the
+// fixture app, then reads them back through the CLI (dispatched live to the
+// executor): queue list/get and schedule list/get.
+func TestQueueScheduleReadsIntegration(t *testing.T) {
+	baseURL := conductortest.Start(t)
+	const appName = "e3-app"
+
+	seed, err := newSeedClient(baseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registerAppOrFail(t, seed, "local", appName)
+	apiKey := mintKeyOrFail(t, seed, "local", appName+"-key")
+
+	// The scheduled workflow must be registered before Launch; the queue and the
+	// schedule itself are runtime (post-Launch) calls.
+	dctx := startExecutor(t, baseURL, apiKey, appName, func(c dbos.Context) {
+		dbos.RegisterWorkflow(c, scheduledWorkflow)
+	})
+	if _, err := dbos.RegisterQueue(dctx, "e3-queue"); err != nil {
+		t.Fatalf("register queue: %v", err)
+	}
+	if err := dbos.CreateSchedule(dctx, dbos.ScheduleSpec{
+		ScheduleName: "e3-sched",
+		Schedule:     "0 0 0 * * *", // 6-field cron (sec min hour dom mon dow): daily at midnight
+		Workflow:     scheduledWorkflow,
+	}); err != nil {
+		t.Fatalf("create schedule: %v", err)
+	}
+
+	appCmd := func() (*cobra.Command, *strings.Builder) {
+		cmd := newCmdWithGlobals()
+		_ = cmd.Flags().Set("url", baseURL)
+		_ = cmd.Flags().Set("org", "local")
+		_ = cmd.Flags().Set("app", appName)
+		out := &strings.Builder{}
+		cmd.SetOut(out)
+		return cmd, out
+	}
+	// pollContains runs a read until its output contains want (reads dispatch to
+	// the executor, which connects asynchronously).
+	pollContains := func(name string, run func(*cobra.Command) error, want string) {
+		deadline := time.Now().Add(30 * time.Second)
+		var last string
+		for time.Now().Before(deadline) {
+			cmd, out := appCmd()
+			if err := run(cmd); err == nil {
+				last = out.String()
+				if strings.Contains(last, want) {
+					return
+				}
+			}
+			time.Sleep(time.Second)
+		}
+		t.Fatalf("%s never contained %q; last:\n%s", name, want, last)
+	}
+
+	pollContains("queue list", func(c *cobra.Command) error { return runQueueList(c, nil) }, "e3-queue")
+	pollContains("schedule list", func(c *cobra.Command) error { return runScheduleList(c, nil) }, "e3-sched")
+
+	qc, _ := appCmd()
+	if err := runQueueGet(qc, []string{"e3-queue"}); err != nil {
+		t.Errorf("queue get: %v", err)
+	}
+	sc, _ := appCmd()
+	if err := runScheduleGet(sc, []string{"e3-sched"}); err != nil {
+		t.Errorf("schedule get: %v", err)
 	}
 }
 
