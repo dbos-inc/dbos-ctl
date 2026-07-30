@@ -317,6 +317,38 @@ func TestAPIKeyRoundTripIntegration(t *testing.T) {
 	}
 }
 
+// newSeedClient builds a plain generated client for seeding harness state
+// (registering apps, minting keys) outside the CLI command path.
+func newSeedClient(baseURL string) (*api.ClientWithResponses, error) {
+	return api.NewClientWithResponses(baseURL)
+}
+
+// registerAppOrFail registers an app via the API, failing the test on error.
+func registerAppOrFail(t *testing.T, c *api.ClientWithResponses, org, name string) {
+	t.Helper()
+	reg, err := c.RegisterAppWithResponse(context.Background(), org, name, api.RegisterAppJSONRequestBody{})
+	if err != nil {
+		t.Fatalf("register app %q: %v", name, err)
+	}
+	if reg.StatusCode() >= 300 {
+		t.Fatalf("register app %q: HTTP %d: %s", name, reg.StatusCode(), reg.Body)
+	}
+}
+
+// mintKeyOrFail mints an unscoped API key (which defaults to websocket.connect —
+// enough for an executor to connect) and returns the bare dbos_ secret.
+func mintKeyOrFail(t *testing.T, c *api.ClientWithResponses, org, name string) string {
+	t.Helper()
+	tok, err := c.CreateTokenWithResponse(context.Background(), org, name, api.CreateTokenJSONRequestBody{})
+	if err != nil {
+		t.Fatalf("create token %q: %v", name, err)
+	}
+	if tok.JSON201 == nil {
+		t.Fatalf("create token %q: HTTP %d: %s", name, tok.StatusCode(), tok.Body)
+	}
+	return tok.JSON201.Token
+}
+
 // saveBearerProfile writes a single current bearer profile at url, optionally
 // scoped to org.
 func saveBearerProfile(t *testing.T, url, org string) {

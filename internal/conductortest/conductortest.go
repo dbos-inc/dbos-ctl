@@ -43,6 +43,13 @@ func Start(t *testing.T) string {
 	return startStack(t, nil, nil)
 }
 
+// StartWithEnv is Start with extra Conductor environment — e.g. a short
+// DBOS__METRICS_COLLECTION_PERIOD so a metrics test doesn't wait the 5-minute
+// default for the leader's collection loop.
+func StartWithEnv(t *testing.T, extraEnv map[string]string) string {
+	return startStack(t, extraEnv, nil)
+}
+
 // startStack is the shared launcher: it brings up Postgres + Conductor with any
 // extra environment (e.g. the OAuth knobs) and host-access ports (so the
 // container can reach a host-run OIDC mock via host.testcontainers.internal).
