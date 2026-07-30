@@ -3,6 +3,8 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -521,6 +523,133 @@ func TestRunAppMetrics(t *testing.T) {
 	// The required window must be sent as query params.
 	if query.Get("startTime") == "" || query.Get("endTime") == "" {
 		t.Errorf("metrics request missing time window: %v", query)
+	}
+}
+
+// patchServer captures a PATCH request's method and JSON body at wantPath.
+func patchServer(t *testing.T, wantPath string) (*httptest.Server, *map[string]any, *string) {
+	t.Helper()
+	var gotBody map[string]any
+	var gotMethod string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != wantPath {
+			t.Errorf("unexpected request path %q", r.URL.Path)
+			http.Error(w, "unexpected path", http.StatusNotFound)
+			return
+		}
+		gotMethod = r.Method
+		raw, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(raw, &gotBody)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+	return srv, &gotBody, &gotMethod
+}
+
+func newAppUpdateCmd(t *testing.T, url string) *cobra.Command {
+	t.Helper()
+	cmd := newCmdWithGlobals()
+	cmd.Flags().Int64("executor-timeout-secs", 0, "")
+	cmd.Flags().Int64("gc-rows-threshold", 0, "")
+	cmd.Flags().Int64("gc-time-threshold-ms", 0, "")
+	cmd.Flags().Int64("global-timeout-ms", 0, "")
+	cmd.Flags().Bool("private-mode", false, "")
+	_ = cmd.Flags().Set("url", url)
+	return cmd
+}
+
+func TestRunAppUpdate(t *testing.T) {
+	isolateConfig(t)
+	srv, body, method := patchServer(t, "/v2/orgs/local/apps/myapp")
+
+	cmd := newAppUpdateCmd(t, srv.URL)
+	_ = cmd.Flags().Set("executor-timeout-secs", "30")
+	_ = cmd.Flags().Set("private-mode", "true")
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	if err := runAppUpdate(cmd, []string{"myapp"}); err != nil {
+		t.Fatal(err)
+	}
+	if *method != http.MethodPatch {
+		t.Errorf("update used %s, want PATCH", *method)
+	}
+	// Only the named fields are sent; the untouched gc fields are omitted.
+	if got := (*body)["executorTimeoutSecs"]; got != float64(30) {
+		t.Errorf("executorTimeoutSecs = %v, want 30", got)
+	}
+	if got := (*body)["privateMode"]; got != true {
+		t.Errorf("privateMode = %v, want true", got)
+	}
+	if _, ok := (*body)["gcRowsThreshold"]; ok {
+		t.Errorf("gcRowsThreshold should be omitted, got %v", (*body)["gcRowsThreshold"])
+	}
+	if !strings.Contains(out.String(), `updated app "myapp"`) {
+		t.Errorf("unexpected update output: %q", out.String())
+	}
+}
+
+func TestRunAppUpdateNoFields(t *testing.T) {
+	isolateConfig(t)
+	// No fields → error before any request (nil URL server proves nothing is sent).
+	cmd := newAppUpdateCmd(t, "http://127.0.0.1:0")
+	cmd.SetOut(&bytes.Buffer{})
+	err := runAppUpdate(cmd, []string{"myapp"})
+	if err == nil || !strings.Contains(err.Error(), "nothing to update") {
+		t.Errorf("want a nothing-to-update error, got %v", err)
+	}
+}
+
+func TestRunAppUpdateError(t *testing.T) {
+	isolateConfig(t)
+	srv, _ := appItemServer(t, "myapp", http.StatusForbidden, "application/problem+json",
+		`{"title":"Forbidden","detail":"nope","status":403}`)
+
+	cmd := newAppUpdateCmd(t, srv.URL)
+	_ = cmd.Flags().Set("global-timeout-ms", "1000")
+	cmd.SetOut(&bytes.Buffer{})
+	err := runAppUpdate(cmd, []string{"myapp"})
+	if err == nil || !strings.Contains(err.Error(), "Forbidden") {
+		t.Errorf("want a Forbidden error, got %v", err)
+	}
+}
+
+func TestRunAppSetVersion(t *testing.T) {
+	isolateConfig(t)
+	srv, body, method := patchServer(t, "/v2/orgs/local/apps/myapp/versions/latest")
+
+	cmd := newCmdWithGlobals()
+	_ = cmd.Flags().Set("url", srv.URL)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	if err := runAppSetVersion(cmd, []string{"myapp", "v2"}); err != nil {
+		t.Fatal(err)
+	}
+	if *method != http.MethodPatch {
+		t.Errorf("set-version used %s, want PATCH", *method)
+	}
+	if got := (*body)["versionName"]; got != "v2" {
+		t.Errorf("versionName = %v, want v2", got)
+	}
+	if !strings.Contains(out.String(), `set latest version of "myapp" to "v2"`) {
+		t.Errorf("unexpected set-version output: %q", out.String())
+	}
+}
+
+func TestRunAppSetVersionError(t *testing.T) {
+	isolateConfig(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"title":"Not Found","detail":"no such app","status":404}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	cmd := newCmdWithGlobals()
+	_ = cmd.Flags().Set("url", srv.URL)
+	cmd.SetOut(&bytes.Buffer{})
+	err := runAppSetVersion(cmd, []string{"ghost", "v1"})
+	if err == nil || !strings.Contains(err.Error(), "Not Found") {
+		t.Errorf("want a Not Found error, got %v", err)
 	}
 }
 

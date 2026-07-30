@@ -65,6 +65,20 @@ var appMetricsCmd = &cobra.Command{
 	RunE:  runAppMetrics,
 }
 
+var appUpdateCmd = &cobra.Command{
+	Use:   "update <name>",
+	Short: "Update an application's settings",
+	Args:  cobra.ExactArgs(1),
+	RunE:  runAppUpdate,
+}
+
+var appSetVersionCmd = &cobra.Command{
+	Use:   "set-version <name> <version>",
+	Short: "Set an application's latest version",
+	Args:  cobra.ExactArgs(2),
+	RunE:  runAppSetVersion,
+}
+
 func init() {
 	// app list is org-scoped (it lists every app in the org), so it honors
 	// --org but not --app. The per-app reads name the app positionally.
@@ -77,8 +91,20 @@ func init() {
 	addRequestFlags(appExecutorsCmd, "profile", "url", "org", "output")
 	addRequestFlags(appMetricsCmd, "profile", "url", "org", "output")
 	appMetricsCmd.Flags().Duration("since", 24*time.Hour, "report the window ending now and starting this long ago")
+
+	// app update patches the self-hosted tuning fields; only the flags you pass
+	// are changed.
+	addRequestFlags(appUpdateCmd, "profile", "url", "org")
+	appUpdateCmd.Flags().Int64("executor-timeout-secs", 0, "seconds before an idle executor is considered gone")
+	appUpdateCmd.Flags().Int64("gc-rows-threshold", 0, "workflow rows kept before garbage collection")
+	appUpdateCmd.Flags().Int64("gc-time-threshold-ms", 0, "age in ms before a workflow is garbage-collected")
+	appUpdateCmd.Flags().Int64("global-timeout-ms", 0, "global workflow timeout in ms")
+	appUpdateCmd.Flags().Bool("private-mode", false, "restrict the app to org members")
+	addRequestFlags(appSetVersionCmd, "profile", "url", "org")
+
 	appCmd.AddCommand(appListCmd, appRegisterCmd, appDeleteCmd,
-		appGetCmd, appVersionsCmd, appExecutorsCmd, appMetricsCmd)
+		appGetCmd, appVersionsCmd, appExecutorsCmd, appMetricsCmd,
+		appUpdateCmd, appSetVersionCmd)
 	rootCmd.AddCommand(appCmd)
 }
 
@@ -270,6 +296,75 @@ func runAppMetrics(cmd *cobra.Command, args []string) error {
 		return apiError(resp.StatusCode(), resp.HTTPResponse.Header, resp.ApplicationproblemJSONDefault, resp.Body)
 	}
 	return output.List(cmd.OutOrStdout(), format, *resp.JSON200, appMetricColumns())
+}
+
+func runAppUpdate(cmd *cobra.Command, args []string) error {
+	name := args[0]
+	// Only patch the fields the user actually named.
+	var body api.UpdateAppJSONRequestBody
+	changed := false
+	patchInt64(cmd, "executor-timeout-secs", &body.ExecutorTimeoutSecs, &changed)
+	patchInt64(cmd, "gc-rows-threshold", &body.GcRowsThreshold, &changed)
+	patchInt64(cmd, "gc-time-threshold-ms", &body.GcTimeThresholdMs, &changed)
+	patchInt64(cmd, "global-timeout-ms", &body.GlobalTimeoutMs, &changed)
+	if cmd.Flags().Changed("private-mode") {
+		v, _ := cmd.Flags().GetBool("private-mode")
+		body.PrivateMode = &v
+		changed = true
+	}
+	if !changed {
+		return fmt.Errorf("nothing to update: pass at least one field (see `dbos app update --help`)")
+	}
+
+	c, s, err := clientFor(cmd)
+	if err != nil {
+		return err
+	}
+	org, err := effectiveOrg(cmd.Context(), c, s)
+	if err != nil {
+		return err
+	}
+	resp, err := c.UpdateAppWithResponse(cmd.Context(), org, name, body)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode() < 200 || resp.StatusCode() >= 300 {
+		return apiError(resp.StatusCode(), resp.HTTPResponse.Header, resp.ApplicationproblemJSONDefault, resp.Body)
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "updated app %q\n", name)
+	return nil
+}
+
+func runAppSetVersion(cmd *cobra.Command, args []string) error {
+	name, version := args[0], args[1]
+	c, s, err := clientFor(cmd)
+	if err != nil {
+		return err
+	}
+	org, err := effectiveOrg(cmd.Context(), c, s)
+	if err != nil {
+		return err
+	}
+	resp, err := c.SetLatestAppVersionWithResponse(cmd.Context(), org, name,
+		api.SetLatestAppVersionJSONRequestBody{VersionName: version})
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode() < 200 || resp.StatusCode() >= 300 {
+		return apiError(resp.StatusCode(), resp.HTTPResponse.Header, resp.ApplicationproblemJSONDefault, resp.Body)
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "set latest version of %q to %q\n", name, version)
+	return nil
+}
+
+// patchInt64 sets *dst to the flag's value (and marks changed) only if the flag
+// was passed, so an unset flag leaves the field nil (unchanged in the patch).
+func patchInt64(cmd *cobra.Command, flag string, dst **int64, changed *bool) {
+	if cmd.Flags().Changed(flag) {
+		v, _ := cmd.Flags().GetInt64(flag)
+		*dst = &v
+		*changed = true
+	}
 }
 
 // appDetailFields is the label/value projection for `app get`; labels are the

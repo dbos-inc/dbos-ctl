@@ -92,6 +92,8 @@ Two ways to bypass the flow:
 | `dbos app executors <name>` | List an application's connected executors |
 | `dbos app metrics <name>` | List an application's metrics (`--since`, default 24h) |
 | `dbos app register <name>` | Register an application |
+| `dbos app update <name>` | Update tuning settings (e.g. `--executor-timeout-secs`, `--private-mode`) |
+| `dbos app set-version <name> <version>` | Set the application's latest version |
 | `dbos app delete <name>` | Delete an application (prompts to confirm; `--force` required when non-interactive) |
 | `dbos api-key list` | List API keys (aliases: `token`, `apikey`) |
 | `dbos api-key create <name>` | Create an API key — prints the secret once; scope with `--app`/`--permission` |

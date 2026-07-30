@@ -317,6 +317,45 @@ func TestAPIKeyRoundTripIntegration(t *testing.T) {
 	}
 }
 
+// TestAppUpdateIntegration proves the D5 write round-trips: `app update` patches
+// the tuning fields and `app get` reflects them, against a real no-auth Conductor.
+func TestAppUpdateIntegration(t *testing.T) {
+	baseURL := conductortest.Start(t)
+	const appName = "d5-update"
+
+	seed, err := newSeedClient(baseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registerAppOrFail(t, seed, "local", appName)
+
+	upd := newAppUpdateCmd(t, baseURL)
+	_ = upd.Flags().Set("org", "local")
+	_ = upd.Flags().Set("executor-timeout-secs", "42")
+	_ = upd.Flags().Set("private-mode", "true")
+	upd.SetOut(&bytes.Buffer{})
+	if err := runAppUpdate(upd, []string{appName}); err != nil {
+		t.Fatalf("app update: %v", err)
+	}
+
+	get := newCmdWithGlobals()
+	_ = get.Flags().Set("url", baseURL)
+	_ = get.Flags().Set("org", "local")
+	_ = get.Flags().Set("output", "json")
+	var out bytes.Buffer
+	get.SetOut(&out)
+	if err := runAppGet(get, []string{appName}); err != nil {
+		t.Fatalf("app get: %v", err)
+	}
+	body := out.String()
+	if !strings.Contains(body, `"executorTimeoutSecs": 42`) {
+		t.Errorf("update did not round-trip executorTimeoutSecs:\n%s", body)
+	}
+	if !strings.Contains(body, `"privateMode": true`) {
+		t.Errorf("update did not round-trip privateMode:\n%s", body)
+	}
+}
+
 // newSeedClient builds a plain generated client for seeding harness state
 // (registering apps, minting keys) outside the CLI command path.
 func newSeedClient(baseURL string) (*api.ClientWithResponses, error) {
