@@ -49,14 +49,17 @@ There are three common shapes:
 
 | Shape | How to create | Auth | Identity |
 |---|---|---|---|
-| **Self-hosted, no auth** | `config set x --auth none --url http://host:8090` | none | always `local` |
-| **Self-hosted + OIDC** | `config set x --auth bearer --url http://host:8090 --issuer <url> --client-id <id> [--audience <aud>]` | user JWT or `dbos_` key | real |
+| **Self-hosted, no auth** | `config set x --url http://host:8090` | none | always `local` |
+| **Self-hosted + OIDC** | `config set x --url http://host:8090 --issuer <url> --client-id <id> [--audience <aud>]` | user JWT or `dbos_` key | real |
 | **DBOS Cloud** | `config set x --cloud` | Auth0 JWT | real |
 
 A profile must target either DBOS Cloud (`--cloud`) or a self-hosted Conductor
 (`--url`); the two are mutually exclusive. `--cloud` points at `cloud.dbos.dev`
 and derives everything else (the `/conductor` URL, bearer auth, and the Auth0
-tenant) automatically.
+tenant) automatically. Passing `--issuer`/`--client-id` implies bearer auth, so
+`--auth` is only needed for the uncommon case of a self-hosted Conductor you
+reach with a `dbos_` API key but no OIDC login: `--auth bearer`. Because an API
+key carries no user identity, give that profile an `--org` too.
 
 ## Authentication
 

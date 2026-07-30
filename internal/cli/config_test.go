@@ -201,6 +201,48 @@ func TestConfigSetRequiresTarget(t *testing.T) {
 	}
 }
 
+func TestConfigSetOIDCImpliesBearer(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	// A self-hosted profile with OIDC flags but no --auth infers bearer.
+	set := newConfigSetCmd()
+	_ = set.Flags().Set("url", "http://host:8090")
+	_ = set.Flags().Set("issuer", "https://idp.example/realm")
+	_ = set.Flags().Set("client-id", "dbos-cli")
+	set.SetOut(&bytes.Buffer{})
+	if err := runConfigSet(set, []string{"corp"}); err != nil {
+		t.Fatal(err)
+	}
+	f, _ := config.Load()
+	if got := f.Profiles["corp"].Auth; got != config.AuthBearer {
+		t.Errorf("OIDC flags should imply bearer auth, got %q", got)
+	}
+
+	// An explicit --auth still wins over the inference.
+	set2 := newConfigSetCmd()
+	_ = set2.Flags().Set("url", "http://host:8090")
+	_ = set2.Flags().Set("issuer", "https://idp.example/realm")
+	_ = set2.Flags().Set("auth", "none")
+	set2.SetOut(&bytes.Buffer{})
+	if err := runConfigSet(set2, []string{"weird"}); err != nil {
+		t.Fatal(err)
+	}
+	if f, _ = config.Load(); f.Profiles["weird"].Auth != config.AuthNone {
+		t.Errorf("explicit --auth none should win over the OIDC inference, got %q", f.Profiles["weird"].Auth)
+	}
+
+	// A bare --url with no OIDC and no --auth stays no-auth (resolve defaults it).
+	set3 := newConfigSetCmd()
+	_ = set3.Flags().Set("url", "http://host:8090")
+	set3.SetOut(&bytes.Buffer{})
+	if err := runConfigSet(set3, []string{"plain"}); err != nil {
+		t.Fatal(err)
+	}
+	if f, _ = config.Load(); f.Profiles["plain"].Auth != "" {
+		t.Errorf("a bare --url should not set auth, got %q", f.Profiles["plain"].Auth)
+	}
+}
+
 func TestConfigSetInvalidAuth(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	set := newConfigSetCmd()

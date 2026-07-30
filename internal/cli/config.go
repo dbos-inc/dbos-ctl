@@ -39,9 +39,17 @@ var configUseCmd = &cobra.Command{
 var configSetCmd = &cobra.Command{
 	Use:   "set <profile>",
 	Short: "Create or update a profile",
-	Long: `Create or update a profile. Only the flags you pass are changed, so a
-field is left untouched unless named. --url/--org/--app are the global flags;
---auth and the OIDC flags are specific to this command.`,
+	Long: `Create or update a profile. Only the flags you pass change; unnamed
+fields are left as-is.
+
+Target exactly one of:
+  --cloud                DBOS Cloud (production domain cloud.dbos.dev)
+  --url <conductor url>  a self-hosted Conductor
+
+For a self-hosted Conductor with OIDC login, add --issuer and --client-id (and
+--audience if the deployment requires it); that implies bearer auth. Bearer auth
+without OIDC (a dbos_ API key only) is requested with --auth bearer; since an API
+key carries no user identity, set --org too so the CLI knows your organization.`,
 	Args: cobra.ExactArgs(1),
 	RunE: runConfigSet,
 }
@@ -50,12 +58,12 @@ func init() {
 	// config set writes the local config file, so these name the values to
 	// store — not the request-shaping overrides the operational commands take.
 	configSetCmd.Flags().String("url", "", "self-hosted Conductor base URL")
-	configSetCmd.Flags().String("org", "", "default organization for this profile")
+	configSetCmd.Flags().String("org", "", "organization (only needed when it can't be derived from a login)")
 	configSetCmd.Flags().String("app", "", "default application for this profile")
-	configSetCmd.Flags().String("auth", "", "authentication: none or bearer")
-	configSetCmd.Flags().String("issuer", "", "OIDC issuer URL (bearer profiles)")
+	configSetCmd.Flags().String("auth", "", "force bearer auth without OIDC (a dbos_ API key)")
+	configSetCmd.Flags().String("issuer", "", "OIDC issuer URL (implies bearer auth)")
 	configSetCmd.Flags().String("audience", "", "OIDC audience (bearer profiles)")
-	configSetCmd.Flags().String("client-id", "", "OIDC client ID (bearer profiles)")
+	configSetCmd.Flags().String("client-id", "", "OIDC client ID (implies bearer auth)")
 	// A DBOS Cloud profile: derives url + bearer auth + the Auth0 tenant.
 	configSetCmd.Flags().Bool("cloud", false, "make this a DBOS Cloud profile")
 	// --domain overrides the production cloud domain for non-production
@@ -193,12 +201,16 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 		if cmd.Flags().Changed("client-id") {
 			p.OIDC.ClientID, _ = cmd.Flags().GetString("client-id")
 		}
+		// OIDC login implies bearer auth, so don't make the user also pass
+		// --auth. An explicit --auth still wins (checked above).
+		if !cmd.Flags().Changed("auth") {
+			p.Auth = config.AuthBearer
+		}
 	}
 	// --cloud (or --domain, which implies it) makes a DBOS Cloud profile:
 	// the domain derives url + bearer auth + the Auth0 tenant, so a self-hosted
 	// --url alongside them would contradict. --domain overrides the production
-	// domain. (--url is a global persistent flag, so this conflict is checked
-	// here rather than via MarkFlagsMutuallyExclusive.)
+	// domain.
 	cloudFlags := cmd.Flags().Changed("cloud") || cmd.Flags().Changed("domain")
 	if cloudFlags && cmd.Flags().Changed("url") {
 		return fmt.Errorf("--cloud and --url are mutually exclusive (cloud derives its url from the domain)")
