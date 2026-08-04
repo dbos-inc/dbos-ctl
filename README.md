@@ -1,8 +1,8 @@
 # dbos
 
 A command-line client for the [DBOS](https://www.dbos.dev) Conductor API. `dbos`
-talks to a self-hosted Conductor, a self-hosted Conductor with OIDC auth, or a
-DBOS-managed Conductor — the target is selected by a named **profile**.
+talks to DBOS-managed Conductor, a self-hosted Conductor, or a self-hosted
+Conductor with OIDC auth — the target is selected by a named **profile**.
 
 > Status: early. The command surface below is what ships today (login, identity,
 > and app listing); workflow management lands in a later milestone.
@@ -20,7 +20,7 @@ go install github.com/dbos-inc/dbos-cli/cmd/dbos@latest
 ## Quick start
 
 ```sh
-# A DBOS-managed Conductor
+# DBOS-managed Conductor
 dbos config set managed --managed
 dbos login                       # opens the device-authorization flow
 dbos whoami                      # confirm who you're logged in as
@@ -53,7 +53,7 @@ There are three common shapes:
 | **Self-hosted + OIDC** | `config set x --url http://host:8090 --issuer <url> --client-id <id> [--audience <aud>]` | user JWT or `dbos_` key | real |
 | **DBOS-managed** | `config set x --managed` | Auth0 JWT | real |
 
-A profile must target either a DBOS-managed Conductor (`--managed`) or a
+A profile must target either DBOS-managed Conductor (`--managed`) or a
 self-hosted Conductor (`--url`); the two are mutually exclusive. `--managed`
 points at `cloud.dbos.dev` and derives everything else (the `/conductor` URL,
 bearer auth, and the Auth0 tenant) automatically. Passing

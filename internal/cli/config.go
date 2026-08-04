@@ -256,10 +256,10 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 	}
 
 	// A profile must target either DBOS-managed Conductor (--managed) or a
-	// self-hosted conductor (--url). This only bites a genuinely unconfigured
+	// self-hosted Conductor (--url). This only bites a genuinely unconfigured
 	// profile: an upsert that edits other fields keeps whichever was already set.
 	if p.URL == "" && p.Domain == "" {
-		return fmt.Errorf("specify --managed for a DBOS-managed Conductor profile, or --url for a self-hosted conductor")
+		return fmt.Errorf("specify --managed to target DBOS-managed Conductor, or --url for a self-hosted Conductor")
 	}
 
 	if f.Profiles == nil {
