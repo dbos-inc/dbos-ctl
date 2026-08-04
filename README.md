@@ -2,7 +2,8 @@
 
 A command-line client for the [DBOS](https://www.dbos.dev) Conductor API. `dbos`
 talks to DBOS-managed Conductor, a self-hosted Conductor, or a self-hosted
-Conductor with OIDC auth — the target is selected by a named **profile**.
+Conductor with OpenID Connect (OIDC) auth — the target is selected by a named
+**profile**.
 
 > Status: early. The command surface below is what ships today (login, identity,
 > and app listing); workflow management lands in a later milestone.
@@ -49,9 +50,9 @@ There are three common shapes:
 
 | Shape | How to create | Auth | Identity |
 |---|---|---|---|
-| **Self-hosted, no auth** | `config set x --url http://host:8090` | none | always `local` |
+| **DBOS-managed** | `config set x --managed` | Auth0 JSON Web Token (JWT) | real |
 | **Self-hosted + OIDC** | `config set x --url http://host:8090 --issuer <url> --client-id <id> [--audience <aud>]` | user JWT or `dbos_` key | real |
-| **DBOS-managed** | `config set x --managed` | Auth0 JWT | real |
+| **Self-hosted, no auth** | `config set x --url http://host:8090` | none | always `local` |
 
 A profile must target either DBOS-managed Conductor (`--managed`) or a
 self-hosted Conductor (`--url`); the two are mutually exclusive. `--managed`
