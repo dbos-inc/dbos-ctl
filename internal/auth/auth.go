@@ -1,7 +1,8 @@
 // Package auth implements the OAuth 2.0 Device Authorization Grant (RFC 8628)
 // over OIDC discovery: discover the issuer's endpoints, request a device code,
 // prompt the user to approve in a browser, then poll for the token. One code
-// path serves any OIDC provider (Keycloak for self-hosted, Auth0 for cloud).
+// path serves any OIDC provider with discovery and the device grant — e.g.
+// Keycloak or Okta for self-hosted, Auth0 for DBOS-managed.
 package auth
 
 import (

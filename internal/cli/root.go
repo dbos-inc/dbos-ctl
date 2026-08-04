@@ -18,7 +18,7 @@ var rootCmd = &cobra.Command{
 	Use:   "dbos",
 	Short: "Command-line client for the DBOS Conductor API",
 	Long: `dbos manages DBOS Conductor workflows, queues, schedules, applications,
-and access tokens across self-hosted and DBOS Cloud deployments.`,
+and access tokens across self-hosted and DBOS-managed Conductor deployments.`,
 	// A runtime error should print the error, not a usage dump; and Execute prints
 	// errors itself so it can stay quiet on an interrupt.
 	SilenceUsage:  true,

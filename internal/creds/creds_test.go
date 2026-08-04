@@ -78,8 +78,8 @@ func TestTSCredentialsFallback(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// No entry in our file for "cloud" -> falls back to the dbos-cloud login.
-	c, err := s.Load("cloud")
+	// No entry in our file for "managed" -> falls back to the dbos-cloud login.
+	c, err := s.Load("managed")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,10 +91,10 @@ func TestTSCredentialsFallback(t *testing.T) {
 	}
 
 	// Our file takes precedence over the fallback once present.
-	if err := s.Save("cloud", &Creds{Token: "dbos_ours"}); err != nil {
+	if err := s.Save("managed", &Creds{Token: "dbos_ours"}); err != nil {
 		t.Fatal(err)
 	}
-	if c, _ = s.Load("cloud"); c.Token != "dbos_ours" {
+	if c, _ = s.Load("managed"); c.Token != "dbos_ours" {
 		t.Errorf("our file should win over the fallback, got %q", c.Token)
 	}
 
@@ -109,7 +109,7 @@ func TestTSFallbackEmptyTokenIgnored(t *testing.T) {
 	if err := os.WriteFile(s.fallback, []byte(`{"token":"","userName":"x"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Load("cloud"); err != ErrNotFound {
+	if _, err := s.Load("managed"); err != ErrNotFound {
 		t.Errorf("empty-token TS file should be ignored, got %v", err)
 	}
 }

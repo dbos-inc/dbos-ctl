@@ -43,7 +43,7 @@ var configSetCmd = &cobra.Command{
 fields are left as-is.
 
 Target exactly one of:
-  --cloud                DBOS Cloud (production domain cloud.dbos.dev)
+  --managed              DBOS-managed Conductor (production domain cloud.dbos.dev)
   --url <conductor url>  a self-hosted Conductor
 
 For a self-hosted Conductor with OIDC login, add --issuer and --client-id (and
@@ -64,11 +64,11 @@ func init() {
 	configSetCmd.Flags().String("issuer", "", "OIDC issuer URL (implies bearer auth)")
 	configSetCmd.Flags().String("audience", "", "OIDC audience (bearer profiles)")
 	configSetCmd.Flags().String("client-id", "", "OIDC client ID (implies bearer auth)")
-	// A DBOS Cloud profile: derives url + bearer auth + the Auth0 tenant.
-	configSetCmd.Flags().Bool("cloud", false, "make this a DBOS Cloud profile")
-	// --domain overrides the production cloud domain for non-production
-	// clusters; it implies --cloud. Hidden — internal use only.
-	configSetCmd.Flags().String("domain", "", "DBOS Cloud domain")
+	// A DBOS-managed profile: derives url + bearer auth + the Auth0 tenant.
+	configSetCmd.Flags().Bool("managed", false, "make this a DBOS-managed Conductor profile")
+	// --domain overrides the production managed domain for non-production
+	// clusters; it implies --managed. Hidden — internal use only.
+	configSetCmd.Flags().String("domain", "", "DBOS-managed Conductor domain")
 	_ = configSetCmd.Flags().MarkHidden("domain")
 
 	configCmd.AddCommand(configListCmd, configShowCmd, configUseCmd, configSetCmd)
@@ -121,7 +121,7 @@ func runConfigShow(cmd *cobra.Command, args []string) error {
 	w := cmd.OutOrStdout()
 	fmt.Fprintf(w, "name      %s\n", name)
 	if p.Domain != "" {
-		// A cloud profile derives url + bearer auth from the domain.
+		// A managed profile derives url + bearer auth from the domain.
 		fmt.Fprintf(w, "domain    %s\n", p.Domain)
 		fmt.Fprintf(w, "auth      bearer\n")
 	} else {
@@ -207,16 +207,16 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 			p.Auth = config.AuthBearer
 		}
 	}
-	// --cloud (or --domain, which implies it) makes a DBOS Cloud profile:
+	// --managed (or --domain, which implies it) makes a DBOS-managed profile:
 	// the domain derives url + bearer auth + the Auth0 tenant, so a self-hosted
 	// --url alongside them would contradict. --domain overrides the production
 	// domain.
-	cloudFlags := cmd.Flags().Changed("cloud") || cmd.Flags().Changed("domain")
-	if cloudFlags && cmd.Flags().Changed("url") {
-		return fmt.Errorf("--cloud and --url are mutually exclusive (cloud derives its url from the domain)")
+	managedFlags := cmd.Flags().Changed("managed") || cmd.Flags().Changed("domain")
+	if managedFlags && cmd.Flags().Changed("url") {
+		return fmt.Errorf("--managed and --url are mutually exclusive (a managed profile derives its url from the domain)")
 	}
-	if cloudFlags {
-		domain := config.CloudProdDomain
+	if managedFlags {
+		domain := config.ManagedProdDomain
 		if cmd.Flags().Changed("domain") {
 			d, _ := cmd.Flags().GetString("domain")
 			if strings.Contains(d, "/") {
@@ -225,14 +225,14 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 			domain = d
 		}
 		p.Domain = domain
-		p.URL = "" // cloud derives its url from the domain
+		p.URL = "" // a managed profile derives its url from the domain
 	}
 
-	// A profile must target either DBOS Cloud (--cloud) or a self-hosted
-	// conductor (--url). This only bites a genuinely unconfigured profile: an
-	// upsert that edits other fields keeps whichever was already set.
+	// A profile must target either DBOS-managed Conductor (--managed) or a
+	// self-hosted conductor (--url). This only bites a genuinely unconfigured
+	// profile: an upsert that edits other fields keeps whichever was already set.
 	if p.URL == "" && p.Domain == "" {
-		return fmt.Errorf("specify --cloud for a DBOS Cloud profile, or --url for a self-hosted conductor")
+		return fmt.Errorf("specify --managed for a DBOS-managed Conductor profile, or --url for a self-hosted conductor")
 	}
 
 	if f.Profiles == nil {

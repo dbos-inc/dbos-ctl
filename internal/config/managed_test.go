@@ -2,14 +2,14 @@ package config
 
 import "testing"
 
-func TestResolveCloudDomainProd(t *testing.T) {
+func TestResolveManagedDomainProd(t *testing.T) {
 	f := &File{Profiles: map[string]Profile{"prod": {Domain: "cloud.dbos.dev"}}}
 	s, err := f.Resolve(Inputs{Profile: src("prod", true, "")})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if s.URL != "https://cloud.dbos.dev/conductor" {
-		t.Errorf("URL = %q, want the derived cloud URL", s.URL)
+		t.Errorf("URL = %q, want the derived managed URL", s.URL)
 	}
 	if s.Auth != AuthBearer {
 		t.Errorf("Auth = %q, want bearer", s.Auth)
@@ -19,7 +19,7 @@ func TestResolveCloudDomainProd(t *testing.T) {
 	}
 }
 
-func TestResolveCloudDomainNonProd(t *testing.T) {
+func TestResolveManagedDomainNonProd(t *testing.T) {
 	f := &File{Profiles: map[string]Profile{"staging": {Domain: "staging.dev.dbos.dev"}}}
 	s, err := f.Resolve(Inputs{Profile: src("staging", true, "")})
 	if err != nil {
@@ -37,14 +37,14 @@ func TestResolveCloudDomainNonProd(t *testing.T) {
 }
 
 func TestResolveProdRecognizedFromURL(t *testing.T) {
-	// A production URL with no explicit Domain is still recognized as cloud.
+	// A production URL with no explicit Domain is still recognized as managed.
 	f := &File{Profiles: map[string]Profile{"p": {URL: "https://cloud.dbos.dev/conductor"}}}
 	s, err := f.Resolve(Inputs{Profile: src("p", true, "")})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if s.Domain != "cloud.dbos.dev" || s.Auth != AuthBearer {
-		t.Errorf("prod URL should resolve as cloud+bearer: domain=%q auth=%q", s.Domain, s.Auth)
+		t.Errorf("prod URL should resolve as managed+bearer: domain=%q auth=%q", s.Domain, s.Auth)
 	}
 	if s.OIDC == nil || s.OIDC.Issuer != prodAuth0Issuer {
 		t.Errorf("OIDC = %+v, want the production tenant", s.OIDC)

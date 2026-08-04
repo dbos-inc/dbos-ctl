@@ -35,7 +35,7 @@ type Inputs struct {
 // Settings are the effective settings after applying precedence.
 type Settings struct {
 	Profile string // active profile name, or "" for ad-hoc use
-	Domain  string // DBOS Cloud domain, or "" when not a cloud target
+	Domain  string // DBOS-managed domain, or "" when not a managed target
 	URL     string
 	Org     string
 	App     string
@@ -57,18 +57,18 @@ func (f *File) Resolve(in Inputs) (Settings, error) {
 		}
 	}
 
-	// A cloud profile is identified by an explicit Domain (which derives the
+	// A managed profile is identified by an explicit Domain (which derives the
 	// conductor URL), or — for production only — by a URL that points at
 	// cloud.dbos.dev.
 	domain := p.Domain
 	profileURL := p.URL
 	if domain != "" {
-		profileURL = cloudURL(domain)
+		profileURL = managedURL(domain)
 	}
 	resolvedURL := in.URL.pick(profileURL)
 	if domain == "" {
-		if u, err := url.Parse(resolvedURL); err == nil && u.Host == CloudProdDomain {
-			domain = CloudProdDomain
+		if u, err := url.Parse(resolvedURL); err == nil && u.Host == ManagedProdDomain {
+			domain = ManagedProdDomain
 		}
 	}
 
@@ -81,12 +81,12 @@ func (f *File) Resolve(in Inputs) (Settings, error) {
 		Auth:    p.Auth,
 		OIDC:    p.OIDC,
 	}
-	// A cloud target always authenticates and, absent an explicit oidc block,
+	// A managed target always authenticates and, absent an explicit oidc block,
 	// uses the Auth0 tenant for its domain.
 	if domain != "" {
 		s.Auth = AuthBearer
 		if s.OIDC == nil {
-			o := cloudOIDC(domain)
+			o := managedOIDC(domain)
 			s.OIDC = &o
 		}
 	}

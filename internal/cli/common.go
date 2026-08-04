@@ -113,7 +113,7 @@ func clientFor(cmd *cobra.Command) (*api.ClientWithResponses, config.Settings, e
 // effectiveOrg resolves the organization for an org-scoped request. An
 // explicitly configured org (flag > env > profile) always wins. Otherwise a
 // no-auth self-hosted target is the hardcoded "local" org (Resolve fills this in
-// too), while an authenticated target — cloud or self-hosted OIDC — uses the org
+// too), while an authenticated target — managed or self-hosted OIDC — uses the org
 // captured at login, so the user need not know their org name and no extra
 // request is made. c is only used for the live-lookup fallback (an ad-hoc token
 // with no stored login).
@@ -227,7 +227,7 @@ func refreshStored(ctx context.Context, s config.Settings, store creds.Store, c 
 }
 
 // effectiveOIDC returns the OIDC config for login/refresh. Resolve populates it
-// for cloud profiles (from the domain) and self-hosted OIDC profiles (from the
+// for managed profiles (from the domain) and self-hosted OIDC profiles (from the
 // oidc block); a target with neither can't run the device flow.
 func effectiveOIDC(s config.Settings) (config.OIDC, error) {
 	if s.OIDC == nil || s.OIDC.Issuer == "" {
