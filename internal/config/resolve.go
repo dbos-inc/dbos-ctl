@@ -67,8 +67,18 @@ func (f *File) Resolve(in Inputs) (Settings, error) {
 	}
 	resolvedURL := in.URL.pick(profileURL)
 	if domain == "" {
-		if u, err := url.Parse(resolvedURL); err == nil && u.Host == ManagedProdDomain {
-			domain = ManagedProdDomain
+		// Hostname() (not Host) so an explicit :443 or IPv6 brackets still match,
+		// and isManagedProd folds case.
+		if u, err := url.Parse(resolvedURL); err == nil && isManagedProd(u.Hostname()) {
+			// Production is https-only — managedURL emits nothing else. Say so
+			// rather than fall through: silently dropping to no-auth surfaces as a
+			// 401 that sends the user to `dbos login` for a scheme typo, and
+			// attaching the bearer token anyway would put it on the wire in
+			// cleartext (the host's 301 to https comes too late).
+			if u.Scheme != "https" {
+				return Settings{}, fmt.Errorf("%s must be reached over https (got %q)", ManagedProdDomain, resolvedURL)
+			}
+			domain = ManagedProdDomain // store canonical, not whatever was typed
 		}
 	}
 

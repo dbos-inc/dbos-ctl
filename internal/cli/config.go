@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -163,6 +164,31 @@ func runConfigUse(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// parseDomain validates a --domain value as a bare host (optionally with a
+// port), returning it trimmed and lowercased. Anything URL-ish — a scheme,
+// path, query, fragment, or credentials — is rejected here rather than silently
+// deriving a malformed conductor URL later. Lowercasing matters beyond
+// cosmetics: config compares the stored domain against the production one to
+// pick the Auth0 tenant, so "Cloud.DBOS.dev" would otherwise land on the
+// non-production tenant.
+func parseDomain(raw string) (string, error) {
+	d := strings.ToLower(strings.TrimSpace(raw))
+	if d == "" {
+		return "", fmt.Errorf("--domain is empty; give a bare host like cloud.dbos.dev")
+	}
+	// Prepending a scheme borrows net/url's own host rules (invalid characters,
+	// bad ports). A bare host round-trips to exactly Host with every other field
+	// empty; anything else means the user passed more than a host.
+	// net/url tolerates a trailing ":" as an empty (default) port, which would
+	// derive a scruffy "https://host:/conductor" — reject it with the rest.
+	u, err := url.Parse("https://" + d)
+	if err != nil || u.Host != d || u.Path != "" || u.RawQuery != "" || u.Fragment != "" || u.User != nil ||
+		strings.HasSuffix(d, ":") {
+		return "", fmt.Errorf("--domain %q should be a bare host like cloud.dbos.dev, not a URL", raw)
+	}
+	return d, nil
+}
+
 func runConfigSet(cmd *cobra.Command, args []string) error {
 	name := args[0]
 	f, err := config.Load()
@@ -218,9 +244,10 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 	if managedFlags {
 		domain := config.ManagedProdDomain
 		if cmd.Flags().Changed("domain") {
-			d, _ := cmd.Flags().GetString("domain")
-			if strings.Contains(d, "/") {
-				return fmt.Errorf("--domain should be a bare host like cloud.dbos.dev, not a URL")
+			raw, _ := cmd.Flags().GetString("domain")
+			d, err := parseDomain(raw)
+			if err != nil {
+				return err
 			}
 			domain = d
 		}

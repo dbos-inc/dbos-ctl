@@ -50,6 +50,62 @@ func TestConfigSetDomain(t *testing.T) {
 	if err := runConfigSet(set2, []string{"bad"}); err == nil {
 		t.Error("a URL as --domain should error")
 	}
+
+	// A domain is stored normalized, so the tenant lookup sees a canonical host.
+	set3 := newConfigSetCmd()
+	_ = set3.Flags().Set("domain", "  Cloud.DBOS.dev  ")
+	set3.SetOut(&bytes.Buffer{})
+	if err := runConfigSet(set3, []string{"norm"}); err != nil {
+		t.Fatal(err)
+	}
+	if f, _ = config.Load(); f.Profiles["norm"].Domain != config.ManagedProdDomain {
+		t.Errorf("domain = %q, want it trimmed and lowercased to the prod domain", f.Profiles["norm"].Domain)
+	}
+}
+
+func TestParseDomain(t *testing.T) {
+	// A bare host, optionally with a port, is all that's accepted; anything
+	// URL-ish would derive a malformed conductor URL.
+	ok := map[string]string{
+		"cloud.dbos.dev":       "cloud.dbos.dev",
+		"staging.dev.dbos.dev": "staging.dev.dbos.dev",
+		"  cloud.dbos.dev  ":   "cloud.dbos.dev",
+		"Cloud.DBOS.dev":       "cloud.dbos.dev",
+		"host:8443":            "host:8443",
+		"[::1]:8090":           "[::1]:8090",
+	}
+	for in, want := range ok {
+		got, err := parseDomain(in)
+		if err != nil {
+			t.Errorf("parseDomain(%q) = error %v, want %q", in, err, want)
+			continue
+		}
+		if got != want {
+			t.Errorf("parseDomain(%q) = %q, want %q", in, got, want)
+		}
+	}
+
+	bad := []string{
+		"https://cloud.dbos.dev",
+		"http://cloud.dbos.dev/conductor",
+		"https:cloud.dbos.dev",
+		"//cloud.dbos.dev",
+		"cloud.dbos.dev/",
+		"cloud.dbos.dev/conductor",
+		"cloud.dbos.dev?x=y",
+		"cloud.dbos.dev#frag",
+		"user@cloud.dbos.dev",
+		"cloud dbos.dev",
+		"host:notaport",
+		"cloud.dbos.dev:",
+		"",
+		"   ",
+	}
+	for _, in := range bad {
+		if got, err := parseDomain(in); err == nil {
+			t.Errorf("parseDomain(%q) = %q, want an error", in, got)
+		}
+	}
 }
 
 func TestConfigSetUseListShow(t *testing.T) {
