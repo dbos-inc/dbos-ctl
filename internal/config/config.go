@@ -35,9 +35,10 @@ type OIDC struct {
 type Profile struct {
 	Auth Auth   `yaml:"auth,omitempty"`
 	URL  string `yaml:"url,omitempty"`
-	// Domain marks a DBOS Cloud profile: it derives URL (https://domain/conductor),
-	// bearer auth, and the OIDC tenant. cloud.dbos.dev is production; any other
-	// value targets a non-production cluster (undocumented).
+	// Domain marks a DBOS-managed profile: it derives URL
+	// (https://domain/conductor), bearer auth, and the OIDC tenant.
+	// cloud.dbos.dev is production; any other value targets a non-production
+	// cluster (undocumented).
 	Domain string `yaml:"domain,omitempty"`
 	Org    string `yaml:"org,omitempty"`
 	App    string `yaml:"app,omitempty"`

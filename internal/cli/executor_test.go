@@ -42,7 +42,7 @@ func scheduledWorkflow(_ dbos.Context, _ dbos.ScheduledWorkflowInput) (any, erro
 func startExecutor(t *testing.T, conductorHTTPURL, apiKey, appName string, beforeLaunch ...func(dbos.Context)) dbos.Context {
 	t.Helper()
 	// The SDK appends /websocket/<app>/<key>; against a local conductor the base
-	// is a bare ws://host:port (the /conductor/v1alpha1 prefix is cloud-only).
+	// is a bare ws://host:port (the /conductor/v1alpha1 prefix is managed-only).
 	wsURL := "ws://" + strings.TrimPrefix(conductorHTTPURL, "http://")
 
 	dctx, err := dbos.NewContext(context.Background(), dbos.Config{

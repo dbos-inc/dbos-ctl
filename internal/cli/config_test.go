@@ -20,7 +20,7 @@ func newConfigSetCmd() *cobra.Command {
 	c.Flags().String("issuer", "", "")
 	c.Flags().String("audience", "", "")
 	c.Flags().String("client-id", "", "")
-	c.Flags().Bool("cloud", false, "")
+	c.Flags().Bool("managed", false, "")
 	c.Flags().String("domain", "", "")
 	c.SetContext(context.Background())
 	return c
@@ -49,6 +49,62 @@ func TestConfigSetDomain(t *testing.T) {
 	set2.SetOut(&bytes.Buffer{})
 	if err := runConfigSet(set2, []string{"bad"}); err == nil {
 		t.Error("a URL as --domain should error")
+	}
+
+	// A domain is stored normalized, so the tenant lookup sees a canonical host.
+	set3 := newConfigSetCmd()
+	_ = set3.Flags().Set("domain", "  Cloud.DBOS.dev  ")
+	set3.SetOut(&bytes.Buffer{})
+	if err := runConfigSet(set3, []string{"norm"}); err != nil {
+		t.Fatal(err)
+	}
+	if f, _ = config.Load(); f.Profiles["norm"].Domain != config.ManagedProdDomain {
+		t.Errorf("domain = %q, want it trimmed and lowercased to the prod domain", f.Profiles["norm"].Domain)
+	}
+}
+
+func TestParseDomain(t *testing.T) {
+	// A bare host, optionally with a port, is all that's accepted; anything
+	// URL-ish would derive a malformed conductor URL.
+	ok := map[string]string{
+		"cloud.dbos.dev":       "cloud.dbos.dev",
+		"staging.dev.dbos.dev": "staging.dev.dbos.dev",
+		"  cloud.dbos.dev  ":   "cloud.dbos.dev",
+		"Cloud.DBOS.dev":       "cloud.dbos.dev",
+		"host:8443":            "host:8443",
+		"[::1]:8090":           "[::1]:8090",
+	}
+	for in, want := range ok {
+		got, err := parseDomain(in)
+		if err != nil {
+			t.Errorf("parseDomain(%q) = error %v, want %q", in, err, want)
+			continue
+		}
+		if got != want {
+			t.Errorf("parseDomain(%q) = %q, want %q", in, got, want)
+		}
+	}
+
+	bad := []string{
+		"https://cloud.dbos.dev",
+		"http://cloud.dbos.dev/conductor",
+		"https:cloud.dbos.dev",
+		"//cloud.dbos.dev",
+		"cloud.dbos.dev/",
+		"cloud.dbos.dev/conductor",
+		"cloud.dbos.dev?x=y",
+		"cloud.dbos.dev#frag",
+		"user@cloud.dbos.dev",
+		"cloud dbos.dev",
+		"host:notaport",
+		"cloud.dbos.dev:",
+		"",
+		"   ",
+	}
+	for _, in := range bad {
+		if got, err := parseDomain(in); err == nil {
+			t.Errorf("parseDomain(%q) = %q, want an error", in, got)
+		}
 	}
 }
 
@@ -79,7 +135,7 @@ func TestConfigSetUseListShow(t *testing.T) {
 	_ = set2.Flags().Set("url", "https://cloud.dbos.dev/conductor")
 	_ = set2.Flags().Set("auth", "bearer")
 	set2.SetOut(&bytes.Buffer{})
-	if err := runConfigSet(set2, []string{"cloud"}); err != nil {
+	if err := runConfigSet(set2, []string{"managed"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -90,29 +146,29 @@ func TestConfigSetUseListShow(t *testing.T) {
 	if err := runConfigList(list, nil); err != nil {
 		t.Fatal(err)
 	}
-	if ls := listOut.String(); !strings.Contains(ls, "* local") || !strings.Contains(ls, "cloud") {
+	if ls := listOut.String(); !strings.Contains(ls, "* local") || !strings.Contains(ls, "managed") {
 		t.Errorf("list output wrong:\n%s", ls)
 	}
 
-	// use cloud.
+	// use the managed profile.
 	use := &cobra.Command{}
 	use.SetOut(&bytes.Buffer{})
-	if err := runConfigUse(use, []string{"cloud"}); err != nil {
+	if err := runConfigUse(use, []string{"managed"}); err != nil {
 		t.Fatal(err)
 	}
-	if f, _ = config.Load(); f.Current != "cloud" {
-		t.Errorf("after use: current = %q, want cloud", f.Current)
+	if f, _ = config.Load(); f.Current != "managed" {
+		t.Errorf("after use: current = %q, want managed", f.Current)
 	}
 	// use unknown profile fails.
 	if err := runConfigUse(use, []string{"nope"}); err == nil {
 		t.Error("use unknown profile = nil error, want error")
 	}
 
-	// show cloud reflects the bearer auth.
+	// show reflects the bearer auth.
 	var showOut bytes.Buffer
 	show := &cobra.Command{}
 	show.SetOut(&showOut)
-	if err := runConfigShow(show, []string{"cloud"}); err != nil {
+	if err := runConfigShow(show, []string{"managed"}); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(showOut.String(), "auth      bearer") {
@@ -120,25 +176,25 @@ func TestConfigSetUseListShow(t *testing.T) {
 	}
 }
 
-func TestConfigSetCloud(t *testing.T) {
+func TestConfigSetManaged(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	// --cloud → the DBOS Cloud production domain.
+	// --managed → the DBOS-managed production domain.
 	set := newConfigSetCmd()
-	_ = set.Flags().Set("cloud", "true")
+	_ = set.Flags().Set("managed", "true")
 	set.SetOut(&bytes.Buffer{})
-	if err := runConfigSet(set, []string{"cloud"}); err != nil {
+	if err := runConfigSet(set, []string{"managed"}); err != nil {
 		t.Fatal(err)
 	}
 	f, err := config.Load()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := f.Profiles["cloud"].Domain; got != config.CloudProdDomain {
-		t.Errorf("domain = %q, want %q", got, config.CloudProdDomain)
+	if got := f.Profiles["managed"].Domain; got != config.ManagedProdDomain {
+		t.Errorf("domain = %q, want %q", got, config.ManagedProdDomain)
 	}
 
-	// --cloud on a profile that previously had a url clears the url.
+	// --managed on a profile that previously had a url clears the url.
 	set2 := newConfigSetCmd()
 	_ = set2.Flags().Set("url", "http://localhost:8090")
 	set2.SetOut(&bytes.Buffer{})
@@ -146,39 +202,39 @@ func TestConfigSetCloud(t *testing.T) {
 		t.Fatal(err)
 	}
 	set3 := newConfigSetCmd()
-	_ = set3.Flags().Set("cloud", "true")
+	_ = set3.Flags().Set("managed", "true")
 	set3.SetOut(&bytes.Buffer{})
 	if err := runConfigSet(set3, []string{"switch"}); err != nil {
 		t.Fatal(err)
 	}
 	if f, _ = config.Load(); f.Profiles["switch"].URL != "" {
-		t.Errorf("--cloud left a stale url %q", f.Profiles["switch"].URL)
+		t.Errorf("--managed left a stale url %q", f.Profiles["switch"].URL)
 	}
-	if f.Profiles["switch"].Domain != config.CloudProdDomain {
-		t.Errorf("--cloud domain = %q, want prod", f.Profiles["switch"].Domain)
+	if f.Profiles["switch"].Domain != config.ManagedProdDomain {
+		t.Errorf("--managed domain = %q, want prod", f.Profiles["switch"].Domain)
 	}
 }
 
-func TestConfigSetCloudURLConflict(t *testing.T) {
+func TestConfigSetManagedURLConflict(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	set := newConfigSetCmd()
-	_ = set.Flags().Set("cloud", "true")
+	_ = set.Flags().Set("managed", "true")
 	_ = set.Flags().Set("url", "http://localhost:8090")
 	set.SetOut(&bytes.Buffer{})
 	if err := runConfigSet(set, []string{"x"}); err == nil {
-		t.Error("--cloud with --url should error")
+		t.Error("--managed with --url should error")
 	}
 }
 
 func TestConfigSetRequiresTarget(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	// Neither --cloud nor --url on a new profile is an error, not a silent
-	// cloud default.
+	// Neither --managed nor --url on a new profile is an error, not a silent
+	// managed default.
 	set := newConfigSetCmd()
 	set.SetOut(&bytes.Buffer{})
 	if err := runConfigSet(set, []string{"nowhere"}); err == nil {
-		t.Error("a profile with neither --cloud nor --url should error")
+		t.Error("a profile with neither --managed nor --url should error")
 	}
 
 	// Editing an existing profile's other fields does not require re-stating the

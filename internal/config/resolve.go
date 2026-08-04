@@ -35,7 +35,7 @@ type Inputs struct {
 // Settings are the effective settings after applying precedence.
 type Settings struct {
 	Profile string // active profile name, or "" for ad-hoc use
-	Domain  string // DBOS Cloud domain, or "" when not a cloud target
+	Domain  string // DBOS-managed domain, or "" when not a managed target
 	URL     string
 	Org     string
 	App     string
@@ -57,18 +57,28 @@ func (f *File) Resolve(in Inputs) (Settings, error) {
 		}
 	}
 
-	// A cloud profile is identified by an explicit Domain (which derives the
+	// A managed profile is identified by an explicit Domain (which derives the
 	// conductor URL), or — for production only — by a URL that points at
 	// cloud.dbos.dev.
 	domain := p.Domain
 	profileURL := p.URL
 	if domain != "" {
-		profileURL = cloudURL(domain)
+		profileURL = managedURL(domain)
 	}
 	resolvedURL := in.URL.pick(profileURL)
 	if domain == "" {
-		if u, err := url.Parse(resolvedURL); err == nil && u.Host == CloudProdDomain {
-			domain = CloudProdDomain
+		// Hostname() (not Host) so an explicit :443 or IPv6 brackets still match,
+		// and isManagedProd folds case.
+		if u, err := url.Parse(resolvedURL); err == nil && isManagedProd(u.Hostname()) {
+			// Production is https-only — managedURL emits nothing else. Say so
+			// rather than fall through: silently dropping to no-auth surfaces as a
+			// 401 that sends the user to `dbos login` for a scheme typo, and
+			// attaching the bearer token anyway would put it on the wire in
+			// cleartext (the host's 301 to https comes too late).
+			if u.Scheme != "https" {
+				return Settings{}, fmt.Errorf("%s must be reached over https (got %q)", ManagedProdDomain, resolvedURL)
+			}
+			domain = ManagedProdDomain // store canonical, not whatever was typed
 		}
 	}
 
@@ -81,12 +91,12 @@ func (f *File) Resolve(in Inputs) (Settings, error) {
 		Auth:    p.Auth,
 		OIDC:    p.OIDC,
 	}
-	// A cloud target always authenticates and, absent an explicit oidc block,
+	// A managed target always authenticates and, absent an explicit oidc block,
 	// uses the Auth0 tenant for its domain.
 	if domain != "" {
 		s.Auth = AuthBearer
 		if s.OIDC == nil {
-			o := cloudOIDC(domain)
+			o := managedOIDC(domain)
 			s.OIDC = &o
 		}
 	}

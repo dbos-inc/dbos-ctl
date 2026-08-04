@@ -1,8 +1,9 @@
 # dbos
 
 A command-line client for the [DBOS](https://www.dbos.dev) Conductor API. `dbos`
-talks to a self-hosted Conductor, a self-hosted Conductor with OIDC auth, or
-DBOS Cloud — the target is selected by a named **profile**.
+talks to DBOS-managed Conductor, a self-hosted Conductor, or a self-hosted
+Conductor with OpenID Connect (OIDC) auth — the target is selected by a named
+**profile**.
 
 > Status: early. The command surface below is what ships today (login, identity,
 > and app listing); workflow management lands in a later milestone.
@@ -20,8 +21,8 @@ go install github.com/dbos-inc/dbos-cli/cmd/dbos@latest
 ## Quick start
 
 ```sh
-# DBOS Cloud
-dbos config set cloud --cloud
+# DBOS-managed Conductor
+dbos config set managed --managed
 dbos login                       # opens the device-authorization flow
 dbos whoami                      # confirm who you're logged in as
 dbos app list
@@ -49,15 +50,16 @@ There are three common shapes:
 
 | Shape | How to create | Auth | Identity |
 |---|---|---|---|
-| **Self-hosted, no auth** | `config set x --url http://host:8090` | none | always `local` |
+| **DBOS-managed** | `config set x --managed` | Auth0 JSON Web Token (JWT) | real |
 | **Self-hosted + OIDC** | `config set x --url http://host:8090 --issuer <url> --client-id <id> [--audience <aud>]` | user JWT or `dbos_` key | real |
-| **DBOS Cloud** | `config set x --cloud` | Auth0 JWT | real |
+| **Self-hosted, no auth** | `config set x --url http://host:8090` | none | always `local` |
 
-A profile must target either DBOS Cloud (`--cloud`) or a self-hosted Conductor
-(`--url`); the two are mutually exclusive. `--cloud` points at `cloud.dbos.dev`
-and derives everything else (the `/conductor` URL, bearer auth, and the Auth0
-tenant) automatically. Passing `--issuer`/`--client-id` implies bearer auth, so
-`--auth` is only needed for the uncommon case of a self-hosted Conductor you
+A profile must target either DBOS-managed Conductor (`--managed`) or a
+self-hosted Conductor (`--url`); the two are mutually exclusive. `--managed`
+points at `cloud.dbos.dev` and derives everything else (the `/conductor` URL,
+bearer auth, and the Auth0 tenant) automatically. Passing
+`--issuer`/`--client-id` implies bearer auth, so `--auth` is only needed for the
+uncommon case of a self-hosted Conductor you
 reach with a `dbos_` API key but no OIDC login: `--auth bearer`. Because an API
 key carries no user identity, give that profile an `--org` too.
 
@@ -109,7 +111,7 @@ Two ways to bypass the flow:
 | `dbos api-key list` | List API keys (aliases: `token`, `apikey`) |
 | `dbos api-key create <name>` | Create an API key — prints the secret once; scope with `--app`/`--permission` |
 | `dbos api-key delete <name>` | Delete an API key |
-| `dbos permission list` | List grantable permissions (OAuth-mode self-host or DBOS Cloud; not no-auth) |
+| `dbos permission list` | List grantable permissions (OAuth-mode self-host or DBOS-managed; not no-auth) |
 | `dbos config list \| show \| use \| set` | Manage profiles |
 | `dbos version` (or `--version`) | Print version information |
 
