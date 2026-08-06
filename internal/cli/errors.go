@@ -42,14 +42,14 @@ func checkStatus(status int, resp *http.Response, problem *api.ErrorModel, body 
 }
 
 // apiError maps a non-2xx Conductor response to an error with a helpful message
-// and the right exit code: 401 -> "run dbos login" (3), 404 -> (4), a past-limit
+// and the right exit code: 401 -> "run dbosctl login" (3), 404 -> (4), a past-limit
 // 403 -> the upgrade hint, everything else -> (1). A Teams-only 403 needs no
 // special case — conductor's problem+json detail already says so.
 func apiError(status int, header http.Header, problem *api.ErrorModel, body []byte) error {
 	msg := problemMessage(status, problem, body)
 	switch status {
 	case http.StatusUnauthorized:
-		return &exitError{code: 3, msg: msg + " — run `dbos login`"}
+		return &exitError{code: 3, msg: msg + " — run `dbosctl login`"}
 	case http.StatusForbidden:
 		// past_limit is the one machine-readable X-DBOS-Error value.
 		if header.Get("X-DBOS-Error") == "past_limit" {

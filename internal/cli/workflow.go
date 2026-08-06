@@ -372,7 +372,7 @@ func runWorkflowDelete(cmd *cobra.Command, args []string) error {
 }
 
 // runWorkflowFork forks one workflow and prints the new workflow ID (scalar
-// convention — bare on stdout, so `$(dbos workflow fork x)` is usable), or the
+// convention — bare on stdout, so `$(dbosctl workflow fork x)` is usable), or the
 // raw ForkWorkflowOutputBody under -o json.
 func runWorkflowFork(cmd *cobra.Command, args []string) error {
 	format, err := resolvedFormat(cmd)
@@ -408,7 +408,7 @@ func runWorkflowFork(cmd *cobra.Command, args []string) error {
 
 // collectWorkflowIDs returns the workflow IDs from args, expanding a literal "-"
 // to IDs read from stdin (one per line, blanks skipped) so
-// `dbos workflow list -o ids | dbos workflow cancel -` works.
+// `dbosctl workflow list -o ids | dbosctl workflow cancel -` works.
 func collectWorkflowIDs(cmd *cobra.Command, args []string) ([]string, error) {
 	var ids []string
 	for _, a := range args {

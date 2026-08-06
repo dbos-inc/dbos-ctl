@@ -12,7 +12,7 @@ import (
 // audience is shared.
 //
 // Targeting a non-production deployment is intentionally undocumented — it
-// exists for DBOS-internal clusters, and the `dbos config set --domain` flag is
+// exists for DBOS-internal clusters, and the `dbosctl config set --domain` flag is
 // hidden.
 const (
 	ManagedProdDomain    = "cloud.dbos.dev"

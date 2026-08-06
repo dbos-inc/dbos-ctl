@@ -124,7 +124,7 @@ func effectiveOrg(ctx context.Context, c *api.ClientWithResponses, s config.Sett
 	if s.Auth != config.AuthBearer {
 		return "local", nil
 	}
-	// `dbos login` captured the org, so prefer it — no extra request. An ad-hoc
+	// `dbosctl login` captured the org, so prefer it — no extra request. An ad-hoc
 	// $DBOS_TOKEN may be a different identity than any stored login, so for it we
 	// derive live rather than trust the stored org.
 	if os.Getenv("DBOS_TOKEN") == "" {
@@ -202,7 +202,7 @@ func bearerToken(cmd *cobra.Command, s config.Settings) (string, error) {
 // persists it, returning the new access token.
 func refreshStored(ctx context.Context, s config.Settings, store creds.Store, c *creds.Creds) (string, error) {
 	if c.RefreshToken == "" {
-		return "", fmt.Errorf("session for profile %q has expired; run `dbos login`", s.Profile)
+		return "", fmt.Errorf("session for profile %q has expired; run `dbosctl login`", s.Profile)
 	}
 	oidc, err := effectiveOIDC(s)
 	if err != nil {
@@ -210,7 +210,7 @@ func refreshStored(ctx context.Context, s config.Settings, store creds.Store, c 
 	}
 	tok, err := auth.Refresh(ctx, auth.Config{Issuer: oidc.Issuer, ClientID: oidc.ClientID, Audience: oidc.Audience}, c.RefreshToken)
 	if err != nil {
-		return "", fmt.Errorf("refreshing session for profile %q (try `dbos login`): %w", s.Profile, err)
+		return "", fmt.Errorf("refreshing session for profile %q (try `dbosctl login`): %w", s.Profile, err)
 	}
 	updated := *c
 	updated.Token = tok.AccessToken
@@ -231,16 +231,16 @@ func refreshStored(ctx context.Context, s config.Settings, store creds.Store, c 
 // oidc block); a target with neither can't run the device flow.
 func effectiveOIDC(s config.Settings) (config.OIDC, error) {
 	if s.OIDC == nil || s.OIDC.Issuer == "" {
-		return config.OIDC{}, fmt.Errorf("profile %q has no login config; set --issuer and --client-id with `dbos config set`", s.Profile)
+		return config.OIDC{}, fmt.Errorf("profile %q has no login config; set --issuer and --client-id with `dbosctl config set`", s.Profile)
 	}
 	return *s.OIDC, nil
 }
 
 func notLoggedIn(profile string) error {
 	if profile == "" {
-		return fmt.Errorf("not logged in (run `dbos login`)")
+		return fmt.Errorf("not logged in (run `dbosctl login`)")
 	}
-	return fmt.Errorf("not logged in for profile %q (run `dbos login`)", profile)
+	return fmt.Errorf("not logged in for profile %q (run `dbosctl login`)", profile)
 }
 
 // deref returns the pointed-to string, or "" for a nil pointer.

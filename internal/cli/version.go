@@ -14,7 +14,7 @@ import (
 // (e.g. v0.0.0-20260729180844-5da090baf395). Recent Go synthesizes one into
 // Main.Version even for a local `go build` of the main module; we treat that as
 // "not a real release" and keep the dev sentinel, reserving Main.Version for an
-// actual tagged `go install <module>/cmd/dbos@vX`.
+// actual tagged `go install <module>/cmd/dbosctl@vX`.
 var pseudoVersionRE = regexp.MustCompile(`[0-9]{14}-[0-9a-f]{12}`)
 
 // version, commit, and date are overwritten at release-build time via
@@ -54,7 +54,7 @@ func resolveBuildInfo() buildInfo {
 	if !ok {
 		return bi
 	}
-	// `go install <module>/cmd/dbos@vX` records a real semver in Main.Version; a
+	// `go install <module>/cmd/dbosctl@vX` records a real semver in Main.Version; a
 	// local `go build` records "(devel)". Prefer it only when ldflags left the
 	// sentinel in place.
 	if bi.Version == "dev" {
@@ -80,7 +80,7 @@ func resolveBuildInfo() buildInfo {
 }
 
 // short renders a one-line version such as `v1.2.0 (abc1234, 2026-07-28)` or
-// `dev (abc1234, dirty)`, used for `dbos --version`.
+// `dev (abc1234, dirty)`, used for `dbosctl --version`.
 func (bi buildInfo) short() string {
 	var parts []string
 	if c := bi.shortCommit(); c != "" {
@@ -108,16 +108,16 @@ func (bi buildInfo) shortCommit() string {
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print version, build, and platform information",
-	Long: `Print the dbos version, build metadata, and platform.
+	Long: `Print the dbosctl version, build metadata, and platform.
 
-This is the DBOS Conductor CLI (the 'dbos' Go binary). The DBOS Python SDK ships
-a separate 'dbos' script; when both are installed, this output identifies which
-one is first on your PATH.`,
+This is the DBOS Conductor CLI (the 'dbosctl' Go binary), distinct from the
+language SDKs' own tooling — the DBOS Python SDK ships a separate 'dbos'
+script.`,
 	Args: cobra.NoArgs,
 	Run: func(cmd *cobra.Command, _ []string) {
 		bi := resolveBuildInfo()
 		w := cmd.OutOrStdout()
-		fmt.Fprintf(w, "dbos (DBOS Conductor CLI) %s\n", bi.Version)
+		fmt.Fprintf(w, "dbosctl (DBOS Conductor CLI) %s\n", bi.Version)
 		if bi.Commit != "" {
 			dirty := ""
 			if bi.Dirty {

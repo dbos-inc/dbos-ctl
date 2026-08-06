@@ -34,7 +34,7 @@ func ParseFormat(s string) (Format, error) {
 }
 
 // WriteIDs prints one identifier per line — the FormatIDs rendering, so
-// `... -o ids | dbos workflow cancel -` pipelines work.
+// `... -o ids | dbosctl workflow cancel -` pipelines work.
 func WriteIDs(w io.Writer, ids []string) error {
 	for _, id := range ids {
 		if _, err := fmt.Fprintln(w, id); err != nil {

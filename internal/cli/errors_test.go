@@ -17,7 +17,7 @@ func TestApiError401(t *testing.T) {
 	if exitCodeFor(err) != 3 {
 		t.Errorf("401 exit code = %d, want 3", exitCodeFor(err))
 	}
-	if !strings.Contains(err.Error(), "dbos login") {
+	if !strings.Contains(err.Error(), "dbosctl login") {
 		t.Errorf("401 message missing the login hint: %v", err)
 	}
 }
