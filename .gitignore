@@ -1,5 +1,5 @@
-# Built binary (root-anchored so it doesn't match the cmd/dbos/ source dir).
-/dbos
+# Built binary (root-anchored so it doesn't match the cmd/dbosctl/ source dir).
+/dbosctl
 # goreleaser output.
 /dist/
 openapi.json

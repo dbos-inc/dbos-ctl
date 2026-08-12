@@ -313,7 +313,7 @@ func runAppUpdate(cmd *cobra.Command, args []string) error {
 		changed = true
 	}
 	if !changed {
-		return fmt.Errorf("nothing to update: pass at least one field (see `dbos app update --help`)")
+		return fmt.Errorf("nothing to update: pass at least one field (see `dbosctl app update --help`)")
 	}
 
 	c, s, err := clientFor(cmd)

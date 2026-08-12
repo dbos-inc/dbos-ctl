@@ -83,7 +83,7 @@ func runConfigList(cmd *cobra.Command, _ []string) error {
 	}
 	w := cmd.OutOrStdout()
 	if len(f.Profiles) == 0 {
-		fmt.Fprintln(w, "no profiles configured (create one with `dbos config set`)")
+		fmt.Fprintln(w, "no profiles configured (create one with `dbosctl config set`)")
 		return nil
 	}
 	names := make([]string, 0, len(f.Profiles))
@@ -154,7 +154,7 @@ func runConfigUse(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if _, ok := f.Profiles[name]; !ok {
-		return fmt.Errorf("profile %q not found (create it with `dbos config set %s ...`)", name, name)
+		return fmt.Errorf("profile %q not found (create it with `dbosctl config set %s ...`)", name, name)
 	}
 	f.Current = name
 	if err := config.Save(f); err != nil {

@@ -180,7 +180,7 @@ func TestRunAppListUsesStoredOrg(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A stored login that captured the org (as `dbos login` now does).
+	// A stored login that captured the org (as `dbosctl login` now does).
 	if err := store.Save("p", &creds.Creds{Token: "jwt", Organization: org}); err != nil {
 		t.Fatal(err)
 	}

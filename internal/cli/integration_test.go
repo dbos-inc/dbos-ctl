@@ -16,7 +16,7 @@ import (
 	"github.com/dbos-inc/dbos-cli/internal/config"
 )
 
-// TestAppListIntegration proves `dbos app list` end to end against a real
+// TestAppListIntegration proves `dbosctl app list` end to end against a real
 // Conductor: it seeds an app via the generated client, then lists it through
 // the CLI command and asserts the row appears.
 func TestAppListIntegration(t *testing.T) {

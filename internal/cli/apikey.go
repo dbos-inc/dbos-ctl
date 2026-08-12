@@ -110,7 +110,7 @@ func runAPIKeyCreate(cmd *cobra.Command, args []string) error {
 	if format == output.FormatJSON {
 		return output.JSON(cmd.OutOrStdout(), resp.JSON201)
 	}
-	// Scalar convention: the bare secret to stdout so `$(dbos api-key create ci)`
+	// Scalar convention: the bare secret to stdout so `$(dbosctl api-key create ci)`
 	// captures it; the shown-once warning goes to stderr to keep stdout clean.
 	fmt.Fprintf(cmd.ErrOrStderr(), "API key %q created — store this secret now, it is not shown again:\n", resp.JSON201.TokenName)
 	fmt.Fprintln(cmd.OutOrStdout(), resp.JSON201.Token)

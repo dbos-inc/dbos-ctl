@@ -41,7 +41,7 @@ func runLogin(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	if s.Profile == "" {
-		return fmt.Errorf("login needs an active profile — create one with `dbos config set` or pass --profile")
+		return fmt.Errorf("login needs an active profile — create one with `dbosctl config set` or pass --profile")
 	}
 	oidc, err := effectiveOIDC(s)
 	if err != nil {

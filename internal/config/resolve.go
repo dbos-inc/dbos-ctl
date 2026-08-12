@@ -53,7 +53,7 @@ func (f *File) Resolve(in Inputs) (Settings, error) {
 		var ok bool
 		p, ok = f.Profiles[name]
 		if !ok {
-			return Settings{}, fmt.Errorf("profile %q not found (see `dbos config list`)", name)
+			return Settings{}, fmt.Errorf("profile %q not found (see `dbosctl config list`)", name)
 		}
 	}
 
@@ -72,7 +72,7 @@ func (f *File) Resolve(in Inputs) (Settings, error) {
 		if u, err := url.Parse(resolvedURL); err == nil && isManagedProd(u.Hostname()) {
 			// Production is https-only — managedURL emits nothing else. Say so
 			// rather than fall through: silently dropping to no-auth surfaces as a
-			// 401 that sends the user to `dbos login` for a scheme typo, and
+			// 401 that sends the user to `dbosctl login` for a scheme typo, and
 			// attaching the bearer token anyway would put it on the wire in
 			// cleartext (the host's 301 to https comes too late).
 			if u.Scheme != "https" {

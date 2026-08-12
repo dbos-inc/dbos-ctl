@@ -1,4 +1,4 @@
-// Package cli implements the dbos command tree. Each subcommand lives in its
+// Package cli implements the dbosctl command tree. Each subcommand lives in its
 // own file and registers itself on rootCmd from that file's init(); there is no
 // central registration list. RunE functions return errors rather than printing
 // and exiting — Execute owns error printing and the process exit.
@@ -15,9 +15,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "dbos",
+	Use:   "dbosctl",
 	Short: "Command-line client for the DBOS Conductor API",
-	Long: `dbos manages DBOS Conductor workflows, queues, schedules, applications,
+	Long: `dbosctl manages DBOS Conductor workflows, queues, schedules, applications,
 and access tokens across self-hosted and DBOS-managed Conductor deployments.`,
 	// A runtime error should print the error, not a usage dump; and Execute prints
 	// errors itself so it can stay quiet on an interrupt.
