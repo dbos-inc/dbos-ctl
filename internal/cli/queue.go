@@ -46,7 +46,7 @@ func runQueueList(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	resp, err := c.ListQueuesWithResponse(cmd.Context(), org, app, nil)
+	resp, err := c.ListQueuesWithResponse(cmd.Context(), org, app)
 	if err != nil {
 		return err
 	}

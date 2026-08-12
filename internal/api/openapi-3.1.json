@@ -1759,13 +1759,6 @@
             "readOnly": true,
             "type": "string"
           },
-          "applicationName": {
-            "description": "Restrict to steps owned by these applications, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.",
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
           "completedAfter": {
             "format": "date-time",
             "type": "string"
@@ -2264,13 +2257,6 @@
               "null"
             ]
           },
-          "applicationName": {
-            "description": "Restrict to workflows owned by these applications, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.",
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
           "attributes": {
             "additionalProperties": {},
             "type": "object"
@@ -2452,13 +2438,6 @@
               "array",
               "null"
             ]
-          },
-          "applicationName": {
-            "description": "Restrict to workflows owned by these applications, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.",
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
           },
           "attributes": {
             "additionalProperties": {},
@@ -3547,16 +3526,6 @@
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
             }
-          },
-          {
-            "description": "Restrict to queues owned by this application, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.",
-            "explode": false,
-            "in": "query",
-            "name": "applicationName",
-            "schema": {
-              "description": "Restrict to queues owned by this application, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -3702,16 +3671,6 @@
             "in": "query",
             "name": "scheduleNamePrefix",
             "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "Restrict to schedules owned by this application, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.",
-            "explode": false,
-            "in": "query",
-            "name": "applicationName",
-            "schema": {
-              "description": "Restrict to schedules owned by this application, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.",
               "type": "string"
             }
           },
@@ -4295,16 +4254,6 @@
             "in": "query",
             "name": "workflowName",
             "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "Restrict to workflows owned by this application, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.",
-            "explode": false,
-            "in": "query",
-            "name": "applicationName",
-            "schema": {
-              "description": "Restrict to workflows owned by this application, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.",
               "type": "string"
             }
           },

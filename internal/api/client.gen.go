@@ -883,10 +883,7 @@ type StepAggregatesBody struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: //schemas/StepAggregatesBody.json
-	Schema *string `json:"$schema,omitempty"`
-
-	// ApplicationName Restrict to steps owned by these applications, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.
-	ApplicationName     *[]string  `json:"applicationName,omitempty"`
+	Schema              *string    `json:"$schema,omitempty"`
 	CompletedAfter      *time.Time `json:"completedAfter,omitempty"`
 	CompletedBefore     *time.Time `json:"completedBefore,omitempty"`
 	GroupByFunctionName *bool      `json:"groupByFunctionName,omitempty"`
@@ -1021,11 +1018,8 @@ type WorkflowAggregatesBody struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: //schemas/WorkflowAggregatesBody.json
-	Schema     *string   `json:"$schema,omitempty"`
-	AppVersion *[]string `json:"appVersion,omitempty"`
-
-	// ApplicationName Restrict to workflows owned by these applications, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.
-	ApplicationName         *[]string               `json:"applicationName,omitempty"`
+	Schema                  *string                 `json:"$schema,omitempty"`
+	AppVersion              *[]string               `json:"appVersion,omitempty"`
 	Attributes              *map[string]interface{} `json:"attributes,omitempty"`
 	CompletedAfter          *time.Time              `json:"completedAfter,omitempty"`
 	CompletedBefore         *time.Time              `json:"completedBefore,omitempty"`
@@ -1063,11 +1057,8 @@ type WorkflowSearchBody struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: //schemas/WorkflowSearchBody.json
-	Schema     *string   `json:"$schema,omitempty"`
-	AppVersion *[]string `json:"appVersion,omitempty"`
-
-	// ApplicationName Restrict to workflows owned by these applications, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.
-	ApplicationName  *[]string               `json:"applicationName,omitempty"`
+	Schema           *string                 `json:"$schema,omitempty"`
+	AppVersion       *[]string               `json:"appVersion,omitempty"`
 	Attributes       *map[string]interface{} `json:"attributes,omitempty"`
 	CompletedAfter   *time.Time              `json:"completedAfter,omitempty"`
 	CompletedBefore  *time.Time              `json:"completedBefore,omitempty"`
@@ -1101,36 +1092,24 @@ type ListMetricsParams struct {
 	EndTime   time.Time `form:"endTime" json:"endTime"`
 }
 
-// ListQueuesParams defines parameters for ListQueues.
-type ListQueuesParams struct {
-	// ApplicationName Restrict to queues owned by this application, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.
-	ApplicationName *string `form:"applicationName,omitempty" json:"applicationName,omitempty"`
-}
-
 // ListSchedulesParams defines parameters for ListSchedules.
 type ListSchedulesParams struct {
 	// Status Filter by schedule status as defined by DBOS Transact. Known values: ACTIVE, PAUSED. Not an enforced enum; unrecognized values simply match nothing.
 	Status             *string `form:"status,omitempty" json:"status,omitempty"`
 	WorkflowName       *string `form:"workflowName,omitempty" json:"workflowName,omitempty"`
 	ScheduleNamePrefix *string `form:"scheduleNamePrefix,omitempty" json:"scheduleNamePrefix,omitempty"`
-
-	// ApplicationName Restrict to schedules owned by this application, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.
-	ApplicationName *string `form:"applicationName,omitempty" json:"applicationName,omitempty"`
-	LoadContext     *bool   `form:"loadContext,omitempty" json:"loadContext,omitempty"`
+	LoadContext        *bool   `form:"loadContext,omitempty" json:"loadContext,omitempty"`
 }
 
 // ListWorkflowsParams defines parameters for ListWorkflows.
 type ListWorkflowsParams struct {
 	Status       *string `form:"status,omitempty" json:"status,omitempty"`
 	WorkflowName *string `form:"workflowName,omitempty" json:"workflowName,omitempty"`
-
-	// ApplicationName Restrict to workflows owned by this application, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.
-	ApplicationName *string `form:"applicationName,omitempty" json:"applicationName,omitempty"`
-	Limit           *int64  `form:"limit,omitempty" json:"limit,omitempty"`
-	Offset          *int64  `form:"offset,omitempty" json:"offset,omitempty"`
-	SortDesc        *bool   `form:"sortDesc,omitempty" json:"sortDesc,omitempty"`
-	LoadInput       *bool   `form:"loadInput,omitempty" json:"loadInput,omitempty"`
-	LoadOutput      *bool   `form:"loadOutput,omitempty" json:"loadOutput,omitempty"`
+	Limit        *int64  `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset       *int64  `form:"offset,omitempty" json:"offset,omitempty"`
+	SortDesc     *bool   `form:"sortDesc,omitempty" json:"sortDesc,omitempty"`
+	LoadInput    *bool   `form:"loadInput,omitempty" json:"loadInput,omitempty"`
+	LoadOutput   *bool   `form:"loadOutput,omitempty" json:"loadOutput,omitempty"`
 }
 
 // DeleteWorkflowParams defines parameters for DeleteWorkflow.
@@ -1447,7 +1426,7 @@ type ClientInterface interface {
 	// ListQueues List queues
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/queues (the `ListQueues` operationId).
-	ListQueues(ctx context.Context, orgName string, appName string, params *ListQueuesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ListQueues(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetQueue Get queue
 	//
@@ -2245,8 +2224,8 @@ func (c *Client) ListMetrics(ctx context.Context, orgName string, appName string
 // ListQueues List queues
 //
 // Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/queues (the `ListQueues` operationId).
-func (c *Client) ListQueues(ctx context.Context, orgName string, appName string, params *ListQueuesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListQueuesRequest(c.Server, orgName, appName, params)
+func (c *Client) ListQueues(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListQueuesRequest(c.Server, orgName, appName)
 	if err != nil {
 		return nil, err
 	}
@@ -4087,7 +4066,7 @@ func NewListMetricsRequest(server string, orgName string, appName string, params
 }
 
 // NewListQueuesRequest constructs an http.Request for the ListQueues method
-func NewListQueuesRequest(server string, orgName string, appName string, params *ListQueuesParams) (*http.Request, error) {
+func NewListQueuesRequest(server string, orgName string, appName string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -4117,33 +4096,6 @@ func NewListQueuesRequest(server string, orgName string, appName string, params 
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
-	}
-
-	if params != nil {
-		// queryValues collects non-styled parameters (passthrough, JSON)
-		// that are safe to round-trip through url.Values.Encode().
-		queryValues := queryURL.Query()
-		// rawQueryFragments collects pre-encoded query fragments from
-		// styled parameters, preserving literal commas as delimiters
-		// per the OpenAPI spec (e.g. "color=blue,black,brown").
-		var rawQueryFragments []string
-
-		if params.ApplicationName != nil {
-
-			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "applicationName", *params.ApplicationName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
-				return nil, err
-			} else {
-				for _, qp := range strings.Split(queryFrag, "&") {
-					rawQueryFragments = append(rawQueryFragments, qp)
-				}
-			}
-
-		}
-
-		if encoded := queryValues.Encode(); encoded != "" {
-			rawQueryFragments = append(rawQueryFragments, encoded)
-		}
-		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -4271,18 +4223,6 @@ func NewListSchedulesRequest(server string, orgName string, appName string, para
 		if params.ScheduleNamePrefix != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "scheduleNamePrefix", *params.ScheduleNamePrefix, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
-				return nil, err
-			} else {
-				for _, qp := range strings.Split(queryFrag, "&") {
-					rawQueryFragments = append(rawQueryFragments, qp)
-				}
-			}
-
-		}
-
-		if params.ApplicationName != nil {
-
-			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "applicationName", *params.ApplicationName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {
@@ -4777,18 +4717,6 @@ func NewListWorkflowsRequest(server string, orgName string, appName string, para
 		if params.WorkflowName != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "workflowName", *params.WorkflowName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
-				return nil, err
-			} else {
-				for _, qp := range strings.Split(queryFrag, "&") {
-					rawQueryFragments = append(rawQueryFragments, qp)
-				}
-			}
-
-		}
-
-		if params.ApplicationName != nil {
-
-			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "applicationName", *params.ApplicationName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {
@@ -6933,7 +6861,7 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/queues (the `ListQueues` operationId).
-	ListQueuesWithResponse(ctx context.Context, orgName string, appName string, params *ListQueuesParams, reqEditors ...RequestEditorFn) (*ListQueuesResponse, error)
+	ListQueuesWithResponse(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*ListQueuesResponse, error)
 
 	// GetQueueWithResponse Get queue
 	//
@@ -10668,8 +10596,8 @@ func (c *ClientWithResponses) ListMetricsWithResponse(ctx context.Context, orgNa
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/queues (the `ListQueues` operationId).
-func (c *ClientWithResponses) ListQueuesWithResponse(ctx context.Context, orgName string, appName string, params *ListQueuesParams, reqEditors ...RequestEditorFn) (*ListQueuesResponse, error) {
-	rsp, err := c.ListQueues(ctx, orgName, appName, params, reqEditors...)
+func (c *ClientWithResponses) ListQueuesWithResponse(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*ListQueuesResponse, error) {
+	rsp, err := c.ListQueues(ctx, orgName, appName, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
