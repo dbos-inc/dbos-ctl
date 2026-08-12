@@ -32,8 +32,13 @@ go vet ./... && gofmt -l .
 
 make generate                  # regenerate the API client from the vendored spec
 make spec                      # re-vendor the spec from a local conductor checkout
+make check-spec                # is the vendored spec still what's deployed? (see below)
 make test-integration          # container-backed tests (see Testing)
 ```
+
+**`make check-spec` answers the question `make generate` can't.** CI's drift check proves the *generated code* matches the *vendored spec* — it says nothing about whether that snapshot still reflects reality, because it never leaves the repo. `check-spec` (`scripts/check-spec-drift.sh`) compares the vendored spec against the **deployed** one at `cloud.dbos.dev/conductor/v2/openapi.json`, which cloud serves publicly (no credentials, so this works from a public repo with no secrets). `servers` is excluded, since repointing it at `/conductor` is the only edit cloud makes. Drift here is always actionable: dbosctl's generated client speaks an API the server it calls doesn't have. The `spec-drift` workflow runs it daily.
+
+**Conductor's own spec is deliberately not a third source.** Comparing against `go run . openapi` in a conductor checkout would catch a re-vendor gap a day or two earlier, but conductor is a **private** repo and this one is public, so CI would need a token to check it out — and the extra pair is mostly noise anyway: conductor's `main` legitimately runs ahead of what's deployed between a merge and the deploy that ships it. Deployed is the copy that matters, because it's the one dbosctl actually talks to. `make spec` still re-vendors from a local `$CONDUCTOR_DIR` for whoever has one.
 
 `go.mod` declares `go 1.25` — a *minimum*, not a build pin. Under the default `GOTOOLCHAIN=auto` an older local toolchain silently downloads a matching one; under `GOTOOLCHAIN=local` (common in CI images and air-gapped builds) it's a hard error. Pin an exact patch version in CI/Docker config, not in `go.mod`.
 

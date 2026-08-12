@@ -1,0 +1,23 @@
+name: spec-drift
+
+# The vendored spec is a snapshot, so it can silently fall behind what is
+# actually deployed — and the client dbosctl ships is generated from that
+# snapshot. The ci.yml drift check only proves the generated code matches the
+# snapshot; nothing proves the snapshot still matches the running API. This job
+# does, once a day. It needs no credentials: the deployed spec is public.
+on:
+  schedule:
+    # 13:17 UTC — off the hour, so it isn't queued behind the top-of-hour surge.
+    - cron: '17 13 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: compare the vendored spec against the deployed one
+        run: ./scripts/check-spec-drift.sh

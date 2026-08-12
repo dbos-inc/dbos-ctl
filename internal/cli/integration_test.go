@@ -399,3 +399,31 @@ func saveBearerProfile(t *testing.T, url, org string) {
 		t.Fatal(err)
 	}
 }
+
+// TestPermissionListNoAuthIntegration proves `permission list` works against a
+// no-auth Conductor. This is the un-gating check that a mock server cannot make:
+// listPermissions used to carry x-dbos-requires-oauth, so the route did not
+// exist off-OAuth and the CLI refused before sending. Conductor now registers it
+// in every mode (the grantable set is a static allow-list), so the command must
+// reach it and resolve the org to "local" with no profile and no token.
+func TestPermissionListNoAuthIntegration(t *testing.T) {
+	isolateConfig(t)
+	baseURL := conductortest.Start(t)
+
+	cmd := newCmdWithGlobals()
+	_ = cmd.Flags().Set("url", baseURL) // no token anywhere → auth none, org "local"
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	if err := runPermissionList(cmd, nil); err != nil {
+		t.Fatalf("permission list against a no-auth conductor: %v", err)
+	}
+	// The catalog is conductor's static allow-list; assert a couple of members
+	// rather than the whole set, which is free to grow.
+	got := out.String()
+	for _, want := range []string{"application.read", "websocket.connect"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("permission list missing %q:\n%s", want, got)
+		}
+	}
+}
