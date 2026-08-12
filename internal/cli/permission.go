@@ -3,7 +3,6 @@ package cli
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/dbos-inc/dbos-cli/internal/config"
 	"github.com/dbos-inc/dbos-cli/internal/output"
 )
 
@@ -33,13 +32,6 @@ func runPermissionList(cmd *cobra.Command, _ []string) error {
 	c, s, err := clientFor(cmd)
 	if err != nil {
 		return err
-	}
-	// listPermissions is OAuth-gated: the route only exists on an OAuth-enabled
-	// or DBOS-managed Conductor, so a no-auth profile can't reach it. Fail with a
-	// mode-aware message rather than a raw 404. (The general spec-derived
-	// pre-request gate lands in F4; this is the first gated command.)
-	if s.Auth != config.AuthBearer {
-		return &exitError{code: 1, msg: "listing permissions requires an OAuth-enabled or DBOS-managed Conductor; the current profile uses no auth"}
 	}
 	org, err := effectiveOrg(cmd.Context(), c, s)
 	if err != nil {

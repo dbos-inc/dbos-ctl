@@ -251,7 +251,8 @@
               "organization",
               "workflow",
               "schedule",
-              "alerting_rule"
+              "alerting_rule",
+              "domain_claim"
             ],
             "type": "string"
           }
@@ -259,6 +260,32 @@
         "required": [
           "type",
           "id"
+        ],
+        "type": "object"
+      },
+      "AutoscalePolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/AutoscalePolicy.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "queue": {
+            "description": "The queue whose utilization drives the desired executor count. Must exist, not be partitioned and have worker_concurrency set.",
+            "type": "string"
+          },
+          "rollout": {
+            "$ref": "#/components/schemas/RolloutPolicy",
+            "description": "Rollout preferences for non-latest application versions. Omitted means old versions are sized to their own backlog."
+          }
+        },
+        "required": [
+          "queue"
         ],
         "type": "object"
       },
@@ -616,6 +643,63 @@
         },
         "type": "object"
       },
+      "DomainClaim": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/DomainClaim.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "decidedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "decidedBy": {
+            "type": "string"
+          },
+          "decisionNote": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "orgName": {
+            "type": "string"
+          },
+          "requestedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "requestedBy": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "approved",
+              "denied"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "domain",
+          "status",
+          "orgName",
+          "requestedBy",
+          "requestedAt"
+        ],
+        "type": "object"
+      },
       "ErrorDetail": {
         "additionalProperties": false,
         "properties": {
@@ -924,6 +1008,30 @@
         ],
         "type": "object"
       },
+      "ListDomainClaimsOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/ListDomainClaimsOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "claims": {
+            "items": {
+              "$ref": "#/components/schemas/DomainClaim"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "claims"
+        ],
+        "type": "object"
+      },
       "Member": {
         "additionalProperties": false,
         "properties": {
@@ -1190,6 +1298,27 @@
         ],
         "type": "object"
       },
+      "PolicyOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/PolicyOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/AutoscalePolicy"
+          }
+        },
+        "required": [
+          "policy"
+        ],
+        "type": "object"
+      },
       "PutAppInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -1219,6 +1348,13 @@
             "format": "uri",
             "readOnly": true,
             "type": "string"
+          },
+          "applicationName": {
+            "description": "The application that owns this queue, when several applications share a system database. Null for in-memory queues and for queues recorded before DBOS Transact tracked application names.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "concurrency": {
             "format": "int32",
@@ -1270,7 +1406,48 @@
           "rateLimitPeriodSecs",
           "priorityEnabled",
           "partitionQueue",
-          "pollingIntervalSecs"
+          "pollingIntervalSecs",
+          "applicationName"
+        ],
+        "type": "object"
+      },
+      "QueueAutoscale": {
+        "additionalProperties": false,
+        "properties": {
+          "applicationVersion": {
+            "description": "The application version this recommendation covers.",
+            "type": "string"
+          },
+          "desiredExecutors": {
+            "description": "Executors of this version needed to satisfy the queue load. At least 1, unless the rollout policy caps old versions lower.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "isLatest": {
+            "description": "True for the application's latest registered version.",
+            "type": "boolean"
+          },
+          "observedAt": {
+            "description": "Epoch ms when the underlying workflow aggregate was computed.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "queueDepth": {
+            "description": "ENQUEUED+PENDING backlog counted for this version on the policy queue.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "queueName": {
+            "description": "The policy queue; absent when it is no longer usable.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "applicationVersion",
+          "isLatest",
+          "desiredExecutors",
+          "queueDepth",
+          "observedAt"
         ],
         "type": "object"
       },
@@ -1331,6 +1508,33 @@
         ],
         "type": "object"
       },
+      "RequestDomainClaimInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/RequestDomainClaimInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "domain": {
+            "description": "The email domain to claim, e.g. \"example.com\". On DBOS-managed Conductor the claim has no effect until a DBOS administrator approves it. On self-hosted Conductor it takes effect immediately, with no review. Subdomains are not matched; claim them separately.",
+            "examples": [
+              "example.com"
+            ],
+            "maxLength": 253,
+            "minLength": 4,
+            "type": "string"
+          }
+        },
+        "required": [
+          "domain"
+        ],
+        "type": "object"
+      },
       "ResumeWorkflowInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -1372,6 +1576,18 @@
         ],
         "type": "object"
       },
+      "RolloutPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "maxExecutorsForOldApplicationVersions": {
+            "description": "Cap every old version's recommendation at this many executors. Omit to size old versions from their own queue utilization, uncapped.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "Schedule": {
         "additionalProperties": false,
         "properties": {
@@ -1383,6 +1599,13 @@
             "format": "uri",
             "readOnly": true,
             "type": "string"
+          },
+          "applicationName": {
+            "description": "The application that owns this schedule, when several applications share a system database. Null for schedules recorded before DBOS Transact tracked application names.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "automaticBackfill": {
             "type": "boolean"
@@ -1439,7 +1662,8 @@
           "context",
           "lastFiredAt",
           "automaticBackfill",
-          "cronTimezone"
+          "cronTimezone",
+          "applicationName"
         ],
         "type": "object"
       },
@@ -1534,6 +1758,13 @@
             "format": "uri",
             "readOnly": true,
             "type": "string"
+          },
+          "applicationName": {
+            "description": "Restrict to steps owned by these applications, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "completedAfter": {
             "format": "date-time",
@@ -1777,6 +2008,13 @@
               "null"
             ]
           },
+          "applicationName": {
+            "description": "The application that owns this workflow, when several applications share a system database. Null for workflows recorded before DBOS Transact tracked application names.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "assumedRole": {
             "type": [
               "string",
@@ -1966,7 +2204,8 @@
           "delayUntil",
           "completedAt",
           "attributes",
-          "scheduleName"
+          "scheduleName",
+          "applicationName"
         ],
         "type": "object"
       },
@@ -2025,6 +2264,13 @@
               "null"
             ]
           },
+          "applicationName": {
+            "description": "Restrict to workflows owned by these applications, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "attributes": {
             "additionalProperties": {},
             "type": "object"
@@ -2068,6 +2314,9 @@
             ]
           },
           "groupByAppVersion": {
+            "type": "boolean"
+          },
+          "groupByApplicationName": {
             "type": "boolean"
           },
           "groupByExecutorId": {
@@ -2203,6 +2452,13 @@
               "array",
               "null"
             ]
+          },
+          "applicationName": {
+            "description": "Restrict to workflows owned by these applications, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "attributes": {
             "additionalProperties": {},
@@ -2901,6 +3157,235 @@
         ]
       }
     },
+    "/v2/orgs/{orgName}/apps/{appName}/autoscale": {
+      "get": {
+        "description": "Computes how many executors each of the application's versions needs right now, given the backlog of its stored autoscaling policy's queue. Returns one entry per version. 404 when no policy is installed. Requires a DBOS Teams subscription.",
+        "operationId": "getAutoscale",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QueueAutoscale"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get autoscaling recommendation",
+        "tags": [
+          "Queues"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/autoscaling-policy": {
+      "delete": {
+        "description": "Clears the stored policy. Deleting an absent policy succeeds. Requires a DBOS Teams subscription.",
+        "operationId": "deleteAutoscalingPolicy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete autoscaling policy",
+        "tags": [
+          "Queues"
+        ]
+      },
+      "get": {
+        "description": "Returns the application's stored queue-based autoscaling policy; 404 when none is set. Requires a DBOS Teams subscription.",
+        "operationId": "getAutoscalingPolicy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get autoscaling policy",
+        "tags": [
+          "Queues"
+        ]
+      },
+      "put": {
+        "description": "Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — not partitioned, worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.",
+        "operationId": "setAutoscalingPolicy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutoscalePolicy"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Set autoscaling policy",
+        "tags": [
+          "Queues"
+        ]
+      }
+    },
     "/v2/orgs/{orgName}/apps/{appName}/executors": {
       "get": {
         "operationId": "listExecutors",
@@ -3062,6 +3547,16 @@
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
             }
+          },
+          {
+            "description": "Restrict to queues owned by this application, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.",
+            "explode": false,
+            "in": "query",
+            "name": "applicationName",
+            "schema": {
+              "description": "Restrict to queues owned by this application, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3207,6 +3702,16 @@
             "in": "query",
             "name": "scheduleNamePrefix",
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Restrict to schedules owned by this application, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.",
+            "explode": false,
+            "in": "query",
+            "name": "applicationName",
+            "schema": {
+              "description": "Restrict to schedules owned by this application, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.",
               "type": "string"
             }
           },
@@ -3790,6 +4295,16 @@
             "in": "query",
             "name": "workflowName",
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Restrict to workflows owned by this application, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.",
+            "explode": false,
+            "in": "query",
+            "name": "applicationName",
+            "schema": {
+              "description": "Restrict to workflows owned by this application, plus unclaimed ones. Defaults to the application in the path; only worth setting when several applications share a system database.",
               "type": "string"
             }
           },
@@ -5150,6 +5665,155 @@
         "x-dbos-requires-oauth": true
       }
     },
+    "/v2/orgs/{orgName}/domain-claims": {
+      "get": {
+        "description": "A domain claim adds users who register with an email at that domain to this organization automatically. On DBOS-managed Conductor a claim must be approved by DBOS before it takes effect; self-hosted claims take effect immediately. Claims apply to new registrations only — approving one never moves users who already have accounts, and revoking one never removes them.\n\nRequires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "listDomainClaims",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListDomainClaimsOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List domain claims",
+        "tags": [
+          "Orgs"
+        ],
+        "x-dbos-requires-oauth": true
+      },
+      "post": {
+        "description": "A domain claim adds users who register with an email at that domain to this organization automatically. On DBOS-managed Conductor a claim must be approved by DBOS before it takes effect; self-hosted claims take effect immediately. Claims apply to new registrations only — approving one never moves users who already have accounts, and revoking one never removes them.\n\nRequires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "requestDomainClaim",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestDomainClaimInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DomainClaim"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Claim a domain",
+        "tags": [
+          "Orgs"
+        ],
+        "x-dbos-requires-oauth": true
+      }
+    },
+    "/v2/orgs/{orgName}/domain-claims/{domain}": {
+      "delete": {
+        "description": "A domain claim adds users who register with an email at that domain to this organization automatically. On DBOS-managed Conductor a claim must be approved by DBOS before it takes effect; self-hosted claims take effect immediately. Claims apply to new registrations only — approving one never moves users who already have accounts, and revoking one never removes them.\n\nRequires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "releaseDomainClaim",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "domain",
+            "required": true,
+            "schema": {
+              "maxLength": 253,
+              "minLength": 4,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Release a domain claim",
+        "tags": [
+          "Orgs"
+        ],
+        "x-dbos-requires-oauth": true
+      }
+    },
     "/v2/orgs/{orgName}/join": {
       "post": {
         "description": "Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
@@ -5365,7 +6029,6 @@
     },
     "/v2/orgs/{orgName}/permissions": {
       "get": {
-        "description": "Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
         "operationId": "listPermissions",
         "parameters": [
           {
@@ -5408,8 +6071,7 @@
         "summary": "List permissions",
         "tags": [
           "Roles"
-        ],
-        "x-dbos-requires-oauth": true
+        ]
       }
     },
     "/v2/orgs/{orgName}/roles": {
