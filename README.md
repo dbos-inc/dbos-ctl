@@ -171,17 +171,13 @@ dbosctl workflow list -a myapp --status PENDING -o ids | dbosctl workflow cancel
 
 ```sh
 make generate    # regenerate the API client from the vendored OpenAPI spec
-make check-spec  # is the vendored spec still what's deployed?
 make build       # build ./dbosctl
 make test        # unit tests
 make lint        # golangci-lint
 ```
 
 The generated client (`internal/api`) is committed; CI fails on spec drift
-(`make generate` must be a no-op). That check is hermetic, so it only proves the
-client matches the vendored spec. `make check-spec` covers the other half —
-whether that spec is still what Conductor actually serves — and is worth running
-after a re-vendor. Integration tests are tagged `integration`
+(`make generate` must be a no-op). Integration tests are tagged `integration`
 and stand up real Conductor + Postgres in throwaway containers — see
 `make test-integration` and `.env.example` for the required license key and
 image/checkout settings.

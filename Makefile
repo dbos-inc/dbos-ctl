@@ -8,7 +8,7 @@
 CONDUCTOR_DIR ?= $(HOME)/conductor
 SPEC          := internal/api/openapi-3.1.json
 
-.PHONY: all generate spec check-spec build test lint tidy
+.PHONY: all generate spec build test lint tidy
 
 all: generate build
 
@@ -21,10 +21,6 @@ generate:
 ## spec: re-vendor the OpenAPI spec from a local conductor checkout (needs conductor + jq)
 spec:
 	cd $(CONDUCTOR_DIR) && go run . openapi | jq -S . > $(CURDIR)/$(SPEC)
-
-## check-spec: check the vendored spec against the deployed one (needs jq + network)
-check-spec:
-	./scripts/check-spec-drift.sh
 
 ## build: build the dbosctl binary (VCS stamps come from go build; no ldflags needed)
 build:

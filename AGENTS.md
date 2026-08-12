@@ -32,13 +32,8 @@ go vet ./... && gofmt -l .
 
 make generate                  # regenerate the API client from the vendored spec
 make spec                      # re-vendor the spec from a local conductor checkout
-make check-spec                # is the vendored spec still what's deployed? (see below)
 make test-integration          # container-backed tests (see Testing)
 ```
-
-**`make check-spec` answers the question `make generate` can't.** CI's drift check proves the *generated code* matches the *vendored spec* — it says nothing about whether that snapshot still reflects reality, because it never leaves the repo. `check-spec` (`scripts/check-spec-drift.sh`) compares the vendored spec against the **deployed** one at `cloud.dbos.dev/conductor/v2/openapi.json`, which cloud serves publicly (no credentials, so this works from a public repo with no secrets). `servers` is excluded, since repointing it at `/conductor` is the only edit cloud makes. Drift here is always actionable: dbosctl's generated client speaks an API the server it calls doesn't have. Run it by hand after a re-vendor, or whenever a command starts failing in a way that smells like a shape mismatch.
-
-**Nothing runs it on a schedule from here, by design — that check belongs in conductor.** The obvious third source is conductor's own spec (`go run . openapi`), which would catch a re-vendor gap a day or two before it reaches a deployment. But this repo is public and conductor is private, so scheduling it here means CI checking out a private repo with a token, and it still could not see conductor's spec without one. Conductor can reach all three copies freely — its own, this repo's vendored one (public), and the deployed one — so the daily comparison lives there. Keep `make check-spec` as the local tool and as the thing to port; do not re-add a scheduled workflow here.
 
 `go.mod` declares `go 1.25` — a *minimum*, not a build pin. Under the default `GOTOOLCHAIN=auto` an older local toolchain silently downloads a matching one; under `GOTOOLCHAIN=local` (common in CI images and air-gapped builds) it's a hard error. Pin an exact patch version in CI/Docker config, not in `go.mod`.
 
