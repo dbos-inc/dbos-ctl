@@ -420,3 +420,34 @@ func TestRunWorkflowNoApp(t *testing.T) {
 		t.Errorf("want a no-app error, got %v", err)
 	}
 }
+
+// A workflow reports its owning application when several apps share one system
+// database. The field is nullable, so the detail view shows it only when set.
+func TestRunWorkflowGetApplicationName(t *testing.T) {
+	t.Run("set", func(t *testing.T) {
+		isolateConfig(t)
+		owned := `{"workflowId":"wf-1","status":"SUCCESS","workflowName":"myWf","createdAt":"2026-07-30T10:00:00Z","updatedAt":"2026-07-30T10:00:05Z","priority":0,"wasForkedFrom":false,"applicationName":"otherapp"}`
+		srv, _ := appReadServer(t, "/v2/orgs/local/apps/myapp/workflows/wf-1", owned)
+
+		cmd, out := workflowCmdAt(t, srv.URL)
+		if err := runWorkflowGet(cmd, []string{"wf-1"}); err != nil {
+			t.Fatal(err)
+		}
+		if got := out.String(); !strings.Contains(got, "applicationName") || !strings.Contains(got, "otherapp") {
+			t.Errorf("workflow get detail missing the owning application:\n%s", got)
+		}
+	})
+
+	t.Run("null", func(t *testing.T) {
+		isolateConfig(t)
+		srv, _ := appReadServer(t, "/v2/orgs/local/apps/myapp/workflows/wf-1", oneWorkflowJSON)
+
+		cmd, out := workflowCmdAt(t, srv.URL)
+		if err := runWorkflowGet(cmd, []string{"wf-1"}); err != nil {
+			t.Fatal(err)
+		}
+		if got := out.String(); strings.Contains(got, "applicationName") {
+			t.Errorf("workflow get detail showed an empty applicationName row:\n%s", got)
+		}
+	})
+}
