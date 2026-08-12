@@ -61,8 +61,6 @@ func addRequestFlags(cmd *cobra.Command, names ...string) {
 			f.String("org", "", "organization (overrides $DBOS_ORG and the profile)")
 		case "app":
 			f.StringP("app", "a", "", "application name (overrides $DBOS_APP and the profile)")
-		case "owner-app":
-			f.String("owner-app", "", "restrict to objects owned by this application, plus unclaimed ones (default: the --app application)")
 		case "output":
 			f.StringP("output", "o", "table", "output format: table, json")
 		default:
@@ -110,27 +108,6 @@ func clientFor(cmd *cobra.Command) (*api.ClientWithResponses, config.Settings, e
 	}
 	c, err := client.New(client.Config{BaseURL: s.URL, Token: token})
 	return c, s, err
-}
-
-// ownerAppFilter resolves the --owner-app filter shared by the list commands
-// whose endpoint accepts an applicationName scope.
-//
-// This is a different axis from --app, which selects the application the request
-// addresses (it is in the URL path). --owner-app narrows the *results* to objects
-// that application owns, and only differs when several applications share one
-// system database — otherwise an app only ever sees its own. Conductor requires
-// application.read on the named application, so this cannot be used to read an
-// application the caller has no access to.
-//
-// Returns nil when the flag was not given, which leaves the scope unset and lets
-// conductor default it to the addressed application. There is deliberately no
-// "everything" value: an unset filter means the addressed app, not no filter.
-func ownerAppFilter(cmd *cobra.Command) *string {
-	if !cmd.Flags().Changed("owner-app") {
-		return nil
-	}
-	v, _ := cmd.Flags().GetString("owner-app")
-	return &v
 }
 
 // effectiveOrg resolves the organization for an org-scoped request. An

@@ -31,7 +31,7 @@ var queueGetCmd = &cobra.Command{
 }
 
 func init() {
-	addRequestFlags(queueListCmd, "profile", "url", "org", "app", "owner-app", "output")
+	addRequestFlags(queueListCmd, "profile", "url", "org", "app", "output")
 	addRequestFlags(queueGetCmd, "profile", "url", "org", "app", "output")
 	queueCmd.AddCommand(queueListCmd, queueGetCmd)
 	rootCmd.AddCommand(queueCmd)
@@ -46,8 +46,7 @@ func runQueueList(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	params := &api.ListQueuesParams{ApplicationName: ownerAppFilter(cmd)}
-	resp, err := c.ListQueuesWithResponse(cmd.Context(), org, app, params)
+	resp, err := c.ListQueuesWithResponse(cmd.Context(), org, app, nil)
 	if err != nil {
 		return err
 	}

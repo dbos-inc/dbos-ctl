@@ -108,7 +108,7 @@ Two ways to bypass the flow:
 | `dbosctl workflow events <id>` | List a workflow's events |
 | `dbosctl workflow cancel\|resume\|restart\|delete <id>...` | Mutate one or more workflows (variadic; `-` reads IDs from stdin; `--children` on cancel/delete) |
 | `dbosctl workflow fork <id>` | Fork a workflow into a new execution (prints the new ID; `--start-step`, `--new-id`) |
-| `dbosctl queue list \| get <name>` | Inspect queue definitions (app-scoped, needs `--app`; `list` takes `--owner-app` to scope to another application's queues when several share a system database) |
+| `dbosctl queue list \| get <name>` | Inspect queue definitions (app-scoped, needs `--app`) |
 | `dbosctl schedule list \| get <name>` | Inspect scheduled workflows |
 | `dbosctl schedule pause \| resume <name>` | Pause / resume a schedule |
 | `dbosctl schedule trigger <name>` | Fire a schedule now (prints the started workflow ID) |
