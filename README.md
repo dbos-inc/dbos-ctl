@@ -180,8 +180,8 @@ make lint        # golangci-lint
 The generated client (`internal/api`) is committed; CI fails on spec drift
 (`make generate` must be a no-op). That check is hermetic, so it only proves the
 client matches the vendored spec. `make check-spec` covers the other half —
-whether that spec is still what Conductor actually serves — and runs daily in the
-`spec-drift` workflow. Integration tests are tagged `integration`
+whether that spec is still what Conductor actually serves — and is worth running
+after a re-vendor. Integration tests are tagged `integration`
 and stand up real Conductor + Postgres in throwaway containers — see
 `make test-integration` and `.env.example` for the required license key and
 image/checkout settings.
