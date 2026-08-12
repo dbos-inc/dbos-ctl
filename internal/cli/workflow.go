@@ -544,8 +544,6 @@ func workflowDetailFields() []output.Field[api.Workflow] {
 	return []output.Field[api.Workflow]{
 		{Label: "workflowId", Value: func(w api.Workflow) string { return w.WorkflowId }},
 		{Label: "workflowName", Value: str(func(w api.Workflow) *string { return w.WorkflowName })},
-		// Null unless several applications share a system database (or the
-		// workflow predates application-name tracking); Detail omits it then.
 		{Label: "applicationName", Value: str(func(w api.Workflow) *string { return w.ApplicationName })},
 		{Label: "status", Value: func(w api.Workflow) string { return w.Status }},
 		{Label: "appVersion", Value: str(func(w api.Workflow) *string { return w.AppVersion })},
