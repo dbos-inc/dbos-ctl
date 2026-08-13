@@ -5,6 +5,14 @@ on:
     branches: [main]
   pull_request:
 
+# One run per PR: a new push cancels the superseded one, which matters most for
+# the integration job (containers, ~2 min) whose result is stale the moment the
+# branch moves. Scoped to pull_request — pushes to main keep every run, so main
+# has an unbroken per-commit history to bisect.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
