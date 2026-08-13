@@ -10,3 +10,6 @@ openapi.json
 
 # Editor settings are personal — not committed.
 .vscode/
+
+# JUnit reports from `make test JUNIT=...`.
+*-tests.xml

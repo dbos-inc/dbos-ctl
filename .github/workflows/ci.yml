@@ -32,7 +32,23 @@ jobs:
 
       - run: make lint
       - run: make build
-      - run: make test
+      - run: make test JUNIT=unit-tests.xml
+
+      # `show: skip` is the point, not a detail: a skipped tier still reports a
+      # green job, so the summary is what distinguishes "passed" from "never ran".
+      - name: unit test summary
+        uses: test-summary/action@v2
+        if: always()
+        with:
+          paths: unit-tests.xml
+          show: "fail, skip"
+
+      - name: upload unit test results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: unit-test-results
+          path: unit-tests.xml
 
   integration:
     # Container-backed (tier 3). Needs only Docker — the harness pulls the latest
@@ -52,4 +68,21 @@ jobs:
         env:
           DBOS_CONDUCTOR_LICENSE_KEY: ${{ secrets.CONDUCTOR_LOCAL_LICENSE_KEY }}
           CONDUCTOR_IMAGE: ${{ vars.CONDUCTOR_IMAGE }}
-        run: make test-integration
+        run: make test-integration JUNIT=integration-tests.xml
+
+      # Without the license key every conductor test skips and this job still
+      # goes green, which is indistinguishable from a pass on the checks list.
+      # The summary makes that visible.
+      - name: integration test summary
+        uses: test-summary/action@v2
+        if: always()
+        with:
+          paths: integration-tests.xml
+          show: "fail, skip"
+
+      - name: upload integration test results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: integration-test-results
+          path: integration-tests.xml
