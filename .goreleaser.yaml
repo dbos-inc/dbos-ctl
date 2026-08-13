@@ -1,0 +1,87 @@
+# Release build for dbosctl. See "Versioning & release" in AGENTS.md for the
+# version-resolution contract this implements.
+#
+#   goreleaser build --snapshot --clean   # local artifacts, no tag, no publish
+#   goreleaser release --clean            # what CI runs on a v* tag
+#
+# goreleaser needs no code: it is this file plus the tag-triggered workflow.
+version: 2
+
+project_name: dbosctl
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: dbosctl
+    main: ./cmd/dbosctl
+    binary: dbosctl
+    env:
+      # No cgo anywhere in the dependency tree, so a static binary runs on any
+      # libc — notably Alpine, where a glibc-linked binary would not.
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    # Stamp the semver tag, which is the one thing Go cannot infer from the
+    # tree. Everything else (commit, dirty flag) the toolchain bakes in on its
+    # own; these are set anyway so a release reports its own tag rather than
+    # falling back to VCS data.
+    ldflags:
+      - -s -w
+      # v-prefixed to match what `go install ...@v0.1.0` reports through
+      # Main.Version, so the two install paths agree (AGENTS.md, Versioning).
+      - -X github.com/dbos-inc/dbos-cli/internal/cli.version=v{{ .Version }}
+      - -X github.com/dbos-inc/dbos-cli/internal/cli.commit={{ .FullCommit }}
+      - -X github.com/dbos-inc/dbos-cli/internal/cli.date={{ .Date }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: dbosctl
+    # dbosctl_0.1.0_darwin_arm64.tar.gz — the platform is legible without
+    # unpacking, which matters when a user picks a file off the releases page.
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+
+release:
+  # A v0 line is pre-1.0 by definition; say so on the release page rather than
+  # relying on the version string alone to convey it.
+  prerelease: auto
+  footer: |
+    ## Install
+
+    Download the archive for your platform above, or:
+
+    ```sh
+    go install github.com/dbos-inc/dbos-cli/cmd/dbosctl@{{ .Tag }}
+    ```
+
+    Verify a download against `checksums.txt`:
+
+    ```sh
+    sha256sum -c checksums.txt --ignore-missing
+    ```
