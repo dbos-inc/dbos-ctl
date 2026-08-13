@@ -8,6 +8,15 @@
 CONDUCTOR_DIR ?= $(HOME)/conductor
 SPEC          := internal/api/openapi-3.1.json
 
+# Set JUNIT to a path to also write a JUnit XML report (CI publishes it as a
+# summary and an artifact). Plain `go test` otherwise, so a local run needs
+# nothing built and its output is unchanged.
+JUNIT ?=
+GOTEST := go test
+ifneq ($(JUNIT),)
+GOTEST := go tool gotestsum --junitfile $(JUNIT) --format testname --
+endif
+
 .PHONY: all generate spec build test lint tidy
 
 all: generate build
@@ -28,11 +37,11 @@ build:
 
 ## test: unit tests only (no Docker)
 test:
-	go test ./...
+	$(GOTEST) ./...
 
 ## test-integration: container-backed tests (needs Docker; see Testing in AGENTS.md)
 test-integration:
-	go test -tags integration -timeout 20m ./...
+	$(GOTEST) -tags integration -timeout 20m ./...
 
 ## lint: go vet + gofmt check
 lint:
