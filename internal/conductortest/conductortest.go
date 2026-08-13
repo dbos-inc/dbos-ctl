@@ -4,10 +4,10 @@
 // throwaway containers, for integration tests. It compiles only under the
 // `integration` build tag.
 //
-// Prerequisites — the license key, and either a prebuilt image or a conductor
-// checkout to build — are checked up front; when any is missing the tier is
-// skipped (never failed), so it is safe on machines and fork PRs without
-// secrets.
+// Conductor comes from the published Docker Hub image by default, so the tier
+// needs nothing but a Docker daemon and the license key. The key is checked up
+// front and a missing one skips (never fails) the tier, so it is safe on
+// machines and fork PRs without secrets.
 package conductortest
 
 import (
@@ -26,6 +26,15 @@ import (
 	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
+
+// defaultImage is the conductor pulled when nothing else is configured: the
+// latest published multi-arch Docker Hub image. Tracking the moving tag means
+// the suite tests what conductor ships today — and so catches an API break the
+// day it lands rather than at the next deliberate bump. The cost is that a
+// conductor release can turn this suite red without a commit here; when that
+// happens the fix is usually to re-vendor the spec (see Testing in AGENTS.md).
+// Pin CONDUCTOR_IMAGE to an older tag to confirm a failure came from a release.
+const defaultImage = "dbosdev/conductor:latest"
 
 const (
 	pgImage   = "postgres:16"
@@ -61,13 +70,17 @@ func startStack(t *testing.T, extraEnv map[string]string, hostPorts []int) strin
 	if licenseKey == "" {
 		t.Skip("integration: DBOS_CONDUCTOR_LICENSE_KEY not set (see .env.example)")
 	}
-	// The license key gates the tier (fork PRs get no secret → skip). The
-	// conductor source is a configuration the runner must make explicitly: with
-	// neither set we fail rather than guess a location.
-	image := os.Getenv("CONDUCTOR_IMAGE")
+	// Conductor source, in precedence order (see .env.example):
+	//   CONDUCTOR_DIR   - build from a local checkout. The escape hatch for
+	//                     testing conductor changes that aren't released yet.
+	//   CONDUCTOR_IMAGE - pull that tag instead of the default `latest`.
+	//   neither         - pull defaultImage. No checkout needed, which is what
+	//                     lets this tier run in CI.
 	dir := os.Getenv("CONDUCTOR_DIR")
-	if image == "" && dir == "" {
-		t.Fatal("integration: set CONDUCTOR_IMAGE to a conductor image with the API, or CONDUCTOR_DIR to a conductor checkout (see .env.example)")
+	image := os.Getenv("CONDUCTOR_IMAGE")
+	defaulted := dir == "" && image == ""
+	if defaulted {
+		image = defaultImage
 	}
 
 	ctx := context.Background()
@@ -117,8 +130,14 @@ func startStack(t *testing.T, extraEnv map[string]string, hostPorts []int) strin
 		req.HostAccessPorts = hostPorts
 	}
 	var buildLog bytes.Buffer
-	if image != "" {
+	if dir == "" {
 		req.Image = image
+		// `latest` moves, and testcontainers reuses whatever copy of a tag is
+		// already on the machine — so re-pull, or a stale local `latest` would
+		// quietly keep testing an old conductor. Only when we defaulted: an
+		// explicit CONDUCTOR_IMAGE may name a locally built tag that no
+		// registry serves.
+		req.AlwaysPullImage = defaulted
 	} else {
 		// TARGETARCH is a BuildKit-provided arg the conductor Dockerfile relies on
 		// (to fetch the right golang-migrate binary). testcontainers' build does
