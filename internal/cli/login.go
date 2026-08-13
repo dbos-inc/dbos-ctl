@@ -8,9 +8,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dbos-inc/dbos-cli/internal/auth"
-	"github.com/dbos-inc/dbos-cli/internal/client"
-	"github.com/dbos-inc/dbos-cli/internal/creds"
+	"github.com/dbos-inc/dbos-ctl/internal/auth"
+	"github.com/dbos-inc/dbos-ctl/internal/client"
+	"github.com/dbos-inc/dbos-ctl/internal/creds"
 )
 
 var loginCmd = &cobra.Command{

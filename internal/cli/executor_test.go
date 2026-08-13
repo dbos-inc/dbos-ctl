@@ -14,7 +14,7 @@ import (
 	"github.com/dbos-inc/dbos-transact-golang/dbos"
 	_ "github.com/dbos-inc/dbos-transact-golang/dbos/driver/sqlite"
 
-	"github.com/dbos-inc/dbos-cli/internal/conductortest"
+	"github.com/dbos-inc/dbos-ctl/internal/conductortest"
 )
 
 // spikeWorkflow is a trivial registered workflow that runs one step and sets one

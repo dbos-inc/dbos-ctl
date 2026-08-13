@@ -3,8 +3,8 @@ package cli
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/dbos-inc/dbos-cli/internal/config"
-	"github.com/dbos-inc/dbos-cli/internal/output"
+	"github.com/dbos-inc/dbos-ctl/internal/config"
+	"github.com/dbos-inc/dbos-ctl/internal/output"
 )
 
 var permissionCmd = &cobra.Command{

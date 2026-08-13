@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dbos-inc/dbos-cli/internal/api"
-	"github.com/dbos-inc/dbos-cli/internal/output"
+	"github.com/dbos-inc/dbos-ctl/internal/api"
+	"github.com/dbos-inc/dbos-ctl/internal/output"
 )
 
 var scheduleCmd = &cobra.Command{

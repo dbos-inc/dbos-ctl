@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dbos-inc/dbos-cli/internal/config"
+	"github.com/dbos-inc/dbos-ctl/internal/config"
 )
 
 func TestRunWhoamiLocal(t *testing.T) {

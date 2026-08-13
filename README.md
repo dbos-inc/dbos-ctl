@@ -10,21 +10,23 @@ by a named **profile**.
 
 ## Install
 
-**Download a binary.** Each [release](https://github.com/dbos-inc/dbos-cli/releases)
-ships archives for linux, macOS, and Windows on amd64 and arm64, plus a
-`checksums.txt`. The binaries are statically linked, so they run anywhere —
-Alpine included. Unpack and put `dbosctl` on your `PATH`:
+**Install script.** Detects your platform, verifies the download against the
+release checksums, and installs to the first writable of `/usr/local/bin`,
+`~/.local/bin`, or the current directory:
 
 ```sh
-VERSION=v0.1.0
-curl -sSfL "https://github.com/dbos-inc/dbos-cli/releases/download/${VERSION}/dbosctl_${VERSION#v}_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" \
-  | tar xz dbosctl
+curl -sSfL https://raw.githubusercontent.com/dbos-inc/dbos-ctl/main/install.sh | sh
 ```
+
+Set `VERSION=v0.1.0` to pin a release, or `BIN_DIR=/somewhere` to choose where it
+lands. Releases also ship archives for linux, macOS, and Windows on amd64 and
+arm64 if you would rather [download one directly](https://github.com/dbos-inc/dbos-ctl/releases);
+the binaries are statically linked, so they run anywhere, Alpine included.
 
 **With Go** (1.24+), which builds from source:
 
 ```sh
-go install github.com/dbos-inc/dbos-cli/cmd/dbosctl@latest
+go install github.com/dbos-inc/dbos-ctl/cmd/dbosctl@latest
 ```
 
 **From a checkout:**

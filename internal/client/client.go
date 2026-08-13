@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dbos-inc/dbos-cli/internal/api"
+	"github.com/dbos-inc/dbos-ctl/internal/api"
 )
 
 // defaultTimeout bounds a single API call.

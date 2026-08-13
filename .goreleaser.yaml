@@ -31,9 +31,9 @@ builds:
       - -s -w
       # v-prefixed to match what `go install ...@v0.1.0` reports through
       # Main.Version, so the two install paths agree (AGENTS.md, Versioning).
-      - -X github.com/dbos-inc/dbos-cli/internal/cli.version=v{{ .Version }}
-      - -X github.com/dbos-inc/dbos-cli/internal/cli.commit={{ .FullCommit }}
-      - -X github.com/dbos-inc/dbos-cli/internal/cli.date={{ .Date }}
+      - -X github.com/dbos-inc/dbos-ctl/internal/cli.version=v{{ .Version }}
+      - -X github.com/dbos-inc/dbos-ctl/internal/cli.commit={{ .FullCommit }}
+      - -X github.com/dbos-inc/dbos-ctl/internal/cli.date={{ .Date }}
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:
@@ -77,7 +77,7 @@ release:
     Download the archive for your platform above, or:
 
     ```sh
-    go install github.com/dbos-inc/dbos-cli/cmd/dbosctl@{{ .Tag }}
+    go install github.com/dbos-inc/dbos-ctl/cmd/dbosctl@{{ .Tag }}
     ```
 
     Verify a download against `checksums.txt`:
