@@ -27,12 +27,13 @@ jobs:
       - run: make test
 
   integration:
-    # Container-backed (tier 3). Runs only when a conductor image with the API
-    # is configured: CI has no conductor checkout, and the harness fails (rather
-    # than assume a location) with no source set — so gate the whole job on the
-    # CONDUCTOR_IMAGE repo variable. Set it once such an image is published. The
-    # license key still gates the tier at runtime (fork PRs get no secret → skip).
-    if: ${{ vars.CONDUCTOR_IMAGE != '' }}
+    # Container-backed (tier 3). Needs only Docker — the harness pulls the latest
+    # published conductor image from Docker Hub, so there is no conductor checkout
+    # to build here. Because that tag moves, a conductor release can turn this job
+    # red with no change in this repo; set the CONDUCTOR_IMAGE repo variable to
+    # pin an older tag and confirm that, without a code change. The license key
+    # gates the tier at runtime (fork PRs get no secret → the tests skip and the
+    # job stays green).
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
