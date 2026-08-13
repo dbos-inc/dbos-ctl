@@ -185,12 +185,25 @@ func TestWorkflowMutationsIntegration(t *testing.T) {
 		return cmd, out
 	}
 
-	// fork the workflow into a new execution; the new ID is retrievable.
-	fcmd, fout := wfCmd("")
-	if err := runWorkflowFork(fcmd, []string{id}); err != nil {
-		t.Fatalf("workflow fork: %v", err)
+	// fork the workflow into a new execution; the new ID is retrievable. This is
+	// the first command here that conductor dispatches to the executor, so poll
+	// it like E1 polls its first read: the executor's registration arrives over
+	// the WebSocket asynchronously after Launch, and until conductor has it the
+	// dispatch fails with "no healthy executors available".
+	var forkID string
+	var forkErr error
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		fcmd, fout := wfCmd("")
+		if forkErr = runWorkflowFork(fcmd, []string{id}); forkErr == nil {
+			forkID = strings.TrimSpace(fout.String())
+			break
+		}
+		time.Sleep(time.Second)
 	}
-	forkID := strings.TrimSpace(fout.String())
+	if forkErr != nil {
+		t.Fatalf("workflow fork: %v", forkErr)
+	}
 	if forkID == "" || forkID == id {
 		t.Fatalf("fork returned no new workflow ID: %q", forkID)
 	}
@@ -209,7 +222,7 @@ func TestWorkflowMutationsIntegration(t *testing.T) {
 
 	// list -o ids until the workflow shows up.
 	var ids string
-	deadline := time.Now().Add(30 * time.Second)
+	deadline = time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
 		cmd, out := wfCmd("")
 		_ = cmd.Flags().Set("output", "ids")
