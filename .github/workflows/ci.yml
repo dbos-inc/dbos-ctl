@@ -86,3 +86,77 @@ jobs:
         with:
           name: integration-test-results
           path: integration-tests.xml
+
+  # Regenerate the client from each *upstream* spec and check the CLI still
+  # compiles. The build job's drift check is hermetic — it only proves the
+  # vendored spec and the generated code agree — so nothing else notices when a
+  # deployed API moves out from under us. This does.
+  #
+  # It is deliberately sensitive: oapi-codegen turns an operation's query
+  # parameters into a *params struct argument*, so upstream adding one optional
+  # parameter changes a Go signature and breaks the build here, even though the
+  # API stayed backward compatible and the CLI keeps working at runtime. That
+  # is the intended signal — "the generated client would change" — not a claim
+  # that the deployed API is broken.
+  api-compat:
+    name: build against ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    # Advisory: these specs move without a commit here, and a red mark on
+    # someone's unrelated PR should inform, not block. The job still shows up
+    # and the step summary says what changed.
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The image the integration tier already runs against.
+          - name: conductor latest
+            fetch: docker run --rm --entrypoint /app/dbos-conductor dbosdev/conductor:latest openapi
+          # Conductor's own spec with `servers` repointed, served publicly by
+          # the managed proxy — so this tracks whichever conductor cloud has
+          # actually deployed, which lags the released image.
+          - name: cloud
+            fetch: curl -fsS --retry 3 --max-time 60 https://cloud.dbos.dev/conductor/v2/openapi.json
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      # A fetch failure is infrastructure, not an API break — warn and stop
+      # rather than reporting a compatibility problem we did not observe.
+      - name: fetch the ${{ matrix.name }} spec
+        id: fetch
+        run: |
+          set -o pipefail
+          if ${{ matrix.fetch }} | jq -S . > upstream-spec.json; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning title=spec unavailable::Could not fetch the ${{ matrix.name }} spec; compatibility not checked."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: regenerate the client and build
+        if: steps.fetch.outputs.ok == 'true'
+        run: |
+          cp upstream-spec.json internal/api/openapi-3.1.json
+          make generate
+          make build
+          make test
+
+      # Runs on failure too — when the build breaks, the spec delta is the
+      # first thing anyone will want.
+      - name: what differs from the vendored spec
+        if: always() && steps.fetch.outputs.ok == 'true'
+        run: |
+          {
+            echo "## ${{ matrix.name }} vs the vendored spec"
+            echo
+            if git diff --quiet -- internal/api/openapi-3.1.json; then
+              echo "Identical — the vendored spec is what ${{ matrix.name }} serves."
+            else
+              echo '```'
+              git --no-pager diff --stat -- internal/api
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
