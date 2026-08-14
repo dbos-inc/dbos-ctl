@@ -127,7 +127,7 @@ Two ways to bypass the flow:
 | `dbosctl workflow get <id>` | Show a workflow's details (app-scoped, needs `--app`) |
 | `dbosctl workflow steps <id>` | List a workflow's steps |
 | `dbosctl workflow events <id>` | List a workflow's events |
-| `dbosctl workflow cancel\|resume\|restart\|delete <id>...` | Mutate one or more workflows (variadic; `-` reads IDs from stdin; `--children` on cancel/delete) |
+| `dbosctl workflow cancel\|resume\|delete <id>...` | Mutate one or more workflows (variadic; `-` reads IDs from stdin; `--children` on cancel/delete) |
 | `dbosctl workflow fork <id>` | Fork a workflow into a new execution (prints the new ID; `--start-step`, `--new-id`) |
 | `dbosctl queue list \| get <name>` | Inspect queue definitions (app-scoped, needs `--app`) |
 | `dbosctl schedule list \| get <name>` | Inspect scheduled workflows |

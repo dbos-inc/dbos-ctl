@@ -64,13 +64,6 @@ var workflowResumeCmd = &cobra.Command{
 	RunE:  runWorkflowResume,
 }
 
-var workflowRestartCmd = &cobra.Command{
-	Use:   "restart <workflow-id>...",
-	Short: "Restart one or more workflows",
-	Args:  cobra.MinimumNArgs(1),
-	RunE:  runWorkflowRestart,
-}
-
 var workflowDeleteCmd = &cobra.Command{
 	Use:   "delete <workflow-id>...",
 	Short: "Delete one or more workflows",
@@ -110,7 +103,7 @@ func init() {
 
 	// Mutations are app-scoped too; they take workflow IDs positionally (a
 	// literal `-` reads them from stdin) and support -o ids.
-	for _, c := range []*cobra.Command{workflowCancelCmd, workflowResumeCmd, workflowRestartCmd, workflowDeleteCmd} {
+	for _, c := range []*cobra.Command{workflowCancelCmd, workflowResumeCmd, workflowDeleteCmd} {
 		addRequestFlags(c, "profile", "url", "org", "app", "output")
 	}
 	workflowCancelCmd.Flags().Bool("children", false, "also cancel child workflows")
@@ -125,7 +118,7 @@ func init() {
 	workflowForkCmd.Flags().String("app-version", "", "application version for the fork")
 
 	workflowCmd.AddCommand(workflowListCmd, workflowGetCmd, workflowStepsCmd, workflowEventsCmd,
-		workflowCancelCmd, workflowResumeCmd, workflowRestartCmd, workflowDeleteCmd, workflowForkCmd)
+		workflowCancelCmd, workflowResumeCmd, workflowDeleteCmd, workflowForkCmd)
 	rootCmd.AddCommand(workflowCmd)
 }
 
@@ -307,32 +300,6 @@ func runWorkflowResume(cmd *cobra.Command, args []string) error {
 		}
 	}
 	return reportMutation(cmd, format, "resumed", ids)
-}
-
-// runWorkflowRestart loops single restarts — there is no bulk-restart endpoint.
-func runWorkflowRestart(cmd *cobra.Command, args []string) error {
-	format, err := resolvedFormat(cmd)
-	if err != nil {
-		return err
-	}
-	ids, err := collectWorkflowIDs(cmd, args)
-	if err != nil {
-		return err
-	}
-	c, org, app, err := appScopedTarget(cmd)
-	if err != nil {
-		return err
-	}
-	for _, id := range ids {
-		resp, err := c.RestartWorkflowWithResponse(cmd.Context(), org, app, id)
-		if err != nil {
-			return err
-		}
-		if err := checkStatus(resp.StatusCode(), resp.HTTPResponse, resp.ApplicationproblemJSONDefault, resp.Body); err != nil {
-			return err
-		}
-	}
-	return reportMutation(cmd, format, "restarted", ids)
 }
 
 func runWorkflowDelete(cmd *cobra.Command, args []string) error {
