@@ -1,4 +1,4 @@
-module github.com/dbos-inc/dbos-cli
+module github.com/dbos-inc/dbos-ctl
 
 go 1.25.0
 

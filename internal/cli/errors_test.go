@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dbos-inc/dbos-cli/internal/api"
+	"github.com/dbos-inc/dbos-ctl/internal/api"
 )
 
 func ptr(s string) *string { return &s }

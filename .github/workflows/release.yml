@@ -1,0 +1,38 @@
+name: release
+
+# Cutting a release is pushing a tag. Everything else — cross-compiling,
+# archives, checksums, the release page — follows from .goreleaser.yaml.
+#
+#   git tag -a v0.1.0 -m "v0.1.0" && git push origin v0.1.0
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # create the release and upload artifacts
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # goreleaser derives the changelog from history, and the version from
+          # the tag's position in it, so a shallow clone produces wrong output.
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # The build must be the tested build: a release is the first artifact
+      # anyone runs without having built it themselves.
+      - run: make lint
+      - run: make test
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

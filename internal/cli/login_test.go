@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dbos-inc/dbos-cli/internal/config"
-	"github.com/dbos-inc/dbos-cli/internal/creds"
+	"github.com/dbos-inc/dbos-ctl/internal/config"
+	"github.com/dbos-inc/dbos-ctl/internal/creds"
 )
 
 func TestBearerTokenDBOSTokenEnv(t *testing.T) {

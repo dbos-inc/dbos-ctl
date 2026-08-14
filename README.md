@@ -10,13 +10,34 @@ by a named **profile**.
 
 ## Install
 
-Build from source (Go 1.24+):
+**Install script.** Detects your platform, verifies the download against the
+release checksums, and installs to the first writable of `/usr/local/bin`,
+`~/.local/bin`, or the current directory:
+
+```sh
+curl -sSfL https://raw.githubusercontent.com/dbos-inc/dbos-ctl/main/install.sh | sh
+```
+
+Set `VERSION=v0.1.0` to pin a release, or `BIN_DIR=/somewhere` to choose where it
+lands. Releases also ship archives for linux, macOS, and Windows on amd64 and
+arm64 if you would rather [download one directly](https://github.com/dbos-inc/dbos-ctl/releases);
+the binaries are statically linked, so they run anywhere, Alpine included.
+
+**With Go** (1.24+), which builds from source:
+
+```sh
+go install github.com/dbos-inc/dbos-ctl/cmd/dbosctl@latest
+```
+
+**From a checkout:**
 
 ```sh
 make build      # produces ./dbosctl
-# or
-go install github.com/dbos-inc/dbos-cli/cmd/dbosctl@latest
 ```
+
+`dbosctl version` reports which of these you have: a release prints its tag, a
+`go install` prints the module version, and a local build prints `dev` with the
+commit it came from.
 
 The binary is `dbosctl`, not `dbos`: the DBOS language SDKs ship their own
 `dbos` entrypoints (the Python SDK installs a `dbos` console script), and two

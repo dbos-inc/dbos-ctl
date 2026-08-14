@@ -10,10 +10,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dbos-inc/dbos-cli/internal/api"
-	"github.com/dbos-inc/dbos-cli/internal/client"
-	"github.com/dbos-inc/dbos-cli/internal/conductortest"
-	"github.com/dbos-inc/dbos-cli/internal/config"
+	"github.com/dbos-inc/dbos-ctl/internal/api"
+	"github.com/dbos-inc/dbos-ctl/internal/client"
+	"github.com/dbos-inc/dbos-ctl/internal/conductortest"
+	"github.com/dbos-inc/dbos-ctl/internal/config"
 )
 
 // TestAppListIntegration proves `dbosctl app list` end to end against a real

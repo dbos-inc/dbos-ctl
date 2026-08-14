@@ -7,7 +7,7 @@
 // ships its own `dbos` console script).
 package main
 
-import "github.com/dbos-inc/dbos-cli/internal/cli"
+import "github.com/dbos-inc/dbos-ctl/internal/cli"
 
 func main() {
 	cli.Execute()
