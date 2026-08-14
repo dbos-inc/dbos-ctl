@@ -17,7 +17,7 @@ ifneq ($(JUNIT),)
 GOTEST := go tool gotestsum --junitfile $(JUNIT) --format testname --
 endif
 
-.PHONY: all generate spec build test lint tidy
+.PHONY: all generate spec build snapshot test lint tidy
 
 all: generate build
 
@@ -34,6 +34,10 @@ spec:
 ## build: build the dbosctl binary (VCS stamps come from go build; no ldflags needed)
 build:
 	go build -o dbosctl ./cmd/dbosctl
+
+## snapshot: build release artifacts locally (all platforms, no tag, no publish)
+snapshot:
+	go run github.com/goreleaser/goreleaser/v2@latest build --snapshot --clean
 
 ## test: unit tests only (no Docker)
 test:

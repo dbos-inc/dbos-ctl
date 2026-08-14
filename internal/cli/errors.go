@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/dbos-inc/dbos-cli/internal/api"
+	"github.com/dbos-inc/dbos-ctl/internal/api"
 )
 
 // exitError carries a process exit code alongside its message. See the Exit
