@@ -1584,6 +1584,12 @@
             "format": "int64",
             "minimum": 0,
             "type": "integer"
+          },
+          "maxOldApplicationVersions": {
+            "description": "How many old application versions the autoscale response may include, newest registered first. Defaults to 0: only the latest version is reported.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
           }
         },
         "type": "object"
@@ -5229,62 +5235,6 @@
           }
         },
         "summary": "List workflow notifications",
-        "tags": [
-          "Workflows"
-        ]
-      }
-    },
-    "/v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/restart": {
-      "post": {
-        "operationId": "restartWorkflow",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "orgName",
-            "required": true,
-            "schema": {
-              "maxLength": 30,
-              "minLength": 3,
-              "pattern": "^[a-z0-9_]+$",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "appName",
-            "required": true,
-            "schema": {
-              "maxLength": 30,
-              "minLength": 3,
-              "pattern": "^[a-z0-9-_]+$",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "workflowId",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorModel"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "summary": "Restart workflow",
         "tags": [
           "Workflows"
         ]

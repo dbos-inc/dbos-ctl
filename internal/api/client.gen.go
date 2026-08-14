@@ -835,6 +835,9 @@ type RoleOutput struct {
 type RolloutPolicy struct {
 	// MaxExecutorsForOldApplicationVersions Cap every old version's recommendation at this many executors. Omit to size old versions from their own queue utilization, uncapped.
 	MaxExecutorsForOldApplicationVersions *int64 `json:"maxExecutorsForOldApplicationVersions,omitempty"`
+
+	// MaxOldApplicationVersions How many old application versions the autoscale response may include, newest registered first. Defaults to 0: only the latest version is reported.
+	MaxOldApplicationVersions *int64 `json:"maxOldApplicationVersions,omitempty"`
 }
 
 // Schedule defines model for Schedule.
@@ -1660,11 +1663,6 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/notifications (the `ListWorkflowNotifications` operationId).
 	ListWorkflowNotifications(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// RestartWorkflow Restart workflow
-	//
-	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/restart (the `RestartWorkflow` operationId).
-	RestartWorkflow(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ResumeWorkflowWithBody Resume workflow
 	//
@@ -2829,21 +2827,6 @@ func (c *Client) ForkWorkflow(ctx context.Context, orgName string, appName strin
 // Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/notifications (the `ListWorkflowNotifications` operationId).
 func (c *Client) ListWorkflowNotifications(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListWorkflowNotificationsRequest(c.Server, orgName, appName, workflowId)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-// RestartWorkflow Restart workflow
-//
-// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/restart (the `RestartWorkflow` operationId).
-func (c *Client) RestartWorkflow(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRestartWorkflowRequest(c.Server, orgName, appName, workflowId)
 	if err != nil {
 		return nil, err
 	}
@@ -5594,54 +5577,6 @@ func NewListWorkflowNotificationsRequest(server string, orgName string, appName 
 	return req, nil
 }
 
-// NewRestartWorkflowRequest constructs an http.Request for the RestartWorkflow method
-func NewRestartWorkflowRequest(server string, orgName string, appName string, workflowId string) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
-	if err != nil {
-		return nil, err
-	}
-
-	var pathParam1 string
-
-	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "appName", appName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
-	if err != nil {
-		return nil, err
-	}
-
-	var pathParam2 string
-
-	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "workflowId", workflowId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/v2/orgs/%s/apps/%s/workflows/%s/restart", pathParam0, pathParam1, pathParam2)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
 // NewResumeWorkflowRequest calls the generic ResumeWorkflow builder with application/json body
 func NewResumeWorkflowRequest(server string, orgName string, appName string, workflowId string, body ResumeWorkflowJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -7121,13 +7056,6 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/notifications (the `ListWorkflowNotifications` operationId).
 	ListWorkflowNotificationsWithResponse(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*ListWorkflowNotificationsResponse, error)
-
-	// RestartWorkflowWithResponse Restart workflow
-	//
-	// Returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/restart (the `RestartWorkflow` operationId).
-	RestartWorkflowWithResponse(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*RestartWorkflowResponse, error)
 
 	// ResumeWorkflowWithBodyWithResponse Resume workflow
 	//
@@ -9288,47 +9216,6 @@ func (r ListWorkflowNotificationsResponse) ContentType() string {
 	return ""
 }
 
-type RestartWorkflowResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
-	ApplicationproblemJSONDefault *ErrorModel
-}
-
-// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
-func (r RestartWorkflowResponse) GetApplicationproblemJSONDefault() *ErrorModel {
-	return r.ApplicationproblemJSONDefault
-}
-
-// GetBody returns the raw response body bytes
-func (r RestartWorkflowResponse) GetBody() []byte {
-	return r.Body
-}
-
-// Status returns HTTPResponse.Status
-func (r RestartWorkflowResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r RestartWorkflowResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r RestartWorkflowResponse) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
 type ResumeWorkflowResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -11085,19 +10972,6 @@ func (c *ClientWithResponses) ListWorkflowNotificationsWithResponse(ctx context.
 	return ParseListWorkflowNotificationsResponse(rsp)
 }
 
-// RestartWorkflowWithResponse Restart workflow
-//
-// Returns a wrapper object for the known response body format(s).
-//
-// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/restart (the `RestartWorkflow` operationId).
-func (c *ClientWithResponses) RestartWorkflowWithResponse(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*RestartWorkflowResponse, error) {
-	rsp, err := c.RestartWorkflow(ctx, orgName, appName, workflowId, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseRestartWorkflowResponse(rsp)
-}
-
 // ResumeWorkflowWithBodyWithResponse Resume workflow
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -12832,35 +12706,6 @@ func ParseListWorkflowNotificationsResponse(rsp *http.Response) (*ListWorkflowNo
 			return nil, err
 		}
 		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest ErrorModel
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSONDefault = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseRestartWorkflowResponse parses an HTTP response from a RestartWorkflowWithResponse call
-func ParseRestartWorkflowResponse(rsp *http.Response) (*RestartWorkflowResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &RestartWorkflowResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case rsp.StatusCode == 204:
-		break // No content-type
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest ErrorModel
