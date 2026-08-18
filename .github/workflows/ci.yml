@@ -50,6 +50,23 @@ jobs:
           name: unit-test-results
           path: unit-tests.xml
 
+  # Builds the flake, so a go.sum change without a vendorHash refresh fails the PR.
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+        with:
+          # Avoids anonymous GitHub API rate limits when fetching nixpkgs.
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+      # The Go dependency derivation is never on cache.nixos.org, so cache the store.
+      - uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', 'go.sum') }}
+      # A bare `nix flake check` evaluates only the current system (since Nix 2.19).
+      - run: nix flake check --all-systems
+
   integration:
     # Container-backed (tier 3). Needs only Docker — the harness pulls the latest
     # published conductor image from Docker Hub, so there is no conductor checkout

@@ -29,6 +29,17 @@ the binaries are statically linked, so they run anywhere, Alpine included.
 go install github.com/dbos-inc/dbos-ctl/cmd/dbosctl@latest
 ```
 
+**With Nix**:
+
+```sh
+nix run github:dbos-inc/dbos-ctl -- --help    # run it without installing
+nix profile install github:dbos-inc/dbos-ctl
+```
+
+For NixOS, add the flake as an input and use `inputs.dbos-ctl.packages.${system}.default`.
+Intel Macs (`x86_64-darwin`) are not supported — nixpkgs dropped the platform in 26.11; use
+the release binaries or `go install` there.
+
 **From a checkout:**
 
 ```sh
@@ -36,8 +47,8 @@ make build      # produces ./dbosctl
 ```
 
 `dbosctl version` reports which of these you have: a release prints its tag, a
-`go install` prints the module version, and a local build prints `dev` with the
-commit it came from.
+`go install` prints the module version, and a Nix or local build prints `dev`
+with the commit it came from.
 
 The binary is `dbosctl`, not `dbos`: the DBOS language SDKs ship their own
 `dbos` entrypoints (the Python SDK installs a `dbos` console script), and two

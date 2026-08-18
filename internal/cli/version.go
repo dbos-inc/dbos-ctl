@@ -50,6 +50,12 @@ func resolveBuildInfo() buildInfo {
 		Arch:      runtime.GOARCH,
 	}
 
+	// A Nix build of a dirty tree stamps self.dirtyRev, suffixed -dirty.
+	if c, found := strings.CutSuffix(bi.Commit, "-dirty"); found {
+		bi.Commit = c
+		bi.Dirty = true
+	}
+
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return bi
@@ -73,7 +79,9 @@ func resolveBuildInfo() buildInfo {
 				bi.Date = s.Value
 			}
 		case "vcs.modified":
-			bi.Dirty = s.Value == "true"
+			if !bi.Dirty {
+				bi.Dirty = s.Value == "true"
+			}
 		}
 	}
 	return bi
