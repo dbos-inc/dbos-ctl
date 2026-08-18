@@ -9,7 +9,7 @@ const oneQueueJSON = `{"name":"myqueue","concurrency":4,"partitionQueue":false,"
 
 func TestRunQueueList(t *testing.T) {
 	isolateConfig(t)
-	srv, _ := appReadServer(t, "/v2/orgs/local/apps/myapp/queues", "["+oneQueueJSON+"]")
+	srv, query := appReadServer(t, "/v2/orgs/local/apps/myapp/queues", "["+oneQueueJSON+"]")
 
 	cmd, out := workflowCmdAt(t, srv.URL)
 	if err := runQueueList(cmd, nil); err != nil {
@@ -20,6 +20,43 @@ func TestRunQueueList(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("queue list missing %q:\n%s", want, got)
 		}
+	}
+	// listQueues takes an optional applicationName filter that the CLI exposes no
+	// flag for; it must stay unsent so the server keeps defaulting it to the app
+	// in the path, rather than being pinned to a literal empty name.
+	if v, ok := (*query)["applicationName"]; ok {
+		t.Errorf("queue list sent applicationName=%v, want it omitted", v)
+	}
+}
+
+// A queue reports its owning application when several apps share one system
+// database. The field is nullable, so the detail view shows it only when set.
+func TestRunQueueGetApplicationName(t *testing.T) {
+	isolateConfig(t)
+	const owned = `{"name":"myqueue","applicationName":"otherapp","partitionQueue":false,"pollingIntervalSecs":1.5,"priorityEnabled":true}`
+	srv, _ := appReadServer(t, "/v2/orgs/local/apps/myapp/queues/myqueue", owned)
+
+	cmd, out := workflowCmdAt(t, srv.URL)
+	if err := runQueueGet(cmd, []string{"myqueue"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); !strings.Contains(got, "applicationName") || !strings.Contains(got, "otherapp") {
+		t.Errorf("queue get detail missing the owning application:\n%s", got)
+	}
+}
+
+// The same view omits the row entirely when the queue reports no owner (an
+// in-memory queue, or one recorded before Transact tracked application names).
+func TestRunQueueGetNullApplicationName(t *testing.T) {
+	isolateConfig(t)
+	srv, _ := appReadServer(t, "/v2/orgs/local/apps/myapp/queues/myqueue", oneQueueJSON)
+
+	cmd, out := workflowCmdAt(t, srv.URL)
+	if err := runQueueGet(cmd, []string{"myqueue"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); strings.Contains(got, "applicationName") {
+		t.Errorf("queue get detail showed an empty applicationName row:\n%s", got)
 	}
 }
 

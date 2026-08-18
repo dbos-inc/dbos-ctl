@@ -148,7 +148,7 @@ Two ways to bypass the flow:
 | `dbosctl api-key list` | List API keys (aliases: `token`, `apikey`) |
 | `dbosctl api-key create <name>` | Create an API key — prints the secret once; scope with `--app`/`--permission` |
 | `dbosctl api-key delete <name>` | Delete an API key |
-| `dbosctl permission list` | List grantable permissions (OAuth-mode self-host or DBOS-managed; not no-auth) |
+| `dbosctl permission list` | List grantable permissions |
 | `dbosctl config list \| show \| use \| set` | Manage profiles |
 | `dbosctl version` (or `--version`) | Print version information |
 

@@ -12,8 +12,8 @@ import (
 	"github.com/dbos-inc/dbos-ctl/internal/config"
 )
 
-// bearerPermServer serves the OAuth-only permissions route for a bearer profile.
-func bearerPermServer(t *testing.T, org, body string) *httptest.Server {
+// permServer serves the permissions route for the given org.
+func permServer(t *testing.T, org, body string) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v2/orgs/"+org+"/permissions" {
@@ -44,7 +44,7 @@ func bearerPermCmd(t *testing.T, url string) *cobra.Command {
 
 func TestRunPermissionList(t *testing.T) {
 	isolateConfig(t)
-	srv := bearerPermServer(t, "acme", `["application.read","application.write","websocket.connect"]`)
+	srv := permServer(t, "acme", `["application.read","application.write","websocket.connect"]`)
 
 	cmd := bearerPermCmd(t, srv.URL)
 	var out bytes.Buffer
@@ -62,7 +62,7 @@ func TestRunPermissionList(t *testing.T) {
 
 func TestRunPermissionListJSON(t *testing.T) {
 	isolateConfig(t)
-	srv := bearerPermServer(t, "acme", `["application.read"]`)
+	srv := permServer(t, "acme", `["application.read"]`)
 
 	cmd := bearerPermCmd(t, srv.URL)
 	_ = cmd.Flags().Set("output", "json")
@@ -76,16 +76,22 @@ func TestRunPermissionListJSON(t *testing.T) {
 	}
 }
 
-// TestRunPermissionListNoAuth: a no-auth profile can't reach the OAuth-gated
-// route, so the command fails with a mode-aware message before sending.
+// TestRunPermissionListNoAuth: listPermissions is no longer OAuth-gated, so a
+// no-auth profile reaches the route like any other, with the org defaulting to
+// "local".
 func TestRunPermissionListNoAuth(t *testing.T) {
 	isolateConfig(t)
-	cmd := newCmdWithGlobals()
-	_ = cmd.Flags().Set("url", "http://localhost:8090") // no token → auth none
-	cmd.SetOut(&bytes.Buffer{})
+	srv := permServer(t, "local", `["application.read","websocket.connect"]`)
 
-	err := runPermissionList(cmd, nil)
-	if err == nil || !strings.Contains(err.Error(), "requires an OAuth") {
-		t.Errorf("want a mode-aware error, got %v", err)
+	cmd := newCmdWithGlobals()
+	_ = cmd.Flags().Set("url", srv.URL) // no token → auth none
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	if err := runPermissionList(cmd, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); !strings.Contains(got, "application.read") {
+		t.Errorf("permission list missing the catalog:\n%s", got)
 	}
 }

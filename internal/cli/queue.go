@@ -88,6 +88,7 @@ func queueColumns() []output.Column[api.Queue] {
 func queueFields() []output.Field[api.Queue] {
 	return []output.Field[api.Queue]{
 		{Label: "name", Value: func(q api.Queue) string { return q.Name }},
+		{Label: "applicationName", Value: func(q api.Queue) string { return deref(q.ApplicationName) }},
 		{Label: "concurrency", Value: func(q api.Queue) string { return derefInt32(q.Concurrency) }},
 		{Label: "workerConcurrency", Value: func(q api.Queue) string { return derefInt32(q.WorkerConcurrency) }},
 		{Label: "pollingIntervalSecs", Value: func(q api.Queue) string { return fmtFloat(q.PollingIntervalSecs) }},

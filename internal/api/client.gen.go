@@ -96,6 +96,7 @@ func (e AuditSubjectType) Valid() bool {
 const (
 	AuditTargetTypeAlertingRule AuditTargetType = "alerting_rule"
 	AuditTargetTypeApplication  AuditTargetType = "application"
+	AuditTargetTypeDomainClaim  AuditTargetType = "domain_claim"
 	AuditTargetTypeOrganization AuditTargetType = "organization"
 	AuditTargetTypeRole         AuditTargetType = "role"
 	AuditTargetTypeSchedule     AuditTargetType = "schedule"
@@ -110,6 +111,8 @@ func (e AuditTargetType) Valid() bool {
 	case AuditTargetTypeAlertingRule:
 		return true
 	case AuditTargetTypeApplication:
+		return true
+	case AuditTargetTypeDomainClaim:
 		return true
 	case AuditTargetTypeOrganization:
 		return true
@@ -143,6 +146,27 @@ func (e CreateAlertInputBodyRuleType) Valid() bool {
 	case CreateAlertInputBodyRuleTypeUnresponsiveApplication:
 		return true
 	case CreateAlertInputBodyRuleTypeWorkflowFailure:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DomainClaimStatus.
+const (
+	Approved DomainClaimStatus = "approved"
+	Denied   DomainClaimStatus = "denied"
+	Pending  DomainClaimStatus = "pending"
+)
+
+// Valid indicates whether the value is a known member of the DomainClaimStatus enum.
+func (e DomainClaimStatus) Valid() bool {
+	switch e {
+	case Approved:
+		return true
+	case Denied:
+		return true
+	case Pending:
 		return true
 	default:
 		return false
@@ -300,6 +324,20 @@ type AuditTarget struct {
 // AuditTargetType defines model for AuditTarget.Type.
 type AuditTargetType string
 
+// AutoscalePolicy defines model for AutoscalePolicy.
+type AutoscalePolicy struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/AutoscalePolicy.json
+	Schema *string `json:"$schema,omitempty"`
+
+	// Queue The queue whose utilization drives the desired executor count. Must exist, not be partitioned and have worker_concurrency set.
+	Queue string `json:"queue"`
+
+	// Rollout Rollout preferences for non-latest application versions. Omitted means old versions are sized to their own backlog.
+	Rollout *RolloutPolicy `json:"rollout,omitempty"`
+}
+
 // BackfillInputBody defines model for BackfillInputBody.
 type BackfillInputBody struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -436,6 +474,26 @@ type CreateTokenInputBody struct {
 	Permissions *[]string `json:"permissions,omitempty"`
 }
 
+// DomainClaim defines model for DomainClaim.
+type DomainClaim struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/DomainClaim.json
+	Schema       *string           `json:"$schema,omitempty"`
+	DecidedAt    *time.Time        `json:"decidedAt,omitempty"`
+	DecidedBy    *string           `json:"decidedBy,omitempty"`
+	DecisionNote *string           `json:"decisionNote,omitempty"`
+	Domain       string            `json:"domain"`
+	Id           string            `json:"id"`
+	OrgName      string            `json:"orgName"`
+	RequestedAt  time.Time         `json:"requestedAt"`
+	RequestedBy  string            `json:"requestedBy"`
+	Status       DomainClaimStatus `json:"status"`
+}
+
+// DomainClaimStatus defines model for DomainClaim.Status.
+type DomainClaimStatus string
+
 // ErrorDetail defines model for ErrorDetail.
 type ErrorDetail struct {
 	// Location Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id'
@@ -566,6 +624,15 @@ type JoinOrgInputBody struct {
 	Secret string  `json:"secret"`
 }
 
+// ListDomainClaimsOutputBody defines model for ListDomainClaimsOutputBody.
+type ListDomainClaimsOutputBody struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/ListDomainClaimsOutputBody.json
+	Schema *string       `json:"$schema,omitempty"`
+	Claims []DomainClaim `json:"claims"`
+}
+
 // Member defines model for Member.
 type Member struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -655,6 +722,15 @@ type PatchLatestVersionInputBody struct {
 	VersionName string  `json:"versionName"`
 }
 
+// PolicyOutputBody defines model for PolicyOutputBody.
+type PolicyOutputBody struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/PolicyOutputBody.json
+	Schema *string         `json:"$schema,omitempty"`
+	Policy AutoscalePolicy `json:"policy"`
+}
+
 // PutAppInputBody defines model for PutAppInputBody.
 type PutAppInputBody struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -669,7 +745,10 @@ type Queue struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: //schemas/Queue.json
-	Schema              *string  `json:"$schema,omitempty"`
+	Schema *string `json:"$schema,omitempty"`
+
+	// ApplicationName The application that owns this queue, when several applications share a system database. Null for in-memory queues and for queues recorded before DBOS Transact tracked application names.
+	ApplicationName     *string  `json:"applicationName"`
 	Concurrency         *int32   `json:"concurrency"`
 	Name                string   `json:"name"`
 	PartitionQueue      bool     `json:"partitionQueue"`
@@ -678,6 +757,27 @@ type Queue struct {
 	RateLimitMax        *int32   `json:"rateLimitMax"`
 	RateLimitPeriodSecs *float64 `json:"rateLimitPeriodSecs"`
 	WorkerConcurrency   *int32   `json:"workerConcurrency"`
+}
+
+// QueueAutoscale defines model for QueueAutoscale.
+type QueueAutoscale struct {
+	// ApplicationVersion The application version this recommendation covers.
+	ApplicationVersion string `json:"applicationVersion"`
+
+	// DesiredExecutors Executors of this version needed to satisfy the queue load. At least 1, unless the rollout policy caps old versions lower.
+	DesiredExecutors int64 `json:"desiredExecutors"`
+
+	// IsLatest True for the application's latest registered version.
+	IsLatest bool `json:"isLatest"`
+
+	// ObservedAt Epoch ms when the underlying workflow aggregate was computed.
+	ObservedAt int64 `json:"observedAt"`
+
+	// QueueDepth ENQUEUED+PENDING backlog counted for this version on the policy queue.
+	QueueDepth int64 `json:"queueDepth"`
+
+	// QueueName The policy queue; absent when it is no longer usable.
+	QueueName *string `json:"queueName,omitempty"`
 }
 
 // RegisterUserInputBody defines model for RegisterUserInputBody.
@@ -702,6 +802,19 @@ type RegisterUserOutputBody struct {
 	Id     string  `json:"id"`
 }
 
+// RequestDomainClaimInputBody defines model for RequestDomainClaimInputBody.
+type RequestDomainClaimInputBody struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/RequestDomainClaimInputBody.json
+	Schema *string `json:"$schema,omitempty"`
+
+	// Domain The email domain to claim, e.g. "example.com". On DBOS-managed Conductor the claim has no effect until a DBOS administrator approves it. On self-hosted Conductor it takes effect immediately, with no review. Subdomains are not matched; claim them separately.
+	//
+	// Examples: example.com
+	Domain string `json:"domain"`
+}
+
 // ResumeWorkflowInputBody defines model for ResumeWorkflowInputBody.
 type ResumeWorkflowInputBody struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -718,12 +831,24 @@ type RoleOutput struct {
 	Permissions []string `json:"permissions"`
 }
 
+// RolloutPolicy defines model for RolloutPolicy.
+type RolloutPolicy struct {
+	// MaxExecutorsForOldApplicationVersions Cap every old version's recommendation at this many executors. Omit to size old versions from their own queue utilization, uncapped.
+	MaxExecutorsForOldApplicationVersions *int64 `json:"maxExecutorsForOldApplicationVersions,omitempty"`
+
+	// MaxOldApplicationVersions How many old application versions the autoscale response may include, newest registered first. Defaults to 0: only the latest version is reported.
+	MaxOldApplicationVersions *int64 `json:"maxOldApplicationVersions,omitempty"`
+}
+
 // Schedule defines model for Schedule.
 type Schedule struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: //schemas/Schedule.json
-	Schema            *string    `json:"$schema,omitempty"`
+	Schema *string `json:"$schema,omitempty"`
+
+	// ApplicationName The application that owns this schedule, when several applications share a system database. Null for schedules recorded before DBOS Transact tracked application names.
+	ApplicationName   *string    `json:"applicationName"`
 	AutomaticBackfill bool       `json:"automaticBackfill"`
 	Context           *string    `json:"context"`
 	CronExpression    string     `json:"cronExpression"`
@@ -845,8 +970,11 @@ type Workflow struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: //schemas/Workflow.json
-	Schema            *string    `json:"$schema,omitempty"`
-	AppVersion        *string    `json:"appVersion"`
+	Schema     *string `json:"$schema,omitempty"`
+	AppVersion *string `json:"appVersion"`
+
+	// ApplicationName The application that owns this workflow, when several applications share a system database. Null for workflows recorded before DBOS Transact tracked application names.
+	ApplicationName   *string    `json:"applicationName"`
 	AssumedRole       *string    `json:"assumedRole"`
 	Attributes        *string    `json:"attributes"`
 	CompletedAt       *time.Time `json:"completedAt"`
@@ -904,6 +1032,7 @@ type WorkflowAggregatesBody struct {
 	ExecutorId              *[]string               `json:"executorId,omitempty"`
 	ForkedFrom              *[]string               `json:"forkedFrom,omitempty"`
 	GroupByAppVersion       *bool                   `json:"groupByAppVersion,omitempty"`
+	GroupByApplicationName  *bool                   `json:"groupByApplicationName,omitempty"`
 	GroupByExecutorId       *bool                   `json:"groupByExecutorId,omitempty"`
 	GroupByQueueName        *bool                   `json:"groupByQueueName,omitempty"`
 	GroupByStatus           *bool                   `json:"groupByStatus,omitempty"`
@@ -1025,6 +1154,9 @@ type RegisterAppJSONRequestBody = PutAppInputBody
 // CreateAlertingRuleJSONRequestBody defines body for CreateAlertingRule for application/json ContentType.
 type CreateAlertingRuleJSONRequestBody = CreateAlertInputBody
 
+// SetAutoscalingPolicyJSONRequestBody defines body for SetAutoscalingPolicy for application/json ContentType.
+type SetAutoscalingPolicyJSONRequestBody = AutoscalePolicy
+
 // BackfillScheduleJSONRequestBody defines body for BackfillSchedule for application/json ContentType.
 type BackfillScheduleJSONRequestBody = BackfillInputBody
 
@@ -1063,6 +1195,9 @@ type ForkWorkflowJSONRequestBody = ForkWorkflowInputBody
 
 // ResumeWorkflowJSONRequestBody defines body for ResumeWorkflow for application/json ContentType.
 type ResumeWorkflowJSONRequestBody = ResumeWorkflowInputBody
+
+// RequestDomainClaimJSONRequestBody defines body for RequestDomainClaim for application/json ContentType.
+type RequestDomainClaimJSONRequestBody = RequestDomainClaimInputBody
 
 // JoinOrgJSONRequestBody defines body for JoinOrg for application/json ContentType.
 type JoinOrgJSONRequestBody = JoinOrgInputBody
@@ -1241,6 +1376,45 @@ type ClientInterface interface {
 	//
 	// Corresponds with DELETE /v2/orgs/{orgName}/apps/{appName}/alerting-rules/{ruleId} (the `DeleteAlertingRule` operationId).
 	DeleteAlertingRule(ctx context.Context, orgName string, appName string, ruleId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAutoscale Get autoscaling recommendation
+	//
+	// Computes how many executors each of the application's versions needs right now, given the backlog of its stored autoscaling policy's queue. Returns one entry per version. 404 when no policy is installed. Requires a DBOS Teams subscription.
+	//
+	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/autoscale (the `GetAutoscale` operationId).
+	GetAutoscale(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteAutoscalingPolicy Delete autoscaling policy
+	//
+	// Clears the stored policy. Deleting an absent policy succeeds. Requires a DBOS Teams subscription.
+	//
+	// Corresponds with DELETE /v2/orgs/{orgName}/apps/{appName}/autoscaling-policy (the `DeleteAutoscalingPolicy` operationId).
+	DeleteAutoscalingPolicy(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAutoscalingPolicy Get autoscaling policy
+	//
+	// Returns the application's stored queue-based autoscaling policy; 404 when none is set. Requires a DBOS Teams subscription.
+	//
+	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/autoscaling-policy (the `GetAutoscalingPolicy` operationId).
+	GetAutoscalingPolicy(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetAutoscalingPolicyWithBody Set autoscaling policy
+	//
+	// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — not partitioned, worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /v2/orgs/{orgName}/apps/{appName}/autoscaling-policy (the `SetAutoscalingPolicy` operationId).
+	SetAutoscalingPolicyWithBody(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetAutoscalingPolicy Set autoscaling policy
+	//
+	// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — not partitioned, worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /v2/orgs/{orgName}/apps/{appName}/autoscaling-policy (the `SetAutoscalingPolicy` operationId).
+	SetAutoscalingPolicy(ctx context.Context, orgName string, appName string, body SetAutoscalingPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListExecutors List executors
 	//
@@ -1490,11 +1664,6 @@ type ClientInterface interface {
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/notifications (the `ListWorkflowNotifications` operationId).
 	ListWorkflowNotifications(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RestartWorkflow Restart workflow
-	//
-	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/restart (the `RestartWorkflow` operationId).
-	RestartWorkflow(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// ResumeWorkflowWithBody Resume workflow
 	//
 	// Takes any type of body and a specified content type.
@@ -1525,6 +1694,46 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/audit-logs (the `ListAuditLogs` operationId).
 	ListAuditLogs(ctx context.Context, orgName string, params *ListAuditLogsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListDomainClaims List domain claims
+	//
+	// A domain claim adds users who register with an email at that domain to this organization automatically. On DBOS-managed Conductor a claim must be approved by DBOS before it takes effect; self-hosted claims take effect immediately. Claims apply to new registrations only — approving one never moves users who already have accounts, and revoking one never removes them.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Corresponds with GET /v2/orgs/{orgName}/domain-claims (the `ListDomainClaims` operationId).
+	ListDomainClaims(ctx context.Context, orgName string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RequestDomainClaimWithBody Claim a domain
+	//
+	// A domain claim adds users who register with an email at that domain to this organization automatically. On DBOS-managed Conductor a claim must be approved by DBOS before it takes effect; self-hosted claims take effect immediately. Claims apply to new registrations only — approving one never moves users who already have accounts, and revoking one never removes them.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/domain-claims (the `RequestDomainClaim` operationId).
+	RequestDomainClaimWithBody(ctx context.Context, orgName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RequestDomainClaim Claim a domain
+	//
+	// A domain claim adds users who register with an email at that domain to this organization automatically. On DBOS-managed Conductor a claim must be approved by DBOS before it takes effect; self-hosted claims take effect immediately. Claims apply to new registrations only — approving one never moves users who already have accounts, and revoking one never removes them.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/domain-claims (the `RequestDomainClaim` operationId).
+	RequestDomainClaim(ctx context.Context, orgName string, body RequestDomainClaimJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReleaseDomainClaim Release a domain claim
+	//
+	// A domain claim adds users who register with an email at that domain to this organization automatically. On DBOS-managed Conductor a claim must be approved by DBOS before it takes effect; self-hosted claims take effect immediately. Claims apply to new registrations only — approving one never moves users who already have accounts, and revoking one never removes them.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Corresponds with DELETE /v2/orgs/{orgName}/domain-claims/{domain} (the `ReleaseDomainClaim` operationId).
+	ReleaseDomainClaim(ctx context.Context, orgName string, domain string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// JoinOrgWithBody Join org
 	//
@@ -1566,8 +1775,6 @@ type ClientInterface interface {
 	GrantRole(ctx context.Context, orgName string, username string, roleName string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListPermissions List permissions
-	//
-	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/permissions (the `ListPermissions` operationId).
 	ListPermissions(ctx context.Context, orgName string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1883,6 +2090,95 @@ func (c *Client) CreateAlertingRule(ctx context.Context, orgName string, appName
 // Corresponds with DELETE /v2/orgs/{orgName}/apps/{appName}/alerting-rules/{ruleId} (the `DeleteAlertingRule` operationId).
 func (c *Client) DeleteAlertingRule(ctx context.Context, orgName string, appName string, ruleId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeleteAlertingRuleRequest(c.Server, orgName, appName, ruleId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetAutoscale Get autoscaling recommendation
+//
+// Computes how many executors each of the application's versions needs right now, given the backlog of its stored autoscaling policy's queue. Returns one entry per version. 404 when no policy is installed. Requires a DBOS Teams subscription.
+//
+// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/autoscale (the `GetAutoscale` operationId).
+func (c *Client) GetAutoscale(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAutoscaleRequest(c.Server, orgName, appName)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteAutoscalingPolicy Delete autoscaling policy
+//
+// Clears the stored policy. Deleting an absent policy succeeds. Requires a DBOS Teams subscription.
+//
+// Corresponds with DELETE /v2/orgs/{orgName}/apps/{appName}/autoscaling-policy (the `DeleteAutoscalingPolicy` operationId).
+func (c *Client) DeleteAutoscalingPolicy(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteAutoscalingPolicyRequest(c.Server, orgName, appName)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetAutoscalingPolicy Get autoscaling policy
+//
+// Returns the application's stored queue-based autoscaling policy; 404 when none is set. Requires a DBOS Teams subscription.
+//
+// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/autoscaling-policy (the `GetAutoscalingPolicy` operationId).
+func (c *Client) GetAutoscalingPolicy(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAutoscalingPolicyRequest(c.Server, orgName, appName)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetAutoscalingPolicyWithBody Set autoscaling policy
+//
+// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — not partitioned, worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /v2/orgs/{orgName}/apps/{appName}/autoscaling-policy (the `SetAutoscalingPolicy` operationId).
+func (c *Client) SetAutoscalingPolicyWithBody(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetAutoscalingPolicyRequestWithBody(c.Server, orgName, appName, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetAutoscalingPolicy Set autoscaling policy
+//
+// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — not partitioned, worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /v2/orgs/{orgName}/apps/{appName}/autoscaling-policy (the `SetAutoscalingPolicy` operationId).
+func (c *Client) SetAutoscalingPolicy(ctx context.Context, orgName string, appName string, body SetAutoscalingPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetAutoscalingPolicyRequest(c.Server, orgName, appName, body)
 	if err != nil {
 		return nil, err
 	}
@@ -2541,21 +2837,6 @@ func (c *Client) ListWorkflowNotifications(ctx context.Context, orgName string, 
 	return c.Client.Do(req)
 }
 
-// RestartWorkflow Restart workflow
-//
-// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/restart (the `RestartWorkflow` operationId).
-func (c *Client) RestartWorkflow(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRestartWorkflowRequest(c.Server, orgName, appName, workflowId)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
 // ResumeWorkflowWithBody Resume workflow
 //
 // Takes any type of body and a specified content type.
@@ -2627,6 +2908,86 @@ func (c *Client) ListWorkflowStreams(ctx context.Context, orgName string, appNam
 // Corresponds with GET /v2/orgs/{orgName}/audit-logs (the `ListAuditLogs` operationId).
 func (c *Client) ListAuditLogs(ctx context.Context, orgName string, params *ListAuditLogsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListAuditLogsRequest(c.Server, orgName, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListDomainClaims List domain claims
+//
+// A domain claim adds users who register with an email at that domain to this organization automatically. On DBOS-managed Conductor a claim must be approved by DBOS before it takes effect; self-hosted claims take effect immediately. Claims apply to new registrations only — approving one never moves users who already have accounts, and revoking one never removes them.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Corresponds with GET /v2/orgs/{orgName}/domain-claims (the `ListDomainClaims` operationId).
+func (c *Client) ListDomainClaims(ctx context.Context, orgName string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListDomainClaimsRequest(c.Server, orgName)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RequestDomainClaimWithBody Claim a domain
+//
+// A domain claim adds users who register with an email at that domain to this organization automatically. On DBOS-managed Conductor a claim must be approved by DBOS before it takes effect; self-hosted claims take effect immediately. Claims apply to new registrations only — approving one never moves users who already have accounts, and revoking one never removes them.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /v2/orgs/{orgName}/domain-claims (the `RequestDomainClaim` operationId).
+func (c *Client) RequestDomainClaimWithBody(ctx context.Context, orgName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestDomainClaimRequestWithBody(c.Server, orgName, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RequestDomainClaim Claim a domain
+//
+// A domain claim adds users who register with an email at that domain to this organization automatically. On DBOS-managed Conductor a claim must be approved by DBOS before it takes effect; self-hosted claims take effect immediately. Claims apply to new registrations only — approving one never moves users who already have accounts, and revoking one never removes them.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /v2/orgs/{orgName}/domain-claims (the `RequestDomainClaim` operationId).
+func (c *Client) RequestDomainClaim(ctx context.Context, orgName string, body RequestDomainClaimJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestDomainClaimRequest(c.Server, orgName, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReleaseDomainClaim Release a domain claim
+//
+// A domain claim adds users who register with an email at that domain to this organization automatically. On DBOS-managed Conductor a claim must be approved by DBOS before it takes effect; self-hosted claims take effect immediately. Claims apply to new registrations only — approving one never moves users who already have accounts, and revoking one never removes them.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Corresponds with DELETE /v2/orgs/{orgName}/domain-claims/{domain} (the `ReleaseDomainClaim` operationId).
+func (c *Client) ReleaseDomainClaim(ctx context.Context, orgName string, domain string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReleaseDomainClaimRequest(c.Server, orgName, domain)
 	if err != nil {
 		return nil, err
 	}
@@ -2727,8 +3088,6 @@ func (c *Client) GrantRole(ctx context.Context, orgName string, username string,
 }
 
 // ListPermissions List permissions
-//
-// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
 //
 // Corresponds with GET /v2/orgs/{orgName}/permissions (the `ListPermissions` operationId).
 func (c *Client) ListPermissions(ctx context.Context, orgName string, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -3395,6 +3754,183 @@ func NewDeleteAlertingRuleRequest(server string, orgName string, appName string,
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewGetAutoscaleRequest constructs an http.Request for the GetAutoscale method
+func NewGetAutoscaleRequest(server string, orgName string, appName string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "appName", appName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/apps/%s/autoscale", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteAutoscalingPolicyRequest constructs an http.Request for the DeleteAutoscalingPolicy method
+func NewDeleteAutoscalingPolicyRequest(server string, orgName string, appName string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "appName", appName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/apps/%s/autoscaling-policy", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAutoscalingPolicyRequest constructs an http.Request for the GetAutoscalingPolicy method
+func NewGetAutoscalingPolicyRequest(server string, orgName string, appName string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "appName", appName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/apps/%s/autoscaling-policy", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetAutoscalingPolicyRequest calls the generic SetAutoscalingPolicy builder with application/json body
+func NewSetAutoscalingPolicyRequest(server string, orgName string, appName string, body SetAutoscalingPolicyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetAutoscalingPolicyRequestWithBody(server, orgName, appName, "application/json", bodyReader)
+}
+
+// NewSetAutoscalingPolicyRequestWithBody constructs an http.Request for the SetAutoscalingPolicy method, with any body, and a specified content type
+func NewSetAutoscalingPolicyRequestWithBody(server string, orgName string, appName string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "appName", appName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/apps/%s/autoscaling-policy", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -5041,54 +5577,6 @@ func NewListWorkflowNotificationsRequest(server string, orgName string, appName 
 	return req, nil
 }
 
-// NewRestartWorkflowRequest constructs an http.Request for the RestartWorkflow method
-func NewRestartWorkflowRequest(server string, orgName string, appName string, workflowId string) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
-	if err != nil {
-		return nil, err
-	}
-
-	var pathParam1 string
-
-	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "appName", appName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
-	if err != nil {
-		return nil, err
-	}
-
-	var pathParam2 string
-
-	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "workflowId", workflowId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/v2/orgs/%s/apps/%s/workflows/%s/restart", pathParam0, pathParam1, pathParam2)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
 // NewResumeWorkflowRequest calls the generic ResumeWorkflow builder with application/json body
 func NewResumeWorkflowRequest(server string, orgName string, appName string, workflowId string, body ResumeWorkflowJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -5411,6 +5899,128 @@ func NewListAuditLogsRequest(server string, orgName string, params *ListAuditLog
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListDomainClaimsRequest constructs an http.Request for the ListDomainClaims method
+func NewListDomainClaimsRequest(server string, orgName string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/domain-claims", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRequestDomainClaimRequest calls the generic RequestDomainClaim builder with application/json body
+func NewRequestDomainClaimRequest(server string, orgName string, body RequestDomainClaimJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRequestDomainClaimRequestWithBody(server, orgName, "application/json", bodyReader)
+}
+
+// NewRequestDomainClaimRequestWithBody constructs an http.Request for the RequestDomainClaim method, with any body, and a specified content type
+func NewRequestDomainClaimRequestWithBody(server string, orgName string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/domain-claims", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReleaseDomainClaimRequest constructs an http.Request for the ReleaseDomainClaim method
+func NewReleaseDomainClaimRequest(server string, orgName string, domain string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "domain", domain, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/domain-claims/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -6122,6 +6732,51 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with DELETE /v2/orgs/{orgName}/apps/{appName}/alerting-rules/{ruleId} (the `DeleteAlertingRule` operationId).
 	DeleteAlertingRuleWithResponse(ctx context.Context, orgName string, appName string, ruleId string, reqEditors ...RequestEditorFn) (*DeleteAlertingRuleResponse, error)
 
+	// GetAutoscaleWithResponse Get autoscaling recommendation
+	//
+	// Computes how many executors each of the application's versions needs right now, given the backlog of its stored autoscaling policy's queue. Returns one entry per version. 404 when no policy is installed. Requires a DBOS Teams subscription.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/autoscale (the `GetAutoscale` operationId).
+	GetAutoscaleWithResponse(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*GetAutoscaleResponse, error)
+
+	// DeleteAutoscalingPolicyWithResponse Delete autoscaling policy
+	//
+	// Clears the stored policy. Deleting an absent policy succeeds. Requires a DBOS Teams subscription.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /v2/orgs/{orgName}/apps/{appName}/autoscaling-policy (the `DeleteAutoscalingPolicy` operationId).
+	DeleteAutoscalingPolicyWithResponse(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*DeleteAutoscalingPolicyResponse, error)
+
+	// GetAutoscalingPolicyWithResponse Get autoscaling policy
+	//
+	// Returns the application's stored queue-based autoscaling policy; 404 when none is set. Requires a DBOS Teams subscription.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/autoscaling-policy (the `GetAutoscalingPolicy` operationId).
+	GetAutoscalingPolicyWithResponse(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*GetAutoscalingPolicyResponse, error)
+
+	// SetAutoscalingPolicyWithBodyWithResponse Set autoscaling policy
+	//
+	// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — not partitioned, worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /v2/orgs/{orgName}/apps/{appName}/autoscaling-policy (the `SetAutoscalingPolicy` operationId).
+	SetAutoscalingPolicyWithBodyWithResponse(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetAutoscalingPolicyResponse, error)
+
+	// SetAutoscalingPolicyWithResponse Set autoscaling policy
+	//
+	// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — not partitioned, worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /v2/orgs/{orgName}/apps/{appName}/autoscaling-policy (the `SetAutoscalingPolicy` operationId).
+	SetAutoscalingPolicyWithResponse(ctx context.Context, orgName string, appName string, body SetAutoscalingPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetAutoscalingPolicyResponse, error)
+
 	// ListExecutorsWithResponse List executors
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -6402,13 +7057,6 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/notifications (the `ListWorkflowNotifications` operationId).
 	ListWorkflowNotificationsWithResponse(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*ListWorkflowNotificationsResponse, error)
 
-	// RestartWorkflowWithResponse Restart workflow
-	//
-	// Returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/restart (the `RestartWorkflow` operationId).
-	RestartWorkflowWithResponse(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*RestartWorkflowResponse, error)
-
 	// ResumeWorkflowWithBodyWithResponse Resume workflow
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -6445,6 +7093,50 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/audit-logs (the `ListAuditLogs` operationId).
 	ListAuditLogsWithResponse(ctx context.Context, orgName string, params *ListAuditLogsParams, reqEditors ...RequestEditorFn) (*ListAuditLogsResponse, error)
+
+	// ListDomainClaimsWithResponse List domain claims
+	//
+	// A domain claim adds users who register with an email at that domain to this organization automatically. On DBOS-managed Conductor a claim must be approved by DBOS before it takes effect; self-hosted claims take effect immediately. Claims apply to new registrations only — approving one never moves users who already have accounts, and revoking one never removes them.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /v2/orgs/{orgName}/domain-claims (the `ListDomainClaims` operationId).
+	ListDomainClaimsWithResponse(ctx context.Context, orgName string, reqEditors ...RequestEditorFn) (*ListDomainClaimsResponse, error)
+
+	// RequestDomainClaimWithBodyWithResponse Claim a domain
+	//
+	// A domain claim adds users who register with an email at that domain to this organization automatically. On DBOS-managed Conductor a claim must be approved by DBOS before it takes effect; self-hosted claims take effect immediately. Claims apply to new registrations only — approving one never moves users who already have accounts, and revoking one never removes them.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/domain-claims (the `RequestDomainClaim` operationId).
+	RequestDomainClaimWithBodyWithResponse(ctx context.Context, orgName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestDomainClaimResponse, error)
+
+	// RequestDomainClaimWithResponse Claim a domain
+	//
+	// A domain claim adds users who register with an email at that domain to this organization automatically. On DBOS-managed Conductor a claim must be approved by DBOS before it takes effect; self-hosted claims take effect immediately. Claims apply to new registrations only — approving one never moves users who already have accounts, and revoking one never removes them.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/domain-claims (the `RequestDomainClaim` operationId).
+	RequestDomainClaimWithResponse(ctx context.Context, orgName string, body RequestDomainClaimJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestDomainClaimResponse, error)
+
+	// ReleaseDomainClaimWithResponse Release a domain claim
+	//
+	// A domain claim adds users who register with an email at that domain to this organization automatically. On DBOS-managed Conductor a claim must be approved by DBOS before it takes effect; self-hosted claims take effect immediately. Claims apply to new registrations only — approving one never moves users who already have accounts, and revoking one never removes them.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /v2/orgs/{orgName}/domain-claims/{domain} (the `ReleaseDomainClaim` operationId).
+	ReleaseDomainClaimWithResponse(ctx context.Context, orgName string, domain string, reqEditors ...RequestEditorFn) (*ReleaseDomainClaimResponse, error)
 
 	// JoinOrgWithBodyWithResponse Join org
 	//
@@ -6492,8 +7184,6 @@ type ClientWithResponsesInterface interface {
 	GrantRoleWithResponse(ctx context.Context, orgName string, username string, roleName string, reqEditors ...RequestEditorFn) (*GrantRoleResponse, error)
 
 	// ListPermissionsWithResponse List permissions
-	//
-	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -7040,6 +7730,191 @@ func (r DeleteAlertingRuleResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r DeleteAlertingRuleResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetAutoscaleResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]QueueAutoscale
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetAutoscaleResponse) GetJSON200() *[]QueueAutoscale {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r GetAutoscaleResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetAutoscaleResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAutoscaleResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAutoscaleResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetAutoscaleResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteAutoscalingPolicyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r DeleteAutoscalingPolicyResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteAutoscalingPolicyResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteAutoscalingPolicyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteAutoscalingPolicyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteAutoscalingPolicyResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetAutoscalingPolicyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PolicyOutputBody
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetAutoscalingPolicyResponse) GetJSON200() *PolicyOutputBody {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r GetAutoscalingPolicyResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetAutoscalingPolicyResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAutoscalingPolicyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAutoscalingPolicyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetAutoscalingPolicyResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetAutoscalingPolicyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PolicyOutputBody
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetAutoscalingPolicyResponse) GetJSON200() *PolicyOutputBody {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r SetAutoscalingPolicyResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r SetAutoscalingPolicyResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetAutoscalingPolicyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetAutoscalingPolicyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetAutoscalingPolicyResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -8341,47 +9216,6 @@ func (r ListWorkflowNotificationsResponse) ContentType() string {
 	return ""
 }
 
-type RestartWorkflowResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
-	ApplicationproblemJSONDefault *ErrorModel
-}
-
-// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
-func (r RestartWorkflowResponse) GetApplicationproblemJSONDefault() *ErrorModel {
-	return r.ApplicationproblemJSONDefault
-}
-
-// GetBody returns the raw response body bytes
-func (r RestartWorkflowResponse) GetBody() []byte {
-	return r.Body
-}
-
-// Status returns HTTPResponse.Status
-func (r RestartWorkflowResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r RestartWorkflowResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r RestartWorkflowResponse) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
 type ResumeWorkflowResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -8561,6 +9395,143 @@ func (r ListAuditLogsResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListAuditLogsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListDomainClaimsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListDomainClaimsOutputBody
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListDomainClaimsResponse) GetJSON200() *ListDomainClaimsOutputBody {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r ListDomainClaimsResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListDomainClaimsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListDomainClaimsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListDomainClaimsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListDomainClaimsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RequestDomainClaimResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *DomainClaim
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r RequestDomainClaimResponse) GetJSON201() *DomainClaim {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r RequestDomainClaimResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r RequestDomainClaimResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RequestDomainClaimResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RequestDomainClaimResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RequestDomainClaimResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReleaseDomainClaimResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r ReleaseDomainClaimResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ReleaseDomainClaimResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReleaseDomainClaimResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReleaseDomainClaimResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReleaseDomainClaimResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -9406,6 +10377,81 @@ func (c *ClientWithResponses) DeleteAlertingRuleWithResponse(ctx context.Context
 	return ParseDeleteAlertingRuleResponse(rsp)
 }
 
+// GetAutoscaleWithResponse Get autoscaling recommendation
+//
+// Computes how many executors each of the application's versions needs right now, given the backlog of its stored autoscaling policy's queue. Returns one entry per version. 404 when no policy is installed. Requires a DBOS Teams subscription.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/autoscale (the `GetAutoscale` operationId).
+func (c *ClientWithResponses) GetAutoscaleWithResponse(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*GetAutoscaleResponse, error) {
+	rsp, err := c.GetAutoscale(ctx, orgName, appName, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAutoscaleResponse(rsp)
+}
+
+// DeleteAutoscalingPolicyWithResponse Delete autoscaling policy
+//
+// Clears the stored policy. Deleting an absent policy succeeds. Requires a DBOS Teams subscription.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /v2/orgs/{orgName}/apps/{appName}/autoscaling-policy (the `DeleteAutoscalingPolicy` operationId).
+func (c *ClientWithResponses) DeleteAutoscalingPolicyWithResponse(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*DeleteAutoscalingPolicyResponse, error) {
+	rsp, err := c.DeleteAutoscalingPolicy(ctx, orgName, appName, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteAutoscalingPolicyResponse(rsp)
+}
+
+// GetAutoscalingPolicyWithResponse Get autoscaling policy
+//
+// Returns the application's stored queue-based autoscaling policy; 404 when none is set. Requires a DBOS Teams subscription.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/autoscaling-policy (the `GetAutoscalingPolicy` operationId).
+func (c *ClientWithResponses) GetAutoscalingPolicyWithResponse(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*GetAutoscalingPolicyResponse, error) {
+	rsp, err := c.GetAutoscalingPolicy(ctx, orgName, appName, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAutoscalingPolicyResponse(rsp)
+}
+
+// SetAutoscalingPolicyWithBodyWithResponse Set autoscaling policy
+//
+// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — not partitioned, worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /v2/orgs/{orgName}/apps/{appName}/autoscaling-policy (the `SetAutoscalingPolicy` operationId).
+func (c *ClientWithResponses) SetAutoscalingPolicyWithBodyWithResponse(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetAutoscalingPolicyResponse, error) {
+	rsp, err := c.SetAutoscalingPolicyWithBody(ctx, orgName, appName, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetAutoscalingPolicyResponse(rsp)
+}
+
+// SetAutoscalingPolicyWithResponse Set autoscaling policy
+//
+// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — not partitioned, worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /v2/orgs/{orgName}/apps/{appName}/autoscaling-policy (the `SetAutoscalingPolicy` operationId).
+func (c *ClientWithResponses) SetAutoscalingPolicyWithResponse(ctx context.Context, orgName string, appName string, body SetAutoscalingPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetAutoscalingPolicyResponse, error) {
+	rsp, err := c.SetAutoscalingPolicy(ctx, orgName, appName, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetAutoscalingPolicyResponse(rsp)
+}
+
 // ListExecutorsWithResponse List executors
 //
 // Returns a wrapper object for the known response body format(s).
@@ -9926,19 +10972,6 @@ func (c *ClientWithResponses) ListWorkflowNotificationsWithResponse(ctx context.
 	return ParseListWorkflowNotificationsResponse(rsp)
 }
 
-// RestartWorkflowWithResponse Restart workflow
-//
-// Returns a wrapper object for the known response body format(s).
-//
-// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/restart (the `RestartWorkflow` operationId).
-func (c *ClientWithResponses) RestartWorkflowWithResponse(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*RestartWorkflowResponse, error) {
-	rsp, err := c.RestartWorkflow(ctx, orgName, appName, workflowId, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseRestartWorkflowResponse(rsp)
-}
-
 // ResumeWorkflowWithBodyWithResponse Resume workflow
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -10004,6 +11037,74 @@ func (c *ClientWithResponses) ListAuditLogsWithResponse(ctx context.Context, org
 		return nil, err
 	}
 	return ParseListAuditLogsResponse(rsp)
+}
+
+// ListDomainClaimsWithResponse List domain claims
+//
+// A domain claim adds users who register with an email at that domain to this organization automatically. On DBOS-managed Conductor a claim must be approved by DBOS before it takes effect; self-hosted claims take effect immediately. Claims apply to new registrations only — approving one never moves users who already have accounts, and revoking one never removes them.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /v2/orgs/{orgName}/domain-claims (the `ListDomainClaims` operationId).
+func (c *ClientWithResponses) ListDomainClaimsWithResponse(ctx context.Context, orgName string, reqEditors ...RequestEditorFn) (*ListDomainClaimsResponse, error) {
+	rsp, err := c.ListDomainClaims(ctx, orgName, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListDomainClaimsResponse(rsp)
+}
+
+// RequestDomainClaimWithBodyWithResponse Claim a domain
+//
+// A domain claim adds users who register with an email at that domain to this organization automatically. On DBOS-managed Conductor a claim must be approved by DBOS before it takes effect; self-hosted claims take effect immediately. Claims apply to new registrations only — approving one never moves users who already have accounts, and revoking one never removes them.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v2/orgs/{orgName}/domain-claims (the `RequestDomainClaim` operationId).
+func (c *ClientWithResponses) RequestDomainClaimWithBodyWithResponse(ctx context.Context, orgName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestDomainClaimResponse, error) {
+	rsp, err := c.RequestDomainClaimWithBody(ctx, orgName, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRequestDomainClaimResponse(rsp)
+}
+
+// RequestDomainClaimWithResponse Claim a domain
+//
+// A domain claim adds users who register with an email at that domain to this organization automatically. On DBOS-managed Conductor a claim must be approved by DBOS before it takes effect; self-hosted claims take effect immediately. Claims apply to new registrations only — approving one never moves users who already have accounts, and revoking one never removes them.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v2/orgs/{orgName}/domain-claims (the `RequestDomainClaim` operationId).
+func (c *ClientWithResponses) RequestDomainClaimWithResponse(ctx context.Context, orgName string, body RequestDomainClaimJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestDomainClaimResponse, error) {
+	rsp, err := c.RequestDomainClaim(ctx, orgName, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRequestDomainClaimResponse(rsp)
+}
+
+// ReleaseDomainClaimWithResponse Release a domain claim
+//
+// A domain claim adds users who register with an email at that domain to this organization automatically. On DBOS-managed Conductor a claim must be approved by DBOS before it takes effect; self-hosted claims take effect immediately. Claims apply to new registrations only — approving one never moves users who already have accounts, and revoking one never removes them.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /v2/orgs/{orgName}/domain-claims/{domain} (the `ReleaseDomainClaim` operationId).
+func (c *ClientWithResponses) ReleaseDomainClaimWithResponse(ctx context.Context, orgName string, domain string, reqEditors ...RequestEditorFn) (*ReleaseDomainClaimResponse, error) {
+	rsp, err := c.ReleaseDomainClaim(ctx, orgName, domain, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReleaseDomainClaimResponse(rsp)
 }
 
 // JoinOrgWithBodyWithResponse Join org
@@ -10082,8 +11183,6 @@ func (c *ClientWithResponses) GrantRoleWithResponse(ctx context.Context, orgName
 }
 
 // ListPermissionsWithResponse List permissions
-//
-// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -10565,6 +11664,134 @@ func ParseDeleteAlertingRuleResponse(rsp *http.Response) (*DeleteAlertingRuleRes
 	switch {
 	case rsp.StatusCode == 204:
 		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAutoscaleResponse parses an HTTP response from a GetAutoscaleWithResponse call
+func ParseGetAutoscaleResponse(rsp *http.Response) (*GetAutoscaleResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAutoscaleResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []QueueAutoscale
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteAutoscalingPolicyResponse parses an HTTP response from a DeleteAutoscalingPolicyWithResponse call
+func ParseDeleteAutoscalingPolicyResponse(rsp *http.Response) (*DeleteAutoscalingPolicyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteAutoscalingPolicyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAutoscalingPolicyResponse parses an HTTP response from a GetAutoscalingPolicyWithResponse call
+func ParseGetAutoscalingPolicyResponse(rsp *http.Response) (*GetAutoscalingPolicyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAutoscalingPolicyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PolicyOutputBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetAutoscalingPolicyResponse parses an HTTP response from a SetAutoscalingPolicyWithResponse call
+func ParseSetAutoscalingPolicyResponse(rsp *http.Response) (*SetAutoscalingPolicyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetAutoscalingPolicyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PolicyOutputBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest ErrorModel
@@ -11492,35 +12719,6 @@ func ParseListWorkflowNotificationsResponse(rsp *http.Response) (*ListWorkflowNo
 	return response, nil
 }
 
-// ParseRestartWorkflowResponse parses an HTTP response from a RestartWorkflowWithResponse call
-func ParseRestartWorkflowResponse(rsp *http.Response) (*RestartWorkflowResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &RestartWorkflowResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case rsp.StatusCode == 204:
-		break // No content-type
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest ErrorModel
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSONDefault = &dest
-
-	}
-
-	return response, nil
-}
-
 // ParseResumeWorkflowResponse parses an HTTP response from a ResumeWorkflowWithResponse call
 func ParseResumeWorkflowResponse(rsp *http.Response) (*ResumeWorkflowResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -11636,6 +12834,101 @@ func ParseListAuditLogsResponse(rsp *http.Response) (*ListAuditLogsResponse, err
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListDomainClaimsResponse parses an HTTP response from a ListDomainClaimsWithResponse call
+func ParseListDomainClaimsResponse(rsp *http.Response) (*ListDomainClaimsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListDomainClaimsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ListDomainClaimsOutputBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRequestDomainClaimResponse parses an HTTP response from a RequestDomainClaimWithResponse call
+func ParseRequestDomainClaimResponse(rsp *http.Response) (*RequestDomainClaimResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RequestDomainClaimResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest DomainClaim
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReleaseDomainClaimResponse parses an HTTP response from a ReleaseDomainClaimWithResponse call
+func ParseReleaseDomainClaimResponse(rsp *http.Response) (*ReleaseDomainClaimResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReleaseDomainClaimResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest ErrorModel

@@ -104,3 +104,34 @@ func TestRunScheduleBackfillNeedsWindow(t *testing.T) {
 		t.Errorf("want a missing-window error, got %v", err)
 	}
 }
+
+// A schedule reports its owning application when several apps share one system
+// database. The field is nullable, so the detail view shows it only when set.
+func TestRunScheduleGetApplicationName(t *testing.T) {
+	t.Run("set", func(t *testing.T) {
+		isolateConfig(t)
+		owned := `{"scheduleId":"sch-1","scheduleName":"nightly","status":"ACTIVE","cronExpression":"0 0 * * *","workflowName":"cleanup","automaticBackfill":false,"applicationName":"otherapp"}`
+		srv, _ := appReadServer(t, "/v2/orgs/local/apps/myapp/schedules/nightly", owned)
+
+		cmd, out := workflowCmdAt(t, srv.URL)
+		if err := runScheduleGet(cmd, []string{"nightly"}); err != nil {
+			t.Fatal(err)
+		}
+		if got := out.String(); !strings.Contains(got, "applicationName") || !strings.Contains(got, "otherapp") {
+			t.Errorf("schedule get detail missing the owning application:\n%s", got)
+		}
+	})
+
+	t.Run("null", func(t *testing.T) {
+		isolateConfig(t)
+		srv, _ := appReadServer(t, "/v2/orgs/local/apps/myapp/schedules/nightly", oneScheduleJSON)
+
+		cmd, out := workflowCmdAt(t, srv.URL)
+		if err := runScheduleGet(cmd, []string{"nightly"}); err != nil {
+			t.Fatal(err)
+		}
+		if got := out.String(); strings.Contains(got, "applicationName") {
+			t.Errorf("schedule get detail showed an empty applicationName row:\n%s", got)
+		}
+	})
+}

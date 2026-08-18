@@ -220,6 +220,7 @@ func scheduleFields() []output.Field[api.Schedule] {
 	return []output.Field[api.Schedule]{
 		{Label: "scheduleId", Value: func(s api.Schedule) string { return s.ScheduleId }},
 		{Label: "scheduleName", Value: func(s api.Schedule) string { return s.ScheduleName }},
+		{Label: "applicationName", Value: func(s api.Schedule) string { return deref(s.ApplicationName) }},
 		{Label: "status", Value: func(s api.Schedule) string { return s.Status }},
 		{Label: "cronExpression", Value: func(s api.Schedule) string { return s.CronExpression }},
 		{Label: "cronTimezone", Value: func(s api.Schedule) string { return deref(s.CronTimezone) }},
