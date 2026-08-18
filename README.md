@@ -37,6 +37,8 @@ nix profile install github:dbos-inc/dbos-ctl
 ```
 
 For NixOS, add the flake as an input and use `inputs.dbos-ctl.packages.${system}.default`.
+Intel Macs (`x86_64-darwin`) are not supported — nixpkgs dropped the platform in 26.11; use
+the release binaries or `go install` there.
 
 **From a checkout:**
 

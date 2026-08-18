@@ -79,7 +79,9 @@ func resolveBuildInfo() buildInfo {
 				bi.Date = s.Value
 			}
 		case "vcs.modified":
-			bi.Dirty = s.Value == "true"
+			if !bi.Dirty {
+				bi.Dirty = s.Value == "true"
+			}
 		}
 	}
 	return bi

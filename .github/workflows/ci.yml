@@ -64,7 +64,6 @@ jobs:
       - uses: nix-community/cache-nix-action@v6
         with:
           primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', 'go.sum') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
       # A bare `nix flake check` evaluates only the current system (since Nix 2.19).
       - run: nix flake check --all-systems
 
