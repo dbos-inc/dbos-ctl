@@ -13,3 +13,6 @@ openapi.json
 
 # JUnit reports from `make test JUNIT=...`.
 *-tests.xml
+
+# nix build output symlink.
+/result
