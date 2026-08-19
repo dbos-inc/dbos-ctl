@@ -67,6 +67,12 @@ dbosctl app list
 # A self-hosted Conductor with no auth
 dbosctl config set local --auth none --url http://localhost:8090
 dbosctl app list --profile local
+
+# Registering an app
+dbosctl app register <app-name>     # must match app name in DBOS config
+
+# Creating an API key
+dbosctl api-key create <key-name>   # typically provided to app via DBOS_CONDUCTOR_KEY env var
 ```
 
 ## Profiles
@@ -206,6 +212,7 @@ make generate    # regenerate the API client from the vendored OpenAPI spec
 make build       # build ./dbosctl
 make test        # unit tests
 make lint        # golangci-lint
+make snapshot    # build all-platform artifacts without publishing
 ```
 
 The generated client (`internal/api`) is committed; CI fails on spec drift
@@ -213,3 +220,13 @@ The generated client (`internal/api`) is committed; CI fails on spec drift
 and stand up real Conductor + Postgres in throwaway containers — see
 `make test-integration` and `.env.example` for the required license key and
 image/checkout settings.
+
+### Publishing a Release
+
+```sh
+git checkout main && git pull   # release from origin/main
+make lint && make test          # CI reruns these, but fail locally first
+make snapshot                   # optional: build all-platform artifacts, no publish
+git tag -a v0.9.0 -m "v0.9.0"
+git push origin v0.9.0
+```
