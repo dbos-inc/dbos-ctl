@@ -19,11 +19,10 @@ import (
 // can run this without repeating the URL.
 const dbURLEnv = "DBOS_SYSTEM_DATABASE_URL"
 
-// migrate is the one command that talks to a database rather than to Conductor:
-// it creates and upgrades the DBOS system schema itself, from migrations
-// vendored into this binary. That is deliberate — the schema is shared by every
-// SDK, so provisioning it should not require picking one and installing its
-// toolchain.
+// migrate is the only command that opens a database: it creates and upgrades the
+// DBOS system schema itself, from migrations vendored into this binary. That is
+// deliberate — the schema is shared by every SDK, so provisioning it should not
+// require picking one and installing its toolchain.
 var migrateCmd = &cobra.Command{
 	Use:   "migrate",
 	Short: "Create or upgrade the DBOS system database",
@@ -33,8 +32,8 @@ Applies every migration the system schema is missing, creating the database and
 the schema if they do not exist yet. Safe to re-run: migrations already recorded
 are skipped, so a database that is up to date is left alone.
 
-The database is not reached through Conductor, so this command takes a database
-URL rather than a profile.`,
+This command reaches the database directly, so it takes a database URL rather
+than a profile.`,
 	Args: cobra.NoArgs,
 	RunE: runMigrate,
 }

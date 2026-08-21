@@ -156,15 +156,14 @@ Two ways to bypass the flow:
 | `dbosctl api-key delete <name>` | Delete an API key |
 | `dbosctl permission list` | List grantable permissions |
 | `dbosctl config list \| show \| use \| set` | Manage profiles |
-| `dbosctl migrate` | Create or upgrade a DBOS system database (talks to Postgres, not Conductor) |
+| `dbosctl migrate` | Create or upgrade a DBOS system database (connects to Postgres directly) |
 | `dbosctl version` (or `--version`) | Print version information |
 
 ### migrate
 
-`dbosctl migrate` is the one command that opens a database instead of calling
-Conductor. It creates the system database and schema if they are missing and
-applies whatever migrations they lack, so it takes a database URL rather than a
-profile:
+`dbosctl migrate` is the only command that opens a database. It creates the
+system database and schema if they are missing and applies whatever migrations
+they lack, so it takes a database URL rather than a profile:
 
 ```sh
 dbosctl migrate -D postgres://user:pass@host:5432/dbos_sys
