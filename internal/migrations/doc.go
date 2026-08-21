@@ -6,9 +6,8 @@
 //
 // This is a deliberate copy of the migration set and runner from
 // dbos-transact-golang, not an import of it. Copied from
-// github.com/dbos-inc/dbos-transact-golang at edb0f01 (v1.1.0 plus the
-// application-name work), where the same code lives in the unexported package
-// dbos/internal/sysdb.
+// github.com/dbos-inc/dbos-transact-golang v1.2.0, where the same code lives in
+// the unexported package dbos/internal/sysdb. The latest migration is 107.
 //
 // Copying rather than importing is what lets dbosctl migrate a system database
 // without linking a Go SDK: dbosctl is a cross-language tool, its release train
@@ -33,7 +32,7 @@
 // `make migrations TRANSACT_DIR=/path/to/dbos-transact-golang` copies the SQL
 // files verbatim. The Go code is not generated: after re-vendoring the SQL,
 // diff migrations.go and runner.go against the upstream sysdb package by hand
-// and update the commit named above. The only intended difference in
+// and update the version named above. The only intended difference in
 // migrations.go is the embed path prefix (sql/ here, migrations/ upstream).
 //
 // # Migration numbering
