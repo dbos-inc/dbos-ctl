@@ -156,7 +156,47 @@ Two ways to bypass the flow:
 | `dbosctl api-key delete <name>` | Delete an API key |
 | `dbosctl permission list` | List grantable permissions |
 | `dbosctl config list \| show \| use \| set` | Manage profiles |
+| `dbosctl migrate` | Create or upgrade a DBOS system database (talks to Postgres, not Conductor) |
 | `dbosctl version` (or `--version`) | Print version information |
+
+### migrate
+
+`dbosctl migrate` is the one command that opens a database instead of calling
+Conductor. It creates the system database and schema if they are missing and
+applies whatever migrations they lack, so it takes a database URL rather than a
+profile:
+
+```sh
+dbosctl migrate -D postgres://user:pass@host:5432/dbos_sys
+DBOS_SYSTEM_DATABASE_URL=... dbosctl migrate
+```
+
+It is safe to re-run: migrations already recorded are skipped, and an up-to-date
+database is left alone. The system schema is shared by every DBOS SDK, and the
+migrations are vendored into this binary, so provisioning a database does not
+mean picking an SDK and installing its toolchain.
+
+| Flag | Purpose |
+|---|---|
+| `-D`, `--db-url` | System database URL (else `$DBOS_SYSTEM_DATABASE_URL`) |
+| `--schema` | Schema holding the system tables (default `dbos`) |
+| `-r`, `--app-role` | Grant this role access to the system tables, so the application need not own the database |
+| `--print-migrations all\|N` | Print the SQL from that migration onward instead of running it |
+| `--print-user-role` | Print the `--app-role` grants instead of running them |
+
+The print modes never connect, and write nothing but SQL and comments to stdout,
+for a database whose DDL goes through review:
+
+```sh
+dbosctl migrate --print-migrations all > schema.sql
+dbosctl migrate --print-user-role -r myapp_role > grants.sql
+```
+
+Because the SQL is CREATE/DROP INDEX CONCURRENTLY in places, run those scripts
+outside a transaction block — plain `psql`, not `psql --single-transaction`.
+
+Postgres (and CockroachDB) only. A SQLite system database is migrated by the
+application process that opens it.
 
 ## Configuration precedence
 
@@ -170,6 +210,7 @@ wins and the profile is the fallback:
 | Organization | `--org` | `DBOS_ORG` |
 | Application | `-a`, `--app` | `DBOS_APP` |
 | Bearer token | — | `DBOS_TOKEN` |
+| System database (`migrate`) | `-D`, `--db-url` | `DBOS_SYSTEM_DATABASE_URL` |
 | Output format | `-o`, `--output` | — |
 
 Flags are scoped to the command that uses them, so pass them **after** the
@@ -209,6 +250,7 @@ dbosctl workflow list -a myapp --status PENDING -o ids | dbosctl workflow cancel
 
 ```sh
 make generate    # regenerate the API client from the vendored OpenAPI spec
+make migrations  # re-vendor the system-database migrations from a transact checkout
 make build       # build ./dbosctl
 make test        # unit tests
 make lint        # golangci-lint
@@ -216,7 +258,10 @@ make snapshot    # build all-platform artifacts without publishing
 ```
 
 The generated client (`internal/api`) is committed; CI fails on spec drift
-(`make generate` must be a no-op). Integration tests are tagged `integration`
+(`make generate` must be a no-op). The system-database migrations in
+`internal/migrations` are a copy of the Go SDK's, kept deliberately rather than
+imported — `internal/migrations/doc.go` says why, names the commit they came
+from, and describes what re-vendoring does not do for you. Integration tests are tagged `integration`
 and stand up real Conductor + Postgres in throwaway containers — see
 `make test-integration` and `.env.example` for the required license key and
 image/checkout settings.
