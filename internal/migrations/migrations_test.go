@@ -105,29 +105,44 @@ func TestListenNotifyGating(t *testing.T) {
 	}
 }
 
-// TestTriggerDropsAreUnconditional proves migrations 43 and 44 run everywhere.
-// Every statement in them is an IF EXISTS no-op where the trigger was never
-// created, and skipping them would strand the triggers forever on a database
-// whose version was advanced past them by a process that had LISTEN/NOTIFY off.
-func TestTriggerDropsAreUnconditional(t *testing.T) {
-	forEachVariant(func(name string, isCockroach, listenNotify bool) {
-		rendered := renderedByVersion(BuildMigrations("dbos", isCockroach, listenNotify))
+// TestTriggerDropsIgnoreTheListenNotifyFlag pins the asymmetry in migrations 43
+// and 44: the dialect decides whether they run, the LISTEN/NOTIFY flag does not.
+//
+// On PostgreSQL they run either way. Gating them on the flag would leave a hole
+// — a database migrated with the triggers, later migrated by a process passing
+// --no-listen-notify, would skip the drops while advancing the version past
+// them, and no later process would retry. On CockroachDB they are skipped
+// because it cannot always parse DROP TRIGGER, and the triggers were never
+// created there to begin with.
+func TestTriggerDropsIgnoreTheListenNotifyFlag(t *testing.T) {
+	for _, listenNotify := range []bool{false, true} {
+		rendered := renderedByVersion(BuildMigrations("dbos", false, listenNotify))
 		for _, version := range []int64{43, 44} {
 			sql := rendered[version]
 			if sql == "" {
-				t.Errorf("migration %d is empty for %s", version, name)
+				t.Errorf("migration %d is empty on PostgreSQL with listenNotify=%v", version, listenNotify)
 				continue
 			}
+			// Running where the trigger was never created is only safe because
+			// every statement tolerates its absence.
 			for _, stmt := range strings.Split(sql, ";") {
 				if strings.TrimSpace(stmt) == "" || strings.HasPrefix(strings.TrimSpace(stmt), "--") {
 					continue
 				}
 				if !strings.Contains(stmt, "IF EXISTS") {
-					t.Errorf("migration %d runs unconditionally but this statement is not IF EXISTS:\n%s", version, stmt)
+					t.Errorf("migration %d runs unguarded but this statement is not IF EXISTS:\n%s", version, stmt)
 				}
 			}
 		}
-	})
+
+		crdb := renderedByVersion(BuildMigrations("dbos", true, listenNotify))
+		for _, version := range []int64{43, 44} {
+			if crdb[version] != "" {
+				t.Errorf("migration %d sends DROP TRIGGER to CockroachDB (listenNotify=%v), which cannot always parse it:\n%s",
+					version, listenNotify, crdb[version])
+			}
+		}
+	}
 }
 
 func renderedByVersion(ms []MigrationFile) map[int64]string {

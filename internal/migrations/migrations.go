@@ -281,15 +281,26 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 	}
 
 	// Migrations 43 and 44 drop the streams and workflow_events triggers
-	// installed by migrations 39 and 1. Unlike the migrations that create those
-	// triggers, these run everywhere: every statement is an IF EXISTS no-op
-	// where the objects were never created, and gating them would leave a hole.
-	// A process migrating without LISTEN/NOTIFY would skip the drops while
-	// advancing the version past them, and no later process would retry — the
-	// triggers would survive forever on that database, still notifying inside
-	// every write transaction, which is the cost these migrations remove.
-	migration43SQLProcessed := fmt.Sprintf(migration43SQL, sanitizedSchema, sanitizedSchema)
-	migration44SQLProcessed := fmt.Sprintf(migration44SQL, sanitizedSchema, sanitizedSchema)
+	// installed by migrations 39 and 1.
+	//
+	// Skipped on CockroachDB, which cannot always parse the statement: v24.1,
+	// the oldest release DBOS supports, has no DROP TRIGGER at all, and v24.3
+	// answers "DROP TRIGGER is only implemented in the declarative schema
+	// changer". Nothing is lost by skipping — CockroachDB never had
+	// LISTEN/NOTIFY, so the triggers these drop were never created there.
+	//
+	// Deliberately NOT gated on listenNotify, which would look like the same
+	// condition and is not. On PostgreSQL the statements parse whatever the flag
+	// says, and gating them there leaves a hole: a database migrated with the
+	// triggers, later migrated by a process passing --no-listen-notify, would
+	// skip the drops while advancing the version past them. No later process
+	// would retry, so the triggers would survive forever, still notifying inside
+	// every write transaction — the cost these migrations exist to remove.
+	migration43SQLProcessed, migration44SQLProcessed := "", ""
+	if !isCockroach {
+		migration43SQLProcessed = fmt.Sprintf(migration43SQL, sanitizedSchema, sanitizedSchema)
+		migration44SQLProcessed = fmt.Sprintf(migration44SQL, sanitizedSchema, sanitizedSchema)
+	}
 
 	// Migration 105 replaces enqueue_workflow with a signature adding a
 	// trailing application_name. Like migration 38, the DROP/CREATE base runs

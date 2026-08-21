@@ -85,6 +85,10 @@ jobs:
         env:
           DBOS_CONDUCTOR_LICENSE_KEY: ${{ secrets.CONDUCTOR_LOCAL_LICENSE_KEY }}
           CONDUCTOR_IMAGE: ${{ vars.CONDUCTOR_IMAGE }}
+          # The migration tests against CockroachDB. Opt-in because the image is
+          # large and slow to pull, which is a cost worth paying here and not on
+          # every local `make test-integration`.
+          DBOS_TEST_COCKROACH: "1"
         run: make test-integration JUNIT=integration-tests.xml
 
       # Without the license key every conductor test skips and this job still
