@@ -300,6 +300,22 @@ Postgres in throwaway containers — see `make test-integration` and
 migration tests against CockroachDB are opt-in (`DBOS_TEST_COCKROACH=1`)
 because of the image size; CI always runs them.
 
+
+### Update flake.nix
+
+If go.sum is updated, the `vendorHash` value in flake.nix has to be updated too.
+
+The updated `vendorHash` can be generated via the nixos/nix docker container 
+using the following command:
+
+```sh
+docker run --rm \
+  -v "$(pwd)":/workspace \
+  -w /workspace \
+  nixos/nix \
+  sh -c "git config --global --add safe.directory /workspace && nix --extra-experimental-features 'nix-command flakes' build"
+```
+
 ### Publishing a Release
 
 ```sh
