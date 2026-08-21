@@ -1,0 +1,78 @@
+package migrations
+
+import (
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/jackc/pgx/v5"
+)
+
+// Statements returns the SQL the system database migrations execute against a
+// PostgreSQL database for the given schema, as an ordered list of
+// semicolon-terminated statements and "--" comment lines suitable for execution
+// with psql. It never connects to a database.
+//
+// from is a migration version number: pass 1 for the full fresh-database script
+// (including schema creation, the dbos_migrations table, and the initial
+// version row), or a later number for migrations from there through the latest
+// only. Version numbers are not contiguous: versions between the end of the
+// Go-specific history and the cross-SDK shared base are unused and emit
+// nothing. Each migration is followed by its version bookkeeping, mirroring the
+// runner. The SQL contains CREATE/DROP INDEX CONCURRENTLY, so it must run
+// outside a transaction block. An empty schemaName uses the default.
+//
+// isCockroach and listenNotify are the same two switches BuildMigrations takes.
+// Print mode never connects, so neither can be detected here: the caller's
+// answers are the only ones available and are taken at face value. A caller
+// asking for CockroachDB must also pass listenNotify false — that engine has no
+// LISTEN/NOTIFY on any version — and Apply enforces the same pairing where it
+// can detect the dialect for itself.
+func Statements(schemaName string, from int, isCockroach, listenNotify bool) ([]string, error) {
+	if schemaName == "" {
+		schemaName = DefaultSchema
+	}
+	if isCockroach && listenNotify {
+		return nil, errors.New("CockroachDB has no LISTEN/NOTIFY: render it with listenNotify false")
+	}
+	migrations := BuildMigrations(schemaName, isCockroach, listenNotify)
+	latest := migrations[len(migrations)-1].Version
+	if from < 1 || int64(from) > latest {
+		// Printed verbatim by the CLI, so worded for the end user.
+		return nil, fmt.Errorf("migration %d does not exist: valid migrations are 1 through %d", from, latest)
+	}
+	sanitizedSchema := pgx.Identifier{schemaName}.Sanitize()
+
+	var statements []string
+	if from == 1 {
+		statements = append(statements,
+			fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s;", sanitizedSchema),
+			fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s.%s (version BIGINT NOT NULL PRIMARY KEY);", sanitizedSchema, MigrationTable),
+		)
+	}
+
+	versionRowExists := from > 1
+	for _, migration := range migrations {
+		if migration.Version < int64(from) {
+			continue
+		}
+		if migration.Version == 10 {
+			// Migration 10 backfills the notifications primary key, which
+			// migration 1 already creates on a fresh database.
+			statements = append(statements, "-- Migration 10 skipped: not applicable on fresh databases")
+		} else if sql := strings.TrimSpace(migration.SQL); sql != "" {
+			if !strings.HasSuffix(sql, ";") {
+				sql += ";"
+			}
+			statements = append(statements, fmt.Sprintf("-- Migration %d", migration.Version), sql)
+		}
+		// Mirror the runner's per-migration version bookkeeping.
+		if versionRowExists {
+			statements = append(statements, fmt.Sprintf("UPDATE %s.%s SET version = %d;", sanitizedSchema, MigrationTable, migration.Version))
+		} else {
+			statements = append(statements, fmt.Sprintf("INSERT INTO %s.%s (version) VALUES (%d);", sanitizedSchema, MigrationTable, migration.Version))
+			versionRowExists = true
+		}
+	}
+	return statements, nil
+}

@@ -1,0 +1,34 @@
+-- Migration 36: Add completed_at column to workflow_status, recording when a
+-- workflow reached a terminal state. ADD COLUMN with no default is catalog-only;
+-- the partial index built in the same transaction covers zero rows, so no
+-- CONCURRENTLY is needed.
+--
+-- KNOWN ISSUE: this migration cannot be applied to CockroachDB before v25.
+-- The partial index has the just-added column in its predicate, and that
+-- release line will not index a column that became visible in the same
+-- transaction:
+--
+--     ERROR: cannot create partial index on column "completed_at" (33)
+--     which is not public (SQLSTATE 0A000)
+--
+-- Measured on v24.1.32 and v24.3.35; v25.2 and later accept it. The constraint
+-- is the transaction, not the batching: sending the two statements as one
+-- multi-statement query, as two queries inside one transaction, or as one
+-- multi-statement query with no explicit transaction (which is itself an
+-- implicit one) all fail the same way. Only committing the ALTER before the
+-- CREATE INDEX runs works.
+--
+-- Every DBOS SDK applies a migration in a single transaction, so this affects
+-- Go, Python, TypeScript, and Java alike, and no CI catches it because they all
+-- test CockroachDB on a current release. Migrations 40 and 41 have the same
+-- shape. Migrations 4, 8 and 12 do not: their indexes are not partial.
+-- Migration 16's index is partial but its predicate names an existing column,
+-- which is fine.
+--
+-- Fixing it means committing the ALTER separately from the CREATE INDEX on
+-- CockroachDB, which needs a runner that can apply one migration as more than
+-- one transaction. Both statements are IF NOT EXISTS, so re-running the whole
+-- migration after a failure between them would be safe.
+
+ALTER TABLE %s."workflow_status" ADD COLUMN IF NOT EXISTS "completed_at" BIGINT;
+CREATE INDEX IF NOT EXISTS "idx_workflow_status_completed_at" ON %s."workflow_status" ("completed_at") WHERE "completed_at" IS NOT NULL;
