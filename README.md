@@ -249,7 +249,6 @@ dbosctl workflow list -a myapp --status PENDING -o ids | dbosctl workflow cancel
 
 ```sh
 make generate    # regenerate the API client from the vendored OpenAPI spec
-make migrations  # re-vendor the system-database migrations from a transact checkout
 make build       # build ./dbosctl
 make test        # unit tests
 make lint        # golangci-lint
@@ -257,13 +256,16 @@ make snapshot    # build all-platform artifacts without publishing
 ```
 
 The generated client (`internal/api`) is committed; CI fails on spec drift
-(`make generate` must be a no-op). The system-database migrations in
-`internal/migrations` are a copy of the Go SDK's, kept deliberately rather than
-imported — `internal/migrations/doc.go` says why, names the commit they came
-from, and describes what re-vendoring does not do for you. Integration tests are tagged `integration`
-and stand up real Conductor + Postgres in throwaway containers — see
-`make test-integration` and `.env.example` for the required license key and
-image/checkout settings.
+(`make generate` must be a no-op).
+
+The system-database migrations in `internal/migrations` are the master copy: new
+migrations are written there and the SDKs follow, so nothing regenerates them
+from a transact checkout. `internal/migrations/doc.go` covers what adding one
+involves, and why migrations numbered 100 and up cannot be added here alone.
+
+Integration tests are tagged `integration` and stand up real Conductor +
+Postgres in throwaway containers — see `make test-integration` and
+`.env.example` for the required license key and image/checkout settings.
 
 ### Publishing a Release
 

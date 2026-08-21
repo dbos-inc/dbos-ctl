@@ -8,10 +8,10 @@ import (
 	"testing"
 )
 
-// These tests exist to catch drift after `make migrations` re-vendors the SQL:
-// the SQL files are copied automatically, but the Go code that renders them is
-// maintained by hand, so a file that gained a placeholder — or a migration that
-// upstream added — has to fail here rather than at the first customer database.
+// Adding a migration means editing three things — the SQL file, its embed var,
+// and the list BuildMigrations returns — and nothing but these tests notices
+// when only two of them happened. They are what turns a half-finished migration
+// into a failed build rather than a failed customer database.
 
 // TestEveryRenderedMigrationConsumesItsPlaceholders proves each file's %s verbs
 // match the arguments BuildMigrations passes. fmt reports both directions in
@@ -46,9 +46,9 @@ func TestVersionsAreOrderedAndUnique(t *testing.T) {
 	}
 }
 
-// TestEverySQLFileIsBuilt proves no re-vendored file is orphaned. A migration
-// upstream added lands in sql/ as a new file, but nothing renders it until
-// someone edits migrations.go — this is what says so.
+// TestEverySQLFileIsBuilt proves no file is orphaned. A new migration lands in
+// sql/ first, but nothing renders it until someone adds its embed var and its
+// entry in BuildMigrations — this is what says so.
 func TestEverySQLFileIsBuilt(t *testing.T) {
 	built := map[int64]bool{}
 	for _, m := range BuildMigrations("dbos", false) {
