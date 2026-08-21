@@ -157,9 +157,10 @@ func TestMigrateGrantsApplicationRoleIntegration(t *testing.T) {
 
 // TestMigratedDatabaseIsUsableBySDKIntegration is the compatibility claim that
 // justifies vendoring the migrations at all: a database dbosctl migrated is one
-// a DBOS SDK will connect to and leave alone. The SDK pinned here knows fewer
-// migrations than are vendored, so this also covers the skew direction that
-// matters — an SDK older than the tool that provisioned its database.
+// a DBOS SDK will connect to and leave alone. The SDK pinned in go.mod ships the
+// same migration set that is vendored here, so what this pins down is that two
+// copies of one set do not fight over a database — the SDK finds nothing pending
+// and does not touch the version row.
 func TestMigratedDatabaseIsUsableBySDKIntegration(t *testing.T) {
 	urlFor := startPostgres(t)
 	dbURL := fmt.Sprintf(urlFor, "dbos_sys")

@@ -3,7 +3,7 @@ module github.com/dbos-inc/dbos-ctl
 go 1.25.0
 
 require (
-	github.com/dbos-inc/dbos-transact-golang v1.0.0-rc.1
+	github.com/dbos-inc/dbos-transact-golang v1.2.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/joho/godotenv v1.5.1
 	github.com/oapi-codegen/runtime v1.6.0
