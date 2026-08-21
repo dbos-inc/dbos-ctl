@@ -63,6 +63,51 @@ func TestPrintMigrationsFromAVersionOmitsTheFreshWarning(t *testing.T) {
 	}
 }
 
+// TestPrintMigrationsWithoutListenNotify proves the flag is the sole arbiter in
+// print mode — nothing here can detect a pooler — and that the resulting script
+// says which of the two it is, since no reader could otherwise tell.
+func TestPrintMigrationsWithoutListenNotify(t *testing.T) {
+	cmd, out := newMigrateCmd(t, "--print-migrations", "all", "--no-listen-notify")
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	script := out.String()
+
+	// Matched on the statements, not the word: the header comment below names
+	// pg_notify itself.
+	for _, unwanted := range []string{"PERFORM pg_notify", "CREATE TRIGGER"} {
+		if strings.Contains(script, unwanted) {
+			t.Errorf("script generated with --no-listen-notify contains %q", unwanted)
+		}
+	}
+	if !strings.Contains(script, "-- Generated with --no-listen-notify") {
+		t.Error("script does not record that the triggers were left out")
+	}
+	// The drops still run: they are IF EXISTS no-ops here, and skipping them
+	// would strand the triggers on a database migrated the other way.
+	if !strings.Contains(script, "DROP TRIGGER IF EXISTS dbos_streams_trigger") {
+		t.Error("script omits migration 43's drop")
+	}
+	if !strings.Contains(script, "DROP TRIGGER IF EXISTS dbos_workflow_events_trigger") {
+		t.Error("script omits migration 44's drop")
+	}
+
+	with, _ := newMigrateCmd(t, "--print-migrations", "all")
+	var withOut strings.Builder
+	with.SetOut(&withOut)
+	if err := with.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"PERFORM pg_notify", "CREATE TRIGGER dbos_notifications_trigger"} {
+		if !strings.Contains(withOut.String(), want) {
+			t.Errorf("the default script is missing %q", want)
+		}
+	}
+	if strings.Contains(withOut.String(), "-- Generated with --no-listen-notify") {
+		t.Error("the default script claims the triggers were left out")
+	}
+}
+
 func TestPrintUserRole(t *testing.T) {
 	cmd, out := newMigrateCmd(t, "--print-user-role", "-r", "app_role", "--schema", "myapp")
 	if err := cmd.Execute(); err != nil {

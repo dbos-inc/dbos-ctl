@@ -180,8 +180,26 @@ mean picking an SDK and installing its toolchain.
 | `-D`, `--db-url` | System database URL (else `$DBOS_SYSTEM_DATABASE_URL`) |
 | `--schema` | Schema holding the system tables (default `dbos`) |
 | `-r`, `--app-role` | Grant this role access to the system tables, so the application need not own the database |
+| `--no-listen-notify` | Leave out the triggers that fire `pg_notify` |
 | `--print-migrations all\|N` | Print the SQL from that migration onward instead of running it |
 | `--print-user-role` | Print the `--app-role` grants instead of running them |
+
+By default the system schema carries a trigger that fires `pg_notify` when a
+message is sent, so a waiting application is woken rather than left to poll.
+That does not work everywhere. CockroachDB has no LISTEN/NOTIFY at all, which
+`migrate` detects and handles without being asked. A connection pooler in
+transaction mode also breaks it — the notification arrives on a session the
+application does not keep — and nothing can detect that, so pass
+`--no-listen-notify`:
+
+```sh
+dbosctl migrate -D postgres://... --no-listen-notify        # e.g. behind PgBouncer
+```
+
+The database is complete either way and reports the same migration version; only
+the triggers differ, and the applications fall back to polling. In print mode
+the flag is the only signal there is — nothing to detect against — so the
+generated script says in its header which of the two it is.
 
 The print modes never connect, and write nothing but SQL and comments to stdout,
 for a database whose DDL goes through review:

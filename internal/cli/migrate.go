@@ -33,7 +33,12 @@ the schema if they do not exist yet. Safe to re-run: migrations already recorded
 are skipped, so a database that is up to date is left alone.
 
 This command reaches the database directly, so it takes a database URL rather
-than a profile.`,
+than a profile.
+
+Pass --no-listen-notify for a deployment that cannot use LISTEN/NOTIFY, such as
+one behind a connection pooler in transaction mode: the triggers that fire
+pg_notify are then left out, and the applications fall back to polling.
+CockroachDB is detected and needs no flag.`,
 	Args: cobra.NoArgs,
 	RunE: runMigrate,
 }
@@ -53,6 +58,7 @@ func addMigrateFlags(cmd *cobra.Command) {
 	f.StringP("app-role", "r", "", "database role your DBOS application runs as; granted access to the system tables")
 	f.String("print-migrations", "", "print the SQL of migrations from `all|N` onward instead of running them")
 	f.Bool("print-user-role", false, "print the SQL granting --app-role access to the system tables instead of running it")
+	f.Bool("no-listen-notify", false, "omit the triggers that fire pg_notify, for a deployment that cannot use LISTEN/NOTIFY")
 }
 
 func runMigrate(cmd *cobra.Command, _ []string) error {
@@ -61,11 +67,13 @@ func runMigrate(cmd *cobra.Command, _ []string) error {
 	printMigrations, _ := cmd.Flags().GetString("print-migrations")
 	printUserRole, _ := cmd.Flags().GetBool("print-user-role")
 	printMigrationsSet := cmd.Flags().Changed("print-migrations")
+	noListenNotify, _ := cmd.Flags().GetBool("no-listen-notify")
+	listenNotify := !noListenNotify
 
 	if printMigrationsSet || printUserRole {
 		// Print modes never connect, and stdout stays pure SQL and comments so
 		// it can be redirected straight into a .sql file.
-		return printSQL(cmd, schema, appRole, printMigrations, printMigrationsSet, printUserRole)
+		return printSQL(cmd, schema, appRole, printMigrations, printMigrationsSet, printUserRole, listenNotify)
 	}
 
 	dbURL, err := resolveDBURL(cmd)
@@ -75,7 +83,7 @@ func runMigrate(cmd *cobra.Command, _ []string) error {
 
 	progress := cmd.ErrOrStderr()
 	fmt.Fprintf(progress, "Migrating %s (schema %s)\n", maskPassword(dbURL), schema)
-	if err := migrations.Apply(cmd.Context(), dbURL, schema, progress); err != nil {
+	if err := migrations.Apply(cmd.Context(), dbURL, schema, listenNotify, progress); err != nil {
 		return err
 	}
 	if appRole != "" {
@@ -88,7 +96,7 @@ func runMigrate(cmd *cobra.Command, _ []string) error {
 // separate scripts run by different people at different times — the migrations
 // by whoever owns the database, the grants by whoever owns the role — so asking
 // for both at once is a usage error rather than a concatenation.
-func printSQL(cmd *cobra.Command, schema, appRole, printMigrations string, printMigrationsSet, printUserRole bool) error {
+func printSQL(cmd *cobra.Command, schema, appRole, printMigrations string, printMigrationsSet, printUserRole, listenNotify bool) error {
 	if printMigrationsSet && printUserRole {
 		return &exitError{code: 2, msg: "--print-user-role cannot be combined with --print-migrations"}
 	}
@@ -121,14 +129,14 @@ func printSQL(cmd *cobra.Command, schema, appRole, printMigrations string, print
 		}
 		from = n
 	}
-	statements, err := migrations.Statements(schema, from)
+	statements, err := migrations.Statements(schema, from, listenNotify)
 	if err != nil {
 		return err
 	}
 	// Naming the database is a comment, not a connection: print mode still
 	// works with no URL at all, and then simply does not name one.
 	dbURL, _ := resolveDBURL(cmd)
-	writeMigrationHeader(out, dbURL, from)
+	writeMigrationHeader(out, dbURL, from, listenNotify)
 	for _, stmt := range statements {
 		fmt.Fprintln(out, stmt)
 	}
@@ -137,13 +145,20 @@ func printSQL(cmd *cobra.Command, schema, appRole, printMigrations string, print
 
 // writeMigrationHeader writes the comment block above a printed script: what it
 // is, and the two things that decide whether running it will work.
-func writeMigrationHeader(out io.Writer, dbURL string, from int) {
+func writeMigrationHeader(out io.Writer, dbURL string, from int, listenNotify bool) {
 	header := "-- DBOS system database migrations"
 	if dbURL != "" {
 		header += " for " + maskPassword(dbURL)
 	}
 	fmt.Fprintln(out, header)
 	fmt.Fprintln(out, "-- Contains CREATE/DROP INDEX CONCURRENTLY: run outside a transaction block (e.g. plain psql, not psql --single-transaction).")
+	// Which half of a pair of scripts this is has to be legible in the file
+	// itself: nothing downstream can tell them apart by reading the SQL, and
+	// applying the wrong one leaves a database whose triggers do not match what
+	// the applications expect.
+	if !listenNotify {
+		fmt.Fprintln(out, "-- Generated with --no-listen-notify: the pg_notify triggers are NOT included.")
+	}
 	if from == 1 {
 		fmt.Fprintln(out, "-- This script is for FRESH databases only.")
 	}

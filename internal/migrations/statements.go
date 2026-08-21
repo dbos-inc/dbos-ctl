@@ -20,11 +20,17 @@ import (
 // nothing. Each migration is followed by its version bookkeeping, mirroring the
 // runner. The SQL contains CREATE/DROP INDEX CONCURRENTLY, so it must run
 // outside a transaction block. An empty schemaName uses the default.
-func Statements(schemaName string, from int) ([]string, error) {
+//
+// listenNotify decides whether the pg_notify triggers are in the script. Print
+// mode never connects, so nothing here can detect CockroachDB or a connection
+// pooler: the caller's answer is the only one available, and it is taken at
+// face value. The rest of the script is PostgreSQL — a CockroachDB deployment
+// wants the live migration, which detects the dialect.
+func Statements(schemaName string, from int, listenNotify bool) ([]string, error) {
 	if schemaName == "" {
 		schemaName = DefaultSchema
 	}
-	migrations := BuildMigrations(schemaName, false)
+	migrations := BuildMigrations(schemaName, false, listenNotify)
 	latest := migrations[len(migrations)-1].Version
 	if from < 1 || int64(from) > latest {
 		// Printed verbatim by the CLI, so worded for the end user.

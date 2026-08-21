@@ -76,6 +76,9 @@ var migration19SQL string
 //go:embed sql/20_set_function_search_path.sql
 var migration20SQL string
 
+//go:embed sql/20_set_function_search_path_listen_notify.sql
+var migration20ListenNotifySQL string
+
 //go:embed sql/21_create_queues_table.sql
 var migration21SQL string
 
@@ -211,14 +214,25 @@ func concurrentlyKw(isCockroach bool) string {
 }
 
 // BuildMigrations renders the full list of migrations against the target schema.
-func BuildMigrations(schema string, isCockroach bool) []MigrationFile {
+//
+// Two independent switches shape the result. isCockroach picks the dialect:
+// CockroachDB takes different SQL for a few catalog operations and rejects
+// CONCURRENTLY. listenNotify decides whether the triggers that fire pg_notify
+// are installed at all — false for CockroachDB, which has no LISTEN/NOTIFY, and
+// false by request for a PostgreSQL deployment that cannot use it, a connection
+// pooler in transaction mode being the usual reason.
+//
+// A migration that renders empty is still returned with its version: the runner
+// advances past it, so version numbers mean the same thing on every deployment
+// regardless of which switches were set.
+func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationFile {
 	sanitizedSchema := pgx.Identifier{schema}.Sanitize()
 
 	migration1SQLProcessed := fmt.Sprintf(migration1SQL,
 		sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema,
 		sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema,
 		sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema)
-	if !isCockroach {
+	if listenNotify {
 		migration1ListenNotifySQLProcessed := fmt.Sprintf(migration1ListenNotifySQL,
 			sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema)
 		migration1SQLProcessed = migration1SQLProcessed + "\n" + migration1ListenNotifySQLProcessed
@@ -227,10 +241,15 @@ func BuildMigrations(schema string, isCockroach bool) []MigrationFile {
 	c := concurrentlyKw(isCockroach)
 
 	// Migration 20 is a Postgres-only function-hardening pass; on CockroachDB
-	// it is a no-op (the version row still advances).
+	// it is a no-op (the version row still advances). Its trailing half pins the
+	// trigger functions from migration 1's LISTEN/NOTIFY block, so it is
+	// appended only where that block ran — the functions do not otherwise exist.
 	migration20SQLProcessed := ""
 	if !isCockroach {
-		migration20SQLProcessed = fmt.Sprintf(migration20SQL, sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema)
+		migration20SQLProcessed = fmt.Sprintf(migration20SQL, sanitizedSchema, sanitizedSchema)
+		if listenNotify {
+			migration20SQLProcessed = migration20SQLProcessed + "\n" + fmt.Sprintf(migration20ListenNotifySQL, sanitizedSchema, sanitizedSchema)
+		}
 	}
 
 	// Migration 28 drops the legacy uq_workflow_status_queue_name_dedup_id
@@ -252,24 +271,25 @@ func BuildMigrations(schema string, isCockroach bool) []MigrationFile {
 		migration38SQLProcessed = migration38SQLProcessed + "\n" + fmt.Sprintf(migration38SearchPathSQL, sanitizedSchema)
 	}
 
-	// Migration 39 installs the streams notification trigger. Gated on
-	// LISTEN/NOTIFY support, mirroring the migration 1 triggers; on CockroachDB
-	// it is a no-op (the version row still advances).
+	// Migration 39 installs the streams notification trigger, so it is gated on
+	// LISTEN/NOTIFY support exactly like the migration 1 triggers. Without it
+	// the migration is a no-op (the version row still advances).
 	migration39SQLProcessed := ""
-	if !isCockroach {
+	if listenNotify {
 		migration39SQLProcessed = fmt.Sprintf(migration39SQL,
 			sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema)
 	}
 
 	// Migrations 43 and 44 drop the streams and workflow_events triggers
-	// installed by migrations 39 and 1. Both are gated like the triggers they
-	// remove: on CockroachDB they were never created, so this is a no-op (the
-	// version row still advances).
-	migration43SQLProcessed, migration44SQLProcessed := "", ""
-	if !isCockroach {
-		migration43SQLProcessed = fmt.Sprintf(migration43SQL, sanitizedSchema, sanitizedSchema)
-		migration44SQLProcessed = fmt.Sprintf(migration44SQL, sanitizedSchema, sanitizedSchema)
-	}
+	// installed by migrations 39 and 1. Unlike the migrations that create those
+	// triggers, these run everywhere: every statement is an IF EXISTS no-op
+	// where the objects were never created, and gating them would leave a hole.
+	// A process migrating without LISTEN/NOTIFY would skip the drops while
+	// advancing the version past them, and no later process would retry — the
+	// triggers would survive forever on that database, still notifying inside
+	// every write transaction, which is the cost these migrations remove.
+	migration43SQLProcessed := fmt.Sprintf(migration43SQL, sanitizedSchema, sanitizedSchema)
+	migration44SQLProcessed := fmt.Sprintf(migration44SQL, sanitizedSchema, sanitizedSchema)
 
 	// Migration 105 replaces enqueue_workflow with a signature adding a
 	// trailing application_name. Like migration 38, the DROP/CREATE base runs

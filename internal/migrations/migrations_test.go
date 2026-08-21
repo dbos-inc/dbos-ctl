@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -20,12 +21,21 @@ import (
 // surviving in the output is not an error: PL/pgSQL format() calls carry their
 // own %%s escapes, which render to exactly that.
 func TestEveryRenderedMigrationConsumesItsPlaceholders(t *testing.T) {
-	for _, isCockroach := range []bool{false, true} {
-		for _, m := range BuildMigrations("dbos", isCockroach) {
+	forEachVariant(func(name string, isCockroach, listenNotify bool) {
+		for _, m := range BuildMigrations("dbos", isCockroach, listenNotify) {
 			if strings.Contains(m.SQL, "%!") {
-				t.Errorf("migration %d (cockroach=%v) has a placeholder mismatch:\n%s",
-					m.Version, isCockroach, m.SQL)
+				t.Errorf("migration %d (%s) has a placeholder mismatch:\n%s", m.Version, name, m.SQL)
 			}
+		}
+	})
+}
+
+// forEachVariant runs fn over all four combinations of the two switches that
+// shape the migration set.
+func forEachVariant(fn func(name string, isCockroach, listenNotify bool)) {
+	for _, isCockroach := range []bool{false, true} {
+		for _, listenNotify := range []bool{false, true} {
+			fn(fmt.Sprintf("cockroach=%v listenNotify=%v", isCockroach, listenNotify), isCockroach, listenNotify)
 		}
 	}
 }
@@ -35,7 +45,7 @@ func TestEveryRenderedMigrationConsumesItsPlaceholders(t *testing.T) {
 // treats the last one as latest.
 func TestVersionsAreOrderedAndUnique(t *testing.T) {
 	var last int64
-	for _, m := range BuildMigrations("dbos", false) {
+	for _, m := range BuildMigrations("dbos", false, true) {
 		if m.Version <= last {
 			t.Fatalf("migration versions are not strictly increasing: %d after %d", m.Version, last)
 		}
@@ -46,17 +56,98 @@ func TestVersionsAreOrderedAndUnique(t *testing.T) {
 	}
 }
 
+// TestEveryVariantCountsToTheSameVersion proves a skipped migration still
+// occupies its number. Version 107 has to mean the same thing on CockroachDB,
+// on a pooled PostgreSQL, and on a plain one — otherwise two deployments of one
+// application disagree about whether their databases are up to date.
+func TestEveryVariantCountsToTheSameVersion(t *testing.T) {
+	forEachVariant(func(name string, isCockroach, listenNotify bool) {
+		m := BuildMigrations("dbos", isCockroach, listenNotify)
+		if got := m[len(m)-1].Version; got != LatestVersion() {
+			t.Errorf("%s reaches version %d, want %d", name, got, LatestVersion())
+		}
+		if len(m) != len(BuildMigrations("dbos", false, true)) {
+			t.Errorf("%s has %d migrations, want the same count as a plain PostgreSQL", name, len(m))
+		}
+	})
+}
+
+// TestListenNotifyGating proves the flag decides exactly one thing: whether SQL
+// that installs a pg_notify trigger is emitted. Nothing else may vary with it,
+// or a database migrated without LISTEN/NOTIFY would differ from one migrated
+// with it in ways no application knows about.
+func TestListenNotifyGating(t *testing.T) {
+	for _, isCockroach := range []bool{false, true} {
+		off := renderedByVersion(BuildMigrations("dbos", isCockroach, false))
+		for version, sql := range off {
+			if strings.Contains(sql, "pg_notify") {
+				t.Errorf("migration %d installs a pg_notify trigger with LISTEN/NOTIFY off (cockroach=%v):\n%s",
+					version, isCockroach, sql)
+			}
+		}
+		if strings.Contains(off[20], "notifications_function") {
+			t.Errorf("migration 20 alters the notification functions that migration 1 did not create (cockroach=%v)", isCockroach)
+		}
+		if off[39] != "" {
+			t.Errorf("migration 39 is not empty with LISTEN/NOTIFY off (cockroach=%v)", isCockroach)
+		}
+	}
+
+	on := renderedByVersion(BuildMigrations("dbos", false, true))
+	if !strings.Contains(on[1], "pg_notify") {
+		t.Error("migration 1 installs no notification triggers with LISTEN/NOTIFY on")
+	}
+	if !strings.Contains(on[20], "notifications_function") {
+		t.Error("migration 20 does not pin the notification functions with LISTEN/NOTIFY on")
+	}
+	if !strings.Contains(on[39], "pg_notify") {
+		t.Error("migration 39 installs no streams trigger with LISTEN/NOTIFY on")
+	}
+}
+
+// TestTriggerDropsAreUnconditional proves migrations 43 and 44 run everywhere.
+// Every statement in them is an IF EXISTS no-op where the trigger was never
+// created, and skipping them would strand the triggers forever on a database
+// whose version was advanced past them by a process that had LISTEN/NOTIFY off.
+func TestTriggerDropsAreUnconditional(t *testing.T) {
+	forEachVariant(func(name string, isCockroach, listenNotify bool) {
+		rendered := renderedByVersion(BuildMigrations("dbos", isCockroach, listenNotify))
+		for _, version := range []int64{43, 44} {
+			sql := rendered[version]
+			if sql == "" {
+				t.Errorf("migration %d is empty for %s", version, name)
+				continue
+			}
+			for _, stmt := range strings.Split(sql, ";") {
+				if strings.TrimSpace(stmt) == "" || strings.HasPrefix(strings.TrimSpace(stmt), "--") {
+					continue
+				}
+				if !strings.Contains(stmt, "IF EXISTS") {
+					t.Errorf("migration %d runs unconditionally but this statement is not IF EXISTS:\n%s", version, stmt)
+				}
+			}
+		}
+	})
+}
+
+func renderedByVersion(ms []MigrationFile) map[int64]string {
+	out := make(map[int64]string, len(ms))
+	for _, m := range ms {
+		out[m.Version] = m.SQL
+	}
+	return out
+}
+
 // TestEverySQLFileIsBuilt proves no file is orphaned. A new migration lands in
 // sql/ first, but nothing renders it until someone adds its embed var and its
 // entry in BuildMigrations — this is what says so.
 func TestEverySQLFileIsBuilt(t *testing.T) {
 	built := map[int64]bool{}
-	for _, m := range BuildMigrations("dbos", false) {
-		built[m.Version] = true
-	}
-	for _, m := range BuildMigrations("dbos", true) {
-		built[m.Version] = true
-	}
+	forEachVariant(func(_ string, isCockroach, listenNotify bool) {
+		for _, m := range BuildMigrations("dbos", isCockroach, listenNotify) {
+			built[m.Version] = true
+		}
+	})
 
 	entries, err := os.ReadDir("sql")
 	if err != nil {
@@ -101,7 +192,7 @@ func TestEverySQLFileIsBuilt(t *testing.T) {
 // TestSchemaNameIsQuoted proves the schema reaches the SQL as a quoted
 // identifier, so a schema name needing quotes cannot break out of it.
 func TestSchemaNameIsQuoted(t *testing.T) {
-	for _, m := range BuildMigrations(`we"ird`, false) {
+	for _, m := range BuildMigrations(`we"ird`, false, true) {
 		if strings.Contains(m.SQL, `we"ird`) && !strings.Contains(m.SQL, `"we""ird"`) {
 			t.Fatalf("migration %d embeds the schema name unquoted", m.Version)
 		}

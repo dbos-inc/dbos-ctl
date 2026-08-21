@@ -20,10 +20,17 @@ const DefaultSchema = "dbos"
 // CockroachDB (which changes what some migrations render), and applies whatever
 // is pending. Progress lines go to progress, which may be nil.
 //
+// listenNotify asks for the triggers that fire pg_notify. CockroachDB overrides
+// it: it has no LISTEN/NOTIFY, so those migrations cannot be applied there at
+// all, and asking for them is a mistake worth correcting rather than failing
+// over. Nothing can detect the other reason to turn them off — a connection
+// pooler in transaction mode, where the notifications are delivered to a
+// session the application does not keep — so that one has to be asked for.
+//
 // The order matters and mirrors the SDK's startup path: the database has to
 // exist before a connection can report the server type, and the server type
 // decides which SQL the pending migrations are made of.
-func Apply(ctx context.Context, databaseURL, schema string, progress io.Writer) error {
+func Apply(ctx context.Context, databaseURL, schema string, listenNotify bool, progress io.Writer) error {
 	if schema == "" {
 		schema = DefaultSchema
 	}
@@ -52,22 +59,29 @@ func Apply(ctx context.Context, databaseURL, schema string, progress io.Writer) 
 	conn.Release()
 	if isCockroach {
 		logf(progress, "Detected CockroachDB")
+		if listenNotify {
+			listenNotify = false
+			logf(progress, "CockroachDB has no LISTEN/NOTIFY: migrating without the notification triggers")
+		}
 	}
 
-	pending, err := ShouldMigrate(ctx, pool, schema, isCockroach)
+	pending, err := ShouldMigrate(ctx, pool, schema, isCockroach, listenNotify)
 	if err != nil {
 		return fmt.Errorf("failed to determine migration status: %w", err)
 	}
 	if !pending {
-		logf(progress, "System database is already up to date (migration %d)", LatestVersion(schema, isCockroach))
+		logf(progress, "System database is already up to date (migration %d)", LatestVersion())
 		return nil
 	}
-	return RunMigrations(ctx, pool, schema, isCockroach, progress)
+	return RunMigrations(ctx, pool, schema, isCockroach, listenNotify, progress)
 }
 
-// LatestVersion is the version a fully migrated database reports.
-func LatestVersion(schema string, isCockroach bool) int64 {
-	m := BuildMigrations(schema, isCockroach)
+// LatestVersion is the version a fully migrated database reports. It takes no
+// arguments because it depends on neither the dialect nor LISTEN/NOTIFY: a
+// migration that renders empty still occupies its version, so every deployment
+// counts to the same number.
+func LatestVersion() int64 {
+	m := BuildMigrations(DefaultSchema, false, true)
 	return m[len(m)-1].Version
 }
 
@@ -113,7 +127,7 @@ func EnsureDatabase(ctx context.Context, pool *pgxpool.Pool, progress io.Writer)
 // ShouldMigrate reports whether any migration work remains for the schema.
 // Returns true if the schema is missing, the dbos_migrations table is missing,
 // or the recorded version is behind the latest.
-func ShouldMigrate(ctx context.Context, pool *pgxpool.Pool, schema string, isCockroach bool) (bool, error) {
+func ShouldMigrate(ctx context.Context, pool *pgxpool.Pool, schema string, isCockroach, listenNotify bool) (bool, error) {
 	var schemaExists bool
 	err := pool.QueryRow(ctx,
 		`SELECT EXISTS(SELECT 1 FROM information_schema.schemata WHERE schema_name = $1)`,
@@ -142,7 +156,7 @@ func ShouldMigrate(ctx context.Context, pool *pgxpool.Pool, schema string, isCoc
 	if err != nil && err != pgx.ErrNoRows {
 		return false, fmt.Errorf("failed to get current migration version: %w", err)
 	}
-	migrations := BuildMigrations(schema, isCockroach)
+	migrations := BuildMigrations(schema, isCockroach, listenNotify)
 	return currentVersion < migrations[len(migrations)-1].Version, nil
 }
 
@@ -189,8 +203,8 @@ func CleanupInvalidIndexes(ctx context.Context, pool *pgxpool.Pool, schema strin
 // Unlike the SDK's copy this does not retry: the SDK migrates during
 // application startup, where a transient database error should not fail a
 // deploy, while a CLI invocation can simply report the error and be run again.
-func RunMigrations(ctx context.Context, pool *pgxpool.Pool, schema string, isCockroach bool, progress io.Writer) error {
-	migrations := BuildMigrations(schema, isCockroach)
+func RunMigrations(ctx context.Context, pool *pgxpool.Pool, schema string, isCockroach, listenNotify bool, progress io.Writer) error {
+	migrations := BuildMigrations(schema, isCockroach, listenNotify)
 	sanitizedSchema := pgx.Identifier{schema}.Sanitize()
 
 	// Schema + migrations table setup in a single short transaction.

@@ -6,6 +6,9 @@
 --
 -- This migration is skipped on CockroachDB, which does not support
 -- ALTER FUNCTION ... SET. The runner passes the empty string in that case.
+--
+-- The LISTEN/NOTIFY functions are pinned by the companion file, which only
+-- runs where they were created.
 
 ALTER FUNCTION %s.enqueue_workflow(
     TEXT, TEXT, JSON[], JSON, TEXT, TEXT, TEXT, TEXT, BIGINT, BIGINT, TEXT, INT4, TEXT
@@ -14,6 +17,3 @@ ALTER FUNCTION %s.enqueue_workflow(
 ALTER FUNCTION %s.send_message(
     TEXT, JSON, TEXT, TEXT
 ) SET search_path = pg_catalog, pg_temp;
-
-ALTER FUNCTION %s.notifications_function() SET search_path = pg_catalog, pg_temp;
-ALTER FUNCTION %s.workflow_events_function() SET search_path = pg_catalog, pg_temp;

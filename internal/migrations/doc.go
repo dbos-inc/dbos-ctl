@@ -28,6 +28,27 @@
 // them outside one and bumps the version separately, which means such a
 // migration must be safe to re-execute.
 //
+// # LISTEN/NOTIFY
+//
+// BuildMigrations takes two independent switches. isCockroach picks the
+// dialect. listenNotify decides whether the triggers that fire pg_notify are
+// installed, and it is off in two unrelated situations: CockroachDB, which has
+// no LISTEN/NOTIFY and is detected, and a PostgreSQL deployment that cannot use
+// it — a connection pooler in transaction mode being the usual reason — which
+// cannot be detected and so is a flag the operator passes. Live migration
+// combines the two; print mode has only the flag, since it never connects.
+//
+// A migration that creates a notification trigger is gated on listenNotify. A
+// migration that drops one is not: every such statement is an IF EXISTS no-op
+// where the trigger was never created, and gating the drops would leave a hole.
+// A process migrating without LISTEN/NOTIFY would skip them while advancing the
+// version past them, and no later process would retry — the triggers would
+// survive forever on that database. The same reasoning governs the Java SDK's
+// copy of this set, which is where it was worked out.
+//
+// Whether a migration renders empty never changes which versions exist, so a
+// database reports the same version number whichever way it was migrated.
+//
 // Versions from SharedMigrationBase on are defined identically by every DBOS
 // SDK. Adding one here is a cross-SDK change: the same migration, with the same
 // number and the same effect, has to land in Python, TypeScript, Java, and Go,

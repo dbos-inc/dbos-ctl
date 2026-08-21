@@ -89,7 +89,7 @@ func TestMigrateCreatesSystemDatabaseIntegration(t *testing.T) {
 	runMigrateOrFail(t, "--db-url", dbURL)
 
 	conn := connect(t, dbURL)
-	latest := migrations.LatestVersion(migrations.DefaultSchema, false)
+	latest := migrations.LatestVersion()
 	if got := scalar[int64](t, conn, `SELECT version FROM dbos.dbos_migrations`); got != latest {
 		t.Errorf("recorded migration version %d, want %d", got, latest)
 	}
@@ -112,6 +112,68 @@ func TestMigrateCreatesSystemDatabaseIntegration(t *testing.T) {
 	}
 }
 
+// TestMigrateWithoutListenNotifyIntegration proves the flag reaches a real
+// database: the schema comes out complete and at the latest version, but with
+// none of the triggers that would fire pg_notify inside a write transaction.
+// This is the shape a deployment behind a transaction-mode pooler needs, which
+// nothing can detect and so has to be asked for.
+func TestMigrateWithoutListenNotifyIntegration(t *testing.T) {
+	urlFor := startPostgres(t)
+	dbURL := fmt.Sprintf(urlFor, "dbos_sys")
+
+	runMigrateOrFail(t, "--db-url", dbURL, "--no-listen-notify")
+
+	conn := connect(t, dbURL)
+	if got := scalar[int64](t, conn, `SELECT version FROM dbos.dbos_migrations`); got != migrations.LatestVersion() {
+		t.Errorf("recorded migration version %d, want %d", got, migrations.LatestVersion())
+	}
+	if n := scalar[int64](t, conn, `SELECT count(*) FROM pg_trigger tg
+		JOIN pg_class c ON c.oid = tg.tgrelid
+		JOIN pg_namespace n ON n.oid = c.relnamespace
+		WHERE n.nspname = 'dbos' AND NOT tg.tgisinternal`); n != 0 {
+		t.Errorf("%d trigger(s) installed with --no-listen-notify, want 0", n)
+	}
+	for _, fn := range []string{"notifications_function", "workflow_events_function", "streams_function"} {
+		if scalar[bool](t, conn, `SELECT EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+			WHERE n.nspname = 'dbos' AND p.proname = $1)`, fn) {
+			t.Errorf("%s exists with --no-listen-notify", fn)
+		}
+	}
+	// The tables and functions that are not about notification are still there.
+	if !scalar[bool](t, conn, `SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='dbos' AND table_name='streams')`) {
+		t.Error("streams table is missing: --no-listen-notify removed more than the triggers")
+	}
+	if !scalar[bool](t, conn, `SELECT EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+		WHERE n.nspname = 'dbos' AND p.proname = 'enqueue_workflow')`) {
+		t.Error("enqueue_workflow is missing: --no-listen-notify removed more than the triggers")
+	}
+}
+
+// TestMigrateDefaultInstallsTheNotificationTriggerIntegration is the other half
+// of the pair: by default a PostgreSQL database gets the notifications trigger
+// that migration 1 installs and migrations 43 and 44 do not drop.
+func TestMigrateDefaultInstallsTheNotificationTriggerIntegration(t *testing.T) {
+	urlFor := startPostgres(t)
+	dbURL := fmt.Sprintf(urlFor, "dbos_sys")
+
+	runMigrateOrFail(t, "--db-url", dbURL)
+
+	conn := connect(t, dbURL)
+	triggers := scalar[int64](t, conn, `SELECT count(*) FROM pg_trigger tg
+		JOIN pg_class c ON c.oid = tg.tgrelid
+		JOIN pg_namespace n ON n.oid = c.relnamespace
+		WHERE n.nspname = 'dbos' AND NOT tg.tgisinternal AND tg.tgname = 'dbos_notifications_trigger'`)
+	if triggers != 1 {
+		t.Errorf("found %d dbos_notifications_trigger, want 1", triggers)
+	}
+	// Migrations 43 and 44 dropped these two, so they must not survive.
+	for _, tg := range []string{"dbos_streams_trigger", "dbos_workflow_events_trigger"} {
+		if scalar[bool](t, conn, `SELECT EXISTS(SELECT 1 FROM pg_trigger WHERE tgname = $1 AND NOT tgisinternal)`, tg) {
+			t.Errorf("%s survived the migrations that drop it", tg)
+		}
+	}
+}
+
 // TestMigrateCustomSchemaIntegration proves --schema is honored everywhere, not
 // just in the printed SQL: a second schema in the same database migrates
 // independently of the default one.
@@ -122,7 +184,7 @@ func TestMigrateCustomSchemaIntegration(t *testing.T) {
 	runMigrateOrFail(t, "--db-url", dbURL, "--schema", "tenant_a")
 
 	conn := connect(t, dbURL)
-	if got := scalar[int64](t, conn, `SELECT version FROM tenant_a.dbos_migrations`); got != migrations.LatestVersion("tenant_a", false) {
+	if got := scalar[int64](t, conn, `SELECT version FROM tenant_a.dbos_migrations`); got != migrations.LatestVersion() {
 		t.Errorf("tenant_a is at migration %d, want the latest", got)
 	}
 	if scalar[bool](t, conn, `SELECT EXISTS(SELECT 1 FROM information_schema.schemata WHERE schema_name='dbos')`) {
