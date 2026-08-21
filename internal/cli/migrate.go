@@ -59,6 +59,7 @@ func addMigrateFlags(cmd *cobra.Command) {
 	f.String("print-migrations", "", "print the SQL of migrations from `all|N` onward instead of running them")
 	f.Bool("print-user-role", false, "print the SQL granting --app-role access to the system tables instead of running it")
 	f.Bool("no-listen-notify", false, "omit the triggers that fire pg_notify, for a deployment that cannot use LISTEN/NOTIFY")
+	f.Bool("cockroach", false, "render the printed SQL for CockroachDB; live migration detects the server itself")
 }
 
 func runMigrate(cmd *cobra.Command, _ []string) error {
@@ -69,11 +70,17 @@ func runMigrate(cmd *cobra.Command, _ []string) error {
 	printMigrationsSet := cmd.Flags().Changed("print-migrations")
 	noListenNotify, _ := cmd.Flags().GetBool("no-listen-notify")
 	listenNotify := !noListenNotify
+	cockroach, _ := cmd.Flags().GetBool("cockroach")
 
 	if printMigrationsSet || printUserRole {
 		// Print modes never connect, and stdout stays pure SQL and comments so
 		// it can be redirected straight into a .sql file.
-		return printSQL(cmd, schema, appRole, printMigrations, printMigrationsSet, printUserRole, listenNotify)
+		return printSQL(cmd, schema, appRole, printMigrations, printMigrationsSet, printUserRole, cockroach, listenNotify)
+	}
+	if cockroach {
+		// Nothing to override: a live migration asks the server what it is, and
+		// the answer beats anything a flag could say.
+		return &exitError{code: 2, msg: "--cockroach only applies to --print-migrations; a live migration detects the server itself"}
 	}
 
 	dbURL, err := resolveDBURL(cmd)
@@ -96,7 +103,7 @@ func runMigrate(cmd *cobra.Command, _ []string) error {
 // separate scripts run by different people at different times — the migrations
 // by whoever owns the database, the grants by whoever owns the role — so asking
 // for both at once is a usage error rather than a concatenation.
-func printSQL(cmd *cobra.Command, schema, appRole, printMigrations string, printMigrationsSet, printUserRole, listenNotify bool) error {
+func printSQL(cmd *cobra.Command, schema, appRole, printMigrations string, printMigrationsSet, printUserRole, cockroach, listenNotify bool) error {
 	if printMigrationsSet && printUserRole {
 		return &exitError{code: 2, msg: "--print-user-role cannot be combined with --print-migrations"}
 	}
@@ -129,14 +136,19 @@ func printSQL(cmd *cobra.Command, schema, appRole, printMigrations string, print
 		}
 		from = n
 	}
-	statements, err := migrations.Statements(schema, from, listenNotify)
+	// CockroachDB has no LISTEN/NOTIFY on any version, so asking for the dialect
+	// settles the other switch rather than conflicting with it.
+	if cockroach {
+		listenNotify = false
+	}
+	statements, err := migrations.Statements(schema, from, cockroach, listenNotify)
 	if err != nil {
 		return err
 	}
 	// Naming the database is a comment, not a connection: print mode still
 	// works with no URL at all, and then simply does not name one.
 	dbURL, _ := resolveDBURL(cmd)
-	writeMigrationHeader(out, dbURL, from, listenNotify)
+	writeMigrationHeader(out, dbURL, from, cockroach, listenNotify)
 	for _, stmt := range statements {
 		fmt.Fprintln(out, stmt)
 	}
@@ -145,18 +157,24 @@ func printSQL(cmd *cobra.Command, schema, appRole, printMigrations string, print
 
 // writeMigrationHeader writes the comment block above a printed script: what it
 // is, and the two things that decide whether running it will work.
-func writeMigrationHeader(out io.Writer, dbURL string, from int, listenNotify bool) {
+func writeMigrationHeader(out io.Writer, dbURL string, from int, cockroach, listenNotify bool) {
 	header := "-- DBOS system database migrations"
 	if dbURL != "" {
 		header += " for " + maskPassword(dbURL)
 	}
 	fmt.Fprintln(out, header)
-	fmt.Fprintln(out, "-- Contains CREATE/DROP INDEX CONCURRENTLY: run outside a transaction block (e.g. plain psql, not psql --single-transaction).")
-	// Which half of a pair of scripts this is has to be legible in the file
-	// itself: nothing downstream can tell them apart by reading the SQL, and
-	// applying the wrong one leaves a database whose triggers do not match what
-	// the applications expect.
-	if !listenNotify {
+	// Which of the variants this is has to be legible in the file itself:
+	// nothing downstream can tell them apart by reading the SQL, and applying
+	// the wrong one leaves a database that does not match what the applications
+	// expect — or, for the dialect, one that fails halfway through.
+	if cockroach {
+		fmt.Fprintln(out, "-- Generated with --cockroach: for CockroachDB, NOT PostgreSQL.")
+	} else {
+		// CockroachDB's script has no CONCURRENTLY in it, so the warning would
+		// send its reader looking for something that is not there.
+		fmt.Fprintln(out, "-- Contains CREATE/DROP INDEX CONCURRENTLY: run outside a transaction block (e.g. plain psql, not psql --single-transaction).")
+	}
+	if !listenNotify && !cockroach {
 		fmt.Fprintln(out, "-- Generated with --no-listen-notify: the pg_notify triggers are NOT included.")
 	}
 	if from == 1 {

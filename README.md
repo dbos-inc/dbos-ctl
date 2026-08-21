@@ -181,6 +181,7 @@ mean picking an SDK and installing its toolchain.
 | `--schema` | Schema holding the system tables (default `dbos`) |
 | `-r`, `--app-role` | Grant this role access to the system tables, so the application need not own the database |
 | `--no-listen-notify` | Leave out the triggers that fire `pg_notify` |
+| `--cockroach` | Render the printed SQL for CockroachDB (print mode only) |
 | `--print-migrations all\|N` | Print the SQL from that migration onward instead of running it |
 | `--print-user-role` | Print the `--app-role` grants instead of running them |
 
@@ -200,6 +201,18 @@ The database is complete either way and reports the same migration version; only
 the triggers differ, and the applications fall back to polling. In print mode
 the flag is the only signal there is — nothing to detect against — so the
 generated script says in its header which of the two it is.
+
+For the same reason, a printed script for CockroachDB has to be asked for:
+
+```sh
+dbosctl migrate --print-migrations all --cockroach > schema.sql
+```
+
+CockroachDB differs in more than the triggers — no `ALTER FUNCTION … SET
+search_path`, a different statement for migration 28, no `DROP TRIGGER` before
+v25, no `CONCURRENTLY` — and a script for the wrong engine fails partway
+through, leaving a half-migrated database. Live migration needs none of this: it
+asks the server, so `--cockroach` there is an error rather than an override.
 
 The print modes never connect, and write nothing but SQL and comments to stdout,
 for a database whose DDL goes through review:

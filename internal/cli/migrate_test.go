@@ -108,6 +108,68 @@ func TestPrintMigrationsWithoutListenNotify(t *testing.T) {
 	}
 }
 
+// TestPrintMigrationsForCockroach proves the dialect reaches every migration
+// that differs, not just the one the reader thinks of. Nothing in print mode
+// can detect the engine, so the flag is the only signal — and a script applied
+// to the wrong engine fails somewhere in the middle, leaving a half-migrated
+// database, which is why the header names which one it is for.
+func TestPrintMigrationsForCockroach(t *testing.T) {
+	cmd, out := newMigrateCmd(t, "--print-migrations", "all", "--cockroach")
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	script := out.String()
+
+	if !strings.Contains(script, "-- Generated with --cockroach") {
+		t.Error("script does not say which engine it is for")
+	}
+	if strings.Contains(script, "CREATE/DROP INDEX CONCURRENTLY: run outside a transaction") {
+		t.Error("script warns about CONCURRENTLY, which it does not contain")
+	}
+
+	// Comment lines discuss these constructs; only the statements matter.
+	for _, line := range strings.Split(script, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "--") {
+			continue
+		}
+		for _, unsupported := range []string{
+			"SET search_path", // migrations 20, 38, 105: no ALTER FUNCTION ... SET
+			"pg_notify",       // migrations 1, 39: no LISTEN/NOTIFY on any version
+			"DROP TRIGGER",    // migrations 43, 44: unparseable before v25
+			"CONCURRENTLY",    // every online index
+		} {
+			if strings.Contains(line, unsupported) {
+				t.Errorf("CockroachDB script contains %q:\n%s", unsupported, line)
+			}
+		}
+	}
+
+	// Migration 28 is not omitted for CockroachDB, it is a different statement:
+	// the constraint PostgreSQL drops is an index there.
+	if !strings.Contains(script, `DROP INDEX IF EXISTS "dbos"."uq_workflow_status_queue_name_dedup_id" CASCADE;`) {
+		t.Error("migration 28 is missing its CockroachDB form")
+	}
+	if strings.Contains(script, "DROP CONSTRAINT IF EXISTS uq_workflow_status_queue_name_dedup_id") {
+		t.Error("migration 28 kept its PostgreSQL form")
+	}
+}
+
+// TestMigrateCockroachFlagIsPrintOnly proves the flag cannot be used to lie to a
+// live migration, which asks the server what it is.
+func TestMigrateCockroachFlagIsPrintOnly(t *testing.T) {
+	cmd, _ := newMigrateCmd(t, "--cockroach", "--db-url", unreachableURL)
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("live migration accepted --cockroach")
+	}
+	if !strings.Contains(err.Error(), "--print-migrations") {
+		t.Errorf("error does not say where the flag applies: %v", err)
+	}
+	if got := exitCodeFor(err); got != 2 {
+		t.Errorf("exit code %d, want 2 for a usage error", got)
+	}
+}
+
 func TestPrintUserRole(t *testing.T) {
 	cmd, out := newMigrateCmd(t, "--print-user-role", "-r", "app_role", "--schema", "myapp")
 	if err := cmd.Execute(); err != nil {

@@ -36,7 +36,15 @@
 // no LISTEN/NOTIFY and is detected, and a PostgreSQL deployment that cannot use
 // it — a connection pooler in transaction mode being the usual reason — which
 // cannot be detected and so is a flag the operator passes. Live migration
-// combines the two; print mode has only the flag, since it never connects.
+// detects the dialect and combines the two; print mode connects to nothing, so
+// both are the caller's to supply.
+//
+// The dialect reaches further than the triggers do: no ALTER FUNCTION ... SET
+// search_path anywhere (migrations 20, 38, 105), a different statement for
+// migration 28, no DROP TRIGGER (43, 44), and no CONCURRENTLY. Measured against
+// CockroachDB v24.1 through v26.2, the LISTEN/NOTIFY and ALTER FUNCTION gaps
+// are permanent, while DROP TRIGGER and DO blocks arrived between v24.3 and
+// v25.2 — which is also the oldest stream the whole set applies to.
 //
 // A migration that creates a notification trigger is gated on listenNotify. A
 // migration that drops one is not: every such statement is an IF EXISTS no-op

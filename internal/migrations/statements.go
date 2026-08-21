@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -21,16 +22,20 @@ import (
 // runner. The SQL contains CREATE/DROP INDEX CONCURRENTLY, so it must run
 // outside a transaction block. An empty schemaName uses the default.
 //
-// listenNotify decides whether the pg_notify triggers are in the script. Print
-// mode never connects, so nothing here can detect CockroachDB or a connection
-// pooler: the caller's answer is the only one available, and it is taken at
-// face value. The rest of the script is PostgreSQL — a CockroachDB deployment
-// wants the live migration, which detects the dialect.
-func Statements(schemaName string, from int, listenNotify bool) ([]string, error) {
+// isCockroach and listenNotify are the same two switches BuildMigrations takes.
+// Print mode never connects, so neither can be detected here: the caller's
+// answers are the only ones available and are taken at face value. A caller
+// asking for CockroachDB must also pass listenNotify false — that engine has no
+// LISTEN/NOTIFY on any version — and Apply enforces the same pairing where it
+// can detect the dialect for itself.
+func Statements(schemaName string, from int, isCockroach, listenNotify bool) ([]string, error) {
 	if schemaName == "" {
 		schemaName = DefaultSchema
 	}
-	migrations := BuildMigrations(schemaName, false, listenNotify)
+	if isCockroach && listenNotify {
+		return nil, errors.New("CockroachDB has no LISTEN/NOTIFY: render it with listenNotify false")
+	}
+	migrations := BuildMigrations(schemaName, isCockroach, listenNotify)
 	latest := migrations[len(migrations)-1].Version
 	if from < 1 || int64(from) > latest {
 		// Printed verbatim by the CLI, so worded for the end user.

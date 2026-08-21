@@ -10,7 +10,7 @@ import (
 // table before the first migration, and seeds the version row rather than
 // updating a row that does not exist yet.
 func TestStatementsFromOneBuildsAFreshDatabase(t *testing.T) {
-	got, err := Statements("dbos", 1, true)
+	got, err := Statements("dbos", 1, false, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestStatementsFromOneBuildsAFreshDatabase(t *testing.T) {
 // assumes the bookkeeping already exists: no schema creation, and updates
 // rather than inserts.
 func TestStatementsFromLaterVersionUpdatesTheVersionRow(t *testing.T) {
-	got, err := Statements("dbos", 40, true)
+	got, err := Statements("dbos", 40, false, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestStatementsFromLaterVersionUpdatesTheVersionRow(t *testing.T) {
 // asking for a version inside the gap is legal and produces only the shared
 // migrations.
 func TestStatementsAcrossTheVersionGap(t *testing.T) {
-	got, err := Statements("dbos", SharedMigrationBase-1, true)
+	got, err := Statements("dbos", SharedMigrationBase-1, false, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestStatementsAcrossTheVersionGap(t *testing.T) {
 // valid range, since it is printed verbatim to whoever mistyped the number.
 func TestStatementsRejectsAVersionThatDoesNotExist(t *testing.T) {
 	for _, from := range []int{0, -1, 1 << 20} {
-		_, err := Statements("dbos", from, true)
+		_, err := Statements("dbos", from, false, true)
 		if err == nil {
 			t.Fatalf("Statements(%d) succeeded, want an error", from)
 		}
@@ -90,7 +90,7 @@ func TestStatementsRejectsAVersionThatDoesNotExist(t *testing.T) {
 // TestStatementsDefaultsTheSchema proves an empty schema name is the default
 // rather than an unquoted hole in the SQL.
 func TestStatementsDefaultsTheSchema(t *testing.T) {
-	got, err := Statements("", 1, true)
+	got, err := Statements("", 1, false, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestStatementsDefaultsTheSchema(t *testing.T) {
 // TestStatementsAreTerminated proves the output is pipeable to psql: every
 // statement ends in a semicolon, and everything else is a comment.
 func TestStatementsAreTerminated(t *testing.T) {
-	got, err := Statements("dbos", 1, true)
+	got, err := Statements("dbos", 1, false, true)
 	if err != nil {
 		t.Fatal(err)
 	}
