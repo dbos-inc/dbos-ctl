@@ -85,10 +85,6 @@ jobs:
         env:
           DBOS_CONDUCTOR_LICENSE_KEY: ${{ secrets.CONDUCTOR_LOCAL_LICENSE_KEY }}
           CONDUCTOR_IMAGE: ${{ vars.CONDUCTOR_IMAGE }}
-          # The migration tests against CockroachDB. Opt-in because the image is
-          # large and slow to pull, which is a cost worth paying here and not on
-          # every local `make test-integration`.
-          DBOS_TEST_COCKROACH: "1"
         run: make test-integration JUNIT=integration-tests.xml
 
       # Without the license key every conductor test skips and this job still
@@ -107,6 +103,45 @@ jobs:
         with:
           name: integration-test-results
           path: integration-tests.xml
+
+  # The migration tests, once per supported system database. Both engines are
+  # supported, and the migration set differs between them in a dozen places —
+  # no CONCURRENTLY, a different migration 28, no triggers, no ALTER FUNCTION —
+  # so running the same suite against each is the only thing that says those
+  # differences are the intended ones. Separate from the integration job so a
+  # failure names the engine in the checks list, and so conductor is not stood
+  # up twice to learn nothing.
+  #
+  # Needs no license key, so this tier still gates fork PRs, where the conductor
+  # tier can only skip.
+  migrations:
+    name: migrations (${{ matrix.engine }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [postgres, cockroach]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: migration tests
+        run: make test-migrations ENGINE=${{ matrix.engine }} JUNIT=migration-tests.xml
+
+      - name: migration test summary
+        uses: test-summary/action@v2
+        if: always()
+        with:
+          paths: migration-tests.xml
+          show: "fail, skip"
+
+      - name: upload migration test results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: migration-test-results-${{ matrix.engine }}
+          path: migration-tests.xml
 
   # Regenerate the client from each *upstream* spec and check the CLI still
   # compiles. The build job's drift check is hermetic — it only proves the

@@ -284,6 +284,10 @@ make build       # build ./dbosctl
 make test        # unit tests
 make lint        # golangci-lint
 make snapshot    # build all-platform artifacts without publishing
+
+make test-integration                   # conductor-backed tests (needs Docker)
+make test-migrations ENGINE=postgres    # migration tests against one engine
+make test-migrations ENGINE=cockroach
 ```
 
 The generated client (`internal/api`) is committed; CI fails on spec drift
@@ -296,9 +300,13 @@ involves, and why migrations numbered 100 and up cannot be added here alone.
 
 Integration tests are tagged `integration` and stand up real Conductor +
 Postgres in throwaway containers — see `make test-integration` and
-`.env.example` for the required license key and image/checkout settings. The
-migration tests against CockroachDB are opt-in (`DBOS_TEST_COCKROACH=1`)
-because of the image size; CI always runs them.
+`.env.example` for the required license key and image/checkout settings.
+
+The migration tests are their own tier, run once per supported system database.
+They skip unless `DBOS_TEST_ENGINE` names one, which is what `make
+test-migrations` sets; CI runs a job per engine, so a failure says which one
+broke. That tier needs no license key, so it still gates fork PRs, where the
+conductor tier can only skip.
 
 
 ### Update flake.nix
