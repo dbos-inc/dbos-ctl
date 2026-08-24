@@ -57,7 +57,7 @@ func TestVersionsAreOrderedAndUnique(t *testing.T) {
 }
 
 // TestEveryVariantCountsToTheSameVersion proves a skipped migration still
-// occupies its number. Version 107 has to mean the same thing on CockroachDB,
+// occupies its number. Version 108 has to mean the same thing on CockroachDB,
 // on a pooled PostgreSQL, and on a plain one — otherwise two deployments of one
 // application disagree about whether their databases are up to date.
 func TestEveryVariantCountsToTheSameVersion(t *testing.T) {

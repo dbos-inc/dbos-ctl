@@ -13,7 +13,7 @@
 //
 // The set started as a copy of dbos-transact-golang v1.2.0, where equivalent
 // code lives in the unexported package dbos/internal/sysdb, and where the
-// history below migration 100 was written. The latest migration is 107.
+// history below migration 100 was written. The latest migration is 108.
 //
 // # Adding a migration
 //

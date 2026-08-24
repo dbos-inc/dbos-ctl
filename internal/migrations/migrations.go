@@ -193,6 +193,9 @@ var migration106SQL string
 //go:embed sql/107_create_application_versions_unclaimed_index.sql
 var migration107SQL string
 
+//go:embed sql/108_add_queue_partition_limits.sql
+var migration108SQL string
+
 type MigrationFile struct {
 	Version int64
 	SQL     string
@@ -368,6 +371,7 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 		{Version: 105, SQL: migration105SQLProcessed},
 		{Version: 106, SQL: fmt.Sprintf(migration106SQL, sanitizedSchema)},
 		{Version: 107, SQL: fmt.Sprintf(migration107SQL, c, sanitizedSchema), Online: !isCockroach},
+		{Version: 108, SQL: fmt.Sprintf(migration108SQL, sanitizedSchema)},
 	}
 }
 
