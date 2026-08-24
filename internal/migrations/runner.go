@@ -281,6 +281,19 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool, schema string, isCoc
 			continue
 		}
 
+		if len(migration.Steps) > 0 {
+			// A migration that cannot be one transaction: each step commits on
+			// its own, and the version row only moves once all of them have.
+			// A failure part-way through therefore replays the whole migration
+			// on the next run, which is safe because every step is idempotent.
+			if err := applySteppedMigration(ctx, pool, schema, migration, currentVersion); err != nil {
+				return err
+			}
+			currentVersion = migration.Version
+			applied++
+			continue
+		}
+
 		if err := applyCatalogMigration(ctx, pool, schema, migration, currentVersion); err != nil {
 			return err
 		}
@@ -290,6 +303,37 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool, schema string, isCoc
 
 	logf(progress, "Applied %d migration(s); system database is at migration %d", applied, currentVersion)
 	return nil
+}
+
+// applySteppedMigration applies a migration whose statements must not share a
+// transaction, then advances the version row.
+//
+// Each Exec on the pool is its own implicit transaction, which is the whole
+// point: CockroachDB before v25 will not build a partial index on a column that
+// became visible in the transaction still running, and batching the statements
+// any other way — one multi-statement query, or two queries inside one explicit
+// transaction — keeps them in one transaction and fails the same way.
+//
+// The version bump is deliberately last and separate. Advancing it between
+// steps would strand the migration half-applied with nothing willing to finish
+// it, which is the failure this arrangement exists to avoid.
+func applySteppedMigration(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	schema string,
+	migration MigrationFile,
+	currentVersion int64,
+) error {
+	for i, step := range migration.Steps {
+		if strings.TrimSpace(step) == "" {
+			continue
+		}
+		if _, err := pool.Exec(ctx, step); err != nil {
+			return fmt.Errorf("failed to execute migration %d (step %d of %d): %w",
+				migration.Version, i+1, len(migration.Steps), err)
+		}
+	}
+	return writeMigrationVersion(ctx, pool, schema, migration.Version, currentVersion)
 }
 
 // applyCatalogMigration runs a single non-online migration and its version bump in one transaction.

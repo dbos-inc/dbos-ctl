@@ -386,3 +386,74 @@ func TestMigration10IsSplitByDialect(t *testing.T) {
 		}
 	}
 }
+
+// TestSteppedMigrationsAreReplayable is the safety condition for Steps. The
+// runner advances the version row only after every step has run, so a failure
+// part-way through replays the migration from its first step on the next run.
+// That is only safe while every step tolerates having already been applied.
+func TestSteppedMigrationsAreReplayable(t *testing.T) {
+	forEachVariant(func(name string, isCockroach, listenNotify bool) {
+		for _, m := range BuildMigrations("dbos", isCockroach, listenNotify) {
+			for i, step := range m.Steps {
+				if !strings.Contains(step, "IF NOT EXISTS") {
+					t.Errorf("migration %d step %d (%s) is not idempotent, so replaying it after a failure would error:\n%s",
+						m.Version, i+1, name, step)
+				}
+			}
+		}
+	})
+}
+
+// TestStepsMatchTheSQLTheyReplace proves a stepped migration applies exactly
+// what its unstepped form would. Steps drives the runner and SQL drives the
+// printed script, so the two drifting apart would mean an operator's script and
+// a live migration doing different things to the same database.
+func TestStepsMatchTheSQLTheyReplace(t *testing.T) {
+	forEachVariant(func(name string, isCockroach, listenNotify bool) {
+		for _, m := range BuildMigrations("dbos", isCockroach, listenNotify) {
+			if len(m.Steps) == 0 {
+				continue
+			}
+			if joined := strings.Join(m.Steps, "\n"); joined != m.SQL {
+				t.Errorf("migration %d (%s) steps do not reassemble its SQL:\nsteps:\n%s\nSQL:\n%s",
+					m.Version, name, joined, m.SQL)
+			}
+		}
+	})
+}
+
+// TestOnlyTheCockroachIndexMigrationsAreStepped pins where the split applies.
+// Stepping costs atomicity — a crash can leave the migration half-applied until
+// the next run — so it is not something to reach for by default. PostgreSQL
+// applies all three as one transaction, as it always has.
+func TestOnlyTheCockroachIndexMigrationsAreStepped(t *testing.T) {
+	want := map[int64]bool{36: true, 40: true, 41: true}
+
+	for _, listenNotify := range []bool{false, true} {
+		for _, m := range BuildMigrations("dbos", false, listenNotify) {
+			if len(m.Steps) > 0 {
+				t.Errorf("migration %d is stepped on PostgreSQL, which needs no split", m.Version)
+			}
+		}
+
+		got := map[int64]bool{}
+		for _, m := range BuildMigrations("dbos", true, listenNotify) {
+			if len(m.Steps) > 0 {
+				got[m.Version] = true
+				if len(m.Steps) != 2 {
+					t.Errorf("migration %d has %d steps on CockroachDB, want the ALTER and its index", m.Version, len(m.Steps))
+				}
+			}
+		}
+		for version := range want {
+			if !got[version] {
+				t.Errorf("migration %d is not stepped on CockroachDB, so its index shares a transaction with the column it names", version)
+			}
+		}
+		for version := range got {
+			if !want[version] {
+				t.Errorf("migration %d is stepped on CockroachDB but is not one of the add-column-then-index migrations", version)
+			}
+		}
+	}
+}
