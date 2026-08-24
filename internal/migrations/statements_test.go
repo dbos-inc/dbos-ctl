@@ -134,3 +134,93 @@ func TestGrantQueriesCoverFutureTables(t *testing.T) {
 		}
 	}
 }
+
+// TestMigration10IsSkippedOnlyForAFreshDatabase pins the one migration whose
+// printed form depends on where the script starts.
+//
+// The skip used to be unconditional, which was right for the case it named and
+// wrong for every other. A script starting above version 1 upgrades a database
+// that predates the migration-1 fix — nothing else could leave the version row
+// below 10 — so it is exactly the database that needs the backfill. Emitting
+// the skip comment there while still advancing the version past 10 left
+// notifications with no primary key and no later run willing to retry, because
+// the version row said the work was done.
+func TestMigration10IsSkippedOnlyForAFreshDatabase(t *testing.T) {
+	const skip = "-- Migration 10 skipped"
+
+	fresh, err := Statements("dbos", 1, false, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := strings.Join(fresh, "\n")
+	if !strings.Contains(script, skip) {
+		t.Error("the fresh-database script does not skip migration 10, which migration 1 already covers")
+	}
+	if strings.Contains(script, "ADD PRIMARY KEY") {
+		t.Error("the fresh-database script backfills a primary key migration 1 just created")
+	}
+
+	// Every starting point that implies an existing database must emit the
+	// real backfill, including asking for migration 10 itself.
+	for _, from := range []int{2, 9, 10} {
+		got, err := Statements("dbos", from, false, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		script := strings.Join(got, "\n")
+		if strings.Contains(script, skip) {
+			t.Errorf("Statements(from=%d) skips migration 10 on a database that predates the fix", from)
+		}
+		if !strings.Contains(script, `ALTER TABLE "dbos".notifications ADD PRIMARY KEY (message_uuid)`) {
+			t.Errorf("Statements(from=%d) does not back the notifications primary key", from)
+		}
+		// The bookkeeping is what made the old behaviour unrecoverable, so it
+		// has to keep pace with the SQL either way.
+		if !strings.Contains(script, `UPDATE "dbos".dbos_migrations SET version = 10;`) {
+			t.Errorf("Statements(from=%d) does not record migration 10", from)
+		}
+	}
+}
+
+// TestMigration10PrintsTheDialectItCanRun proves each engine is handed the
+// only form of this migration it accepts. The DO block is a syntax error on
+// CockroachDB v24.1 and reports an unimplemented feature on v26.2; ADD
+// CONSTRAINT ... IF NOT EXISTS has no PostgreSQL equivalent. Both were checked
+// against live servers, and both are idempotent there.
+func TestMigration10PrintsTheDialectItCanRun(t *testing.T) {
+	crdb, err := Statements("dbos", 10, true, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := strings.Join(crdb, "\n")
+	if strings.Contains(script, "DO $$") {
+		t.Error("the CockroachDB script contains a DO block, which that engine cannot run")
+	}
+	if !strings.Contains(script, `ADD CONSTRAINT IF NOT EXISTS notifications_pkey PRIMARY KEY (message_uuid)`) {
+		t.Error("the CockroachDB script does not add the notifications primary key")
+	}
+
+	pg, err := Statements("dbos", 10, false, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	script = strings.Join(pg, "\n")
+	if !strings.Contains(script, "DO $$") {
+		t.Error("the PostgreSQL script does not use the DO block that makes the backfill conditional")
+	}
+	if strings.Contains(script, "ADD CONSTRAINT IF NOT EXISTS") {
+		t.Error("the PostgreSQL script uses ADD CONSTRAINT IF NOT EXISTS, which PostgreSQL does not support")
+	}
+}
+
+// TestStatementsRejectsAQuotedSchema matters more from version 2 on, where the
+// script now carries migration 10's DO block: that block compares against
+// pg_namespace.nspname, so it holds the schema name raw inside a SQL string
+// literal, and a quote would close it early.
+func TestStatementsRejectsAQuotedSchema(t *testing.T) {
+	for _, from := range []int{1, 10} {
+		if _, err := Statements(`ha'; DROP TABLE x; --`, from, false, true); err == nil {
+			t.Errorf("Statements(from=%d) accepted a schema name containing a quote", from)
+		}
+	}
+}
