@@ -61,7 +61,9 @@ jobs:
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       # The Go dependency derivation is never on cache.nixos.org, so cache the store.
-      - uses: nix-community/cache-nix-action@v6
+      # v7 or later: v6 cannot restore a store cachix/install-nix-action made.
+      # See nix-community/cache-nix-action#296.
+      - uses: nix-community/cache-nix-action@v7
         with:
           primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', 'go.sum') }}
       # A bare `nix flake check` evaluates only the current system (since Nix 2.19).
