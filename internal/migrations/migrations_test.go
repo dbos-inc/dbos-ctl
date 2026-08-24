@@ -358,3 +358,31 @@ func TestSchemaNameIsQuoted(t *testing.T) {
 		}
 	}
 }
+
+// TestMigration10IsSplitByDialect proves the runner and the printed script both
+// get a migration 10 their engine can execute, from one place.
+//
+// The split used to live in the runner, which checked pg_constraint from Go and
+// then ran an unguarded ALTER. That worked, but it meant BuildMigrations
+// returned PostgreSQL-only SQL for version 10 on CockroachDB, and every other
+// consumer had to know to look away — the printed script grew its own copy of
+// the same special case. Both forms are self-guarding now, so the dialect is
+// decided once, here.
+func TestMigration10IsSplitByDialect(t *testing.T) {
+	for _, listenNotify := range []bool{false, true} {
+		pg := renderedByVersion(BuildMigrations("dbos", false, listenNotify))[10]
+		if !strings.Contains(pg, "DO $$") {
+			t.Errorf("migration 10 on PostgreSQL (listenNotify=%v) is not the conditional DO block:\n%s", listenNotify, pg)
+		}
+
+		crdb := renderedByVersion(BuildMigrations("dbos", true, listenNotify))[10]
+		if strings.Contains(crdb, "DO $$") {
+			t.Errorf("migration 10 sends a DO block to CockroachDB (listenNotify=%v), which cannot run one:\n%s", listenNotify, crdb)
+		}
+		// Nothing checks before running this, on either path, so the statement
+		// has to tolerate a database that already has the key.
+		if !strings.Contains(crdb, "ADD CONSTRAINT IF NOT EXISTS") {
+			t.Errorf("migration 10 on CockroachDB (listenNotify=%v) is not idempotent on its own:\n%s", listenNotify, crdb)
+		}
+	}
+}

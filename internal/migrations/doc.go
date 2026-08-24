@@ -48,10 +48,18 @@
 //
 // The dialect reaches further than the triggers do: no ALTER FUNCTION ... SET
 // search_path anywhere (migrations 20, 38, 105), a different statement for
-// migration 28, no DROP TRIGGER (43, 44), and no CONCURRENTLY. Measured against
-// CockroachDB v24.1 through v26.2, the LISTEN/NOTIFY and ALTER FUNCTION gaps
-// are permanent, while DROP TRIGGER and DO blocks arrived between v24.3 and
-// v25.2 — which is also the oldest stream the whole set applies to.
+// migrations 10 and 28, no DROP TRIGGER (43, 44), and no CONCURRENTLY.
+// Measured against CockroachDB v24.1 through v26.2, the LISTEN/NOTIFY and
+// ALTER FUNCTION gaps are permanent, while DROP TRIGGER arrived between v24.3
+// and v25.2 — which is also the oldest stream the whole set applies to.
+//
+// DO blocks are the ragged one, so do not read "v26.2 accepts a DO block" as
+// permission to write one. v24.1 rejects the syntax outright. v26.2 parses an
+// empty block but answers "not yet implemented" (crdb issue 110080) for
+// migration 10's, which queries pg_constraint and conditionally runs an ALTER
+// — the only thing the set actually asks a DO block to do. Migration 10 is
+// therefore split by dialect rather than shared, and its CockroachDB form uses
+// ADD CONSTRAINT ... IF NOT EXISTS, which PostgreSQL has no equivalent of.
 //
 // A migration that creates a notification trigger is gated on listenNotify. A
 // migration that drops one is not: every such statement is an IF EXISTS no-op

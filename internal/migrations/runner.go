@@ -281,7 +281,7 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool, schema string, isCoc
 			continue
 		}
 
-		if err := applyCatalogMigration(ctx, pool, schema, sanitizedSchema, migration, isCockroach, currentVersion); err != nil {
+		if err := applyCatalogMigration(ctx, pool, schema, migration, currentVersion); err != nil {
 			return err
 		}
 		currentVersion = migration.Version
@@ -296,9 +296,8 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool, schema string, isCoc
 func applyCatalogMigration(
 	ctx context.Context,
 	pool *pgxpool.Pool,
-	schema, sanitizedSchema string,
+	schema string,
 	migration MigrationFile,
-	isCockroach bool,
 	currentVersion int64,
 ) error {
 	mtx, err := pool.Begin(ctx)
@@ -307,18 +306,9 @@ func applyCatalogMigration(
 	}
 	defer mtx.Rollback(ctx)
 
-	switch {
-	case migration.Version == 10 && isCockroach:
-		// CockroachDB does not support the DO block used by the Postgres
-		// migration file; run the equivalent logic at the application layer
-		// inside the same transaction.
-		if err := applyCockroachMigration10(ctx, mtx, schema, sanitizedSchema); err != nil {
-			return err
-		}
-	case strings.TrimSpace(migration.SQL) == "":
-		// No-op migration (e.g. migration 20 on CockroachDB). Still advance
-		// the version row so we don't re-evaluate it next time.
-	default:
+	// A migration that renders empty (migration 20 on CockroachDB, say) still
+	// advances the version row, so it is not re-evaluated next time.
+	if strings.TrimSpace(migration.SQL) != "" {
 		if _, err := mtx.Exec(ctx, migration.SQL); err != nil {
 			return fmt.Errorf("failed to execute migration %d: %w", migration.Version, err)
 		}
@@ -329,27 +319,6 @@ func applyCatalogMigration(
 	}
 	if err := mtx.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit migration %d: %w", migration.Version, err)
-	}
-	return nil
-}
-
-// applyCockroachMigration10 applies migration 10 on CockroachDB, which does
-// not support the DO block used by the Postgres migration file.
-func applyCockroachMigration10(ctx context.Context, tx pgx.Tx, schema, sanitizedSchema string) error {
-	rows, err := tx.Query(ctx, migration10CheckCockroachSQL, schema)
-	if err != nil {
-		return fmt.Errorf("failed to check notifications primary key for migration 10: %w", err)
-	}
-	hasPK := rows.Next()
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("failed to check notifications primary key for migration 10: %w", err)
-	}
-	if !hasPK {
-		alterQuery := fmt.Sprintf(migration10AddCockroachSQL, sanitizedSchema)
-		if _, err := tx.Exec(ctx, alterQuery); err != nil {
-			return fmt.Errorf("failed to execute migration 10: %w", err)
-		}
 	}
 	return nil
 }

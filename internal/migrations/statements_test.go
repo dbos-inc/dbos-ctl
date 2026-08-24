@@ -187,6 +187,9 @@ func TestMigration10IsSkippedOnlyForAFreshDatabase(t *testing.T) {
 // CockroachDB v24.1 and reports an unimplemented feature on v26.2; ADD
 // CONSTRAINT ... IF NOT EXISTS has no PostgreSQL equivalent. Both were checked
 // against live servers, and both are idempotent there.
+//
+// The split itself lives in BuildMigrations, so this covers the printed script
+// while TestMigration10IsSplitByDialect covers what the runner executes.
 func TestMigration10PrintsTheDialectItCanRun(t *testing.T) {
 	crdb, err := Statements("dbos", 10, true, false)
 	if err != nil {

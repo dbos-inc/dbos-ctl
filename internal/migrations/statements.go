@@ -66,7 +66,7 @@ func Statements(schemaName string, from int, isCockroach, listenNotify bool) ([]
 			continue
 		}
 		if migration.Version == 10 {
-			statements = append(statements, migration10Statements(from, isCockroach, sanitizedSchema, migration.SQL)...)
+			statements = append(statements, migration10Statements(from, migration.SQL)...)
 		} else if sql := strings.TrimSpace(migration.SQL); sql != "" {
 			if !strings.HasSuffix(sql, ";") {
 				sql += ";"
@@ -85,8 +85,7 @@ func Statements(schemaName string, from int, isCockroach, listenNotify bool) ([]
 }
 
 // migration10Statements renders migration 10 for a printed script. It is the
-// one migration whose printed form depends on where the script starts, and the
-// one whose PostgreSQL SQL a CockroachDB script cannot use.
+// one migration whose printed form depends on where the script starts.
 //
 // From version 1 the script builds a fresh database, where migration 1 already
 // creates the notifications primary key. The backfill would find nothing to do,
@@ -99,20 +98,13 @@ func Statements(schemaName string, from int, isCockroach, listenNotify bool) ([]
 // run willing to retry, since the version row would claim the work was done.
 // That is what this function exists to prevent.
 //
-// The dialect picks the form, because idempotence is spelled differently on
-// each. PostgreSQL gets the DO block, which consults pg_constraint itself.
-// CockroachDB cannot run that block — it parses, then fails as unimplemented —
-// and takes ADD CONSTRAINT ... IF NOT EXISTS instead, which PostgreSQL has no
-// equivalent of. The runner reaches the same two behaviours by other means:
-// there it can check from Go, so it does.
-func migration10Statements(from int, isCockroach bool, sanitizedSchema, postgresSQL string) []string {
+// The dialect needs no thought here: BuildMigrations already hands back the
+// form the target engine can run, and both forms are idempotent.
+func migration10Statements(from int, migrationSQL string) []string {
 	if from == 1 {
 		return []string{"-- Migration 10 skipped: not applicable on fresh databases"}
 	}
-	sql := strings.TrimSpace(postgresSQL)
-	if isCockroach {
-		sql = strings.TrimSpace(fmt.Sprintf(migration10AddCockroachSQL, sanitizedSchema))
-	}
+	sql := strings.TrimSpace(migrationSQL)
 	if !strings.HasSuffix(sql, ";") {
 		sql += ";"
 	}

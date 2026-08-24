@@ -40,9 +40,6 @@ var migration9SQL string
 //go:embed sql/10_add_notifications_pkey.sql
 var migration10SQL string
 
-//go:embed sql/10_check_notifications_pkey_cockroach.sql
-var migration10CheckCockroachSQL string
-
 //go:embed sql/10_add_notifications_pkey_cockroach.sql
 var migration10AddCockroachSQL string
 
@@ -251,6 +248,23 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 		}
 	}
 
+	// Migration 10 backfills the notifications primary key that a pre-fix
+	// migration 1 did not create. Each dialect gets the only form it can run,
+	// and both are idempotent, so neither path needs to check first.
+	//
+	// PostgreSQL takes a DO block that consults pg_constraint. CockroachDB
+	// cannot: the block is a syntax error on v24.1 and an unimplemented
+	// feature on v26.2. It takes ADD CONSTRAINT ... IF NOT EXISTS, which
+	// PostgreSQL in turn has no equivalent of.
+	//
+	// The PostgreSQL form takes the schema twice: once sanitized as an
+	// identifier, and once raw inside a string literal, because it compares
+	// against pg_namespace.nspname, which stores the bare name.
+	migration10SQLProcessed := fmt.Sprintf(migration10SQL, schema, sanitizedSchema)
+	if isCockroach {
+		migration10SQLProcessed = fmt.Sprintf(migration10AddCockroachSQL, sanitizedSchema)
+	}
+
 	// Migration 28 drops the legacy uq_workflow_status_queue_name_dedup_id
 	// constraint. CockroachDB exposes it as an index (DROP INDEX ... CASCADE);
 	// Postgres exposes it as a table constraint (ALTER TABLE DROP CONSTRAINT).
@@ -281,8 +295,8 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 	// Migrations 43 and 44 drop the streams and workflow_events triggers
 	// installed by migrations 39 and 1.
 	//
-	// Skipped on CockroachDB, which cannot always parse the statement: v24.1,
-	// the oldest release DBOS supports, has no DROP TRIGGER at all, and v24.3
+	// Skipped on CockroachDB, which cannot always parse the statement: v24.1
+	// has no DROP TRIGGER at all, and v24.3
 	// answers "DROP TRIGGER is only implemented in the declarative schema
 	// changer". Nothing is lost by skipping — CockroachDB never had
 	// LISTEN/NOTIFY, so the triggers these drop were never created there.
@@ -318,7 +332,7 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 		{Version: 7, SQL: fmt.Sprintf(migration7SQL, sanitizedSchema)},
 		{Version: 8, SQL: fmt.Sprintf(migration8SQL, sanitizedSchema)},
 		{Version: 9, SQL: fmt.Sprintf(migration9SQL, sanitizedSchema)},
-		{Version: 10, SQL: fmt.Sprintf(migration10SQL, schema, sanitizedSchema)},
+		{Version: 10, SQL: migration10SQLProcessed},
 		{Version: 11, SQL: fmt.Sprintf(migration11SQL, sanitizedSchema)},
 		{Version: 12, SQL: fmt.Sprintf(migration12SQL, sanitizedSchema)},
 		{Version: 13, SQL: fmt.Sprintf(migration13SQL, sanitizedSchema)},
