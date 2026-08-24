@@ -127,9 +127,6 @@ var migration35SQL string
 //go:embed sql/36_add_completed_at.sql
 var migration36SQL string
 
-//go:embed sql/36_create_completed_at_index.sql
-var migration36IndexSQL string
-
 //go:embed sql/37_create_started_at_index.sql
 var migration37SQL string
 
@@ -145,14 +142,8 @@ var migration39SQL string
 //go:embed sql/40_add_attributes.sql
 var migration40SQL string
 
-//go:embed sql/40_create_attributes_index.sql
-var migration40IndexSQL string
-
 //go:embed sql/41_add_schedule_name.sql
 var migration41SQL string
-
-//go:embed sql/41_create_schedule_name_index.sql
-var migration41IndexSQL string
 
 //go:embed sql/42_add_debounce_columns.sql
 var migration42SQL string
@@ -206,22 +197,6 @@ type MigrationFile struct {
 	Version int64
 	SQL     string
 	Online  bool
-
-	// Steps splits a migration that cannot be applied as one transaction into
-	// the transactions it must be applied as, in order. Empty for almost every
-	// migration, which applies SQL in a single transaction.
-	//
-	// It exists for CockroachDB before v25, which refuses to index a column
-	// that became visible in the same transaction — see
-	// sql/36_add_completed_at.sql. The runner applies each step and only then
-	// advances the version row, so a failure part-way through replays the whole
-	// migration; every statement in a stepped migration must therefore be
-	// idempotent, which TestSteppedMigrationsAreReplayable checks.
-	//
-	// SQL still holds the whole migration for printing: a printed script goes
-	// to psql, which sends statements one at a time and so commits them
-	// separately anyway.
-	Steps []string
 }
 
 const SharedMigrationBase = 100
@@ -272,34 +247,6 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 			migration20SQLProcessed = migration20SQLProcessed + "\n" + fmt.Sprintf(migration20ListenNotifySQL, sanitizedSchema)
 		}
 	}
-
-	// Migrations 36, 40 and 41 each add a column and then build a partial index
-	// whose predicate names it. CockroachDB before v25 rejects the index if the
-	// column became visible in the same transaction, so there the two halves
-	// are handed to the runner as separate steps. PostgreSQL takes them as one
-	// transaction, as it always has.
-	//
-	// The split is unconditional rather than version-sniffed: committing the
-	// ALTER first is correct on every release, and a migration set that behaves
-	// the same everywhere is worth more than one round-trip.
-	// Rendering stays at the call site so the placeholder-arity test can see
-	// which file each argument list belongs to.
-	steppedSQL := func(alter, index string) (string, []string) {
-		joined := alter + "\n" + index
-		if !isCockroach {
-			return joined, nil
-		}
-		return joined, []string{alter, index}
-	}
-	migration36SQLProcessed, migration36Steps := steppedSQL(
-		fmt.Sprintf(migration36SQL, sanitizedSchema),
-		fmt.Sprintf(migration36IndexSQL, sanitizedSchema))
-	migration40SQLProcessed, migration40Steps := steppedSQL(
-		fmt.Sprintf(migration40SQL, sanitizedSchema),
-		fmt.Sprintf(migration40IndexSQL, sanitizedSchema))
-	migration41SQLProcessed, migration41Steps := steppedSQL(
-		fmt.Sprintf(migration41SQL, sanitizedSchema),
-		fmt.Sprintf(migration41IndexSQL, sanitizedSchema))
 
 	// Migration 10 backfills the notifications primary key that a pre-fix
 	// migration 1 did not create. Each dialect gets the only form it can run,
@@ -411,12 +358,12 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 		{Version: 33, SQL: fmt.Sprintf(migration33SQL, sanitizedSchema)},
 		{Version: 34, SQL: fmt.Sprintf(migration34SQL, c, sanitizedSchema), Online: !isCockroach},
 		{Version: 35, SQL: fmt.Sprintf(migration35SQL, c, sanitizedSchema), Online: !isCockroach},
-		{Version: 36, SQL: migration36SQLProcessed, Steps: migration36Steps},
+		{Version: 36, SQL: fmt.Sprintf(migration36SQL, sanitizedSchema)},
 		{Version: 37, SQL: fmt.Sprintf(migration37SQL, c, sanitizedSchema), Online: !isCockroach},
 		{Version: 38, SQL: migration38SQLProcessed},
 		{Version: 39, SQL: migration39SQLProcessed},
-		{Version: 40, SQL: migration40SQLProcessed, Steps: migration40Steps},
-		{Version: 41, SQL: migration41SQLProcessed, Steps: migration41Steps},
+		{Version: 40, SQL: fmt.Sprintf(migration40SQL, sanitizedSchema)},
+		{Version: 41, SQL: fmt.Sprintf(migration41SQL, sanitizedSchema)},
 		{Version: 42, SQL: fmt.Sprintf(migration42SQL, sanitizedSchema)},
 		{Version: 43, SQL: migration43SQLProcessed},
 		{Version: 44, SQL: migration44SQLProcessed},
