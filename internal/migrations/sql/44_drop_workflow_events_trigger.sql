@@ -5,5 +5,5 @@
 -- The notifications trigger (DBOS.Send) is deliberately kept: messages can be
 -- sent from anywhere, including processes with no notifier loop to flush them.
 
-DROP TRIGGER IF EXISTS dbos_workflow_events_trigger ON %s.workflow_events;
-DROP FUNCTION IF EXISTS %s.workflow_events_function();
+DROP TRIGGER IF EXISTS dbos_workflow_events_trigger ON %[1]s.workflow_events;
+DROP FUNCTION IF EXISTS %[1]s.workflow_events_function();

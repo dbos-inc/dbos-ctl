@@ -3,7 +3,7 @@
 -- on LISTEN/NOTIFY support; deployments without it (e.g. CockroachDB) use the
 -- polling fallback and skip this migration.
 
-CREATE OR REPLACE FUNCTION %s.streams_function() RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION %[1]s.streams_function() RETURNS TRIGGER AS $$
 DECLARE
     payload text := NEW.workflow_uuid || '::' || NEW.key;
 BEGIN
@@ -12,9 +12,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-ALTER FUNCTION %s.streams_function() SET search_path = pg_catalog, pg_temp;
+ALTER FUNCTION %[1]s.streams_function() SET search_path = pg_catalog, pg_temp;
 
-DROP TRIGGER IF EXISTS dbos_streams_trigger ON %s.streams;
+DROP TRIGGER IF EXISTS dbos_streams_trigger ON %[1]s.streams;
 CREATE TRIGGER dbos_streams_trigger
-AFTER INSERT ON %s.streams
-FOR EACH ROW EXECUTE FUNCTION %s.streams_function();
+AFTER INSERT ON %[1]s.streams
+FOR EACH ROW EXECUTE FUNCTION %[1]s.streams_function();

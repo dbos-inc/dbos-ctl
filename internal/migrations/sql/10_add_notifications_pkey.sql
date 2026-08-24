@@ -9,10 +9,10 @@ BEGIN
         SELECT 1 FROM pg_constraint c
         JOIN pg_class cl ON c.conrelid = cl.oid
         JOIN pg_namespace n ON cl.relnamespace = n.oid
-        WHERE n.nspname = '%s'
+        WHERE n.nspname = '%[1]s'
           AND cl.relname = 'notifications'
           AND c.contype = 'p'
     ) THEN
-        ALTER TABLE %s.notifications ADD PRIMARY KEY (message_uuid);
+        ALTER TABLE %[2]s.notifications ADD PRIMARY KEY (message_uuid);
     END IF;
 END $$;

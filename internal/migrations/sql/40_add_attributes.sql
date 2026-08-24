@@ -10,5 +10,5 @@
 -- transaction. See 36_add_completed_at.sql for the error, the versions it was
 -- measured on, and why every SDK is affected.
 
-ALTER TABLE %s."workflow_status" ADD COLUMN IF NOT EXISTS "attributes" JSONB;
-CREATE INDEX IF NOT EXISTS "idx_workflow_status_attributes" ON %s."workflow_status" USING GIN ("attributes") WHERE "attributes" IS NOT NULL;
+ALTER TABLE %[1]s."workflow_status" ADD COLUMN IF NOT EXISTS "attributes" JSONB;
+CREATE INDEX IF NOT EXISTS "idx_workflow_status_attributes" ON %[1]s."workflow_status" USING GIN ("attributes") WHERE "attributes" IS NOT NULL;

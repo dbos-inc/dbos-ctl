@@ -3,4 +3,4 @@
 -- unclaimed: any application may read and claim the row. One table per
 -- migration, so a blocked table does not hold the others' locks.
 
-ALTER TABLE %s."workflow_status" ADD COLUMN IF NOT EXISTS "application_name" TEXT DEFAULT NULL;
+ALTER TABLE %[1]s."workflow_status" ADD COLUMN IF NOT EXISTS "application_name" TEXT DEFAULT NULL;

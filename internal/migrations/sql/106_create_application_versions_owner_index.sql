@@ -3,4 +3,4 @@
 -- version_name unique constraint may not be dropped until every SDK reaching
 -- this database is past 107.
 
-CREATE UNIQUE INDEX IF NOT EXISTS "uq_application_versions_owner_version" ON %s."application_versions" ("application_name", "version_name") WHERE "application_name" IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS "uq_application_versions_owner_version" ON %[1]s."application_versions" ("application_name", "version_name") WHERE "application_name" IS NOT NULL;

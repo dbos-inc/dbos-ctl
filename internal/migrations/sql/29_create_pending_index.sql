@@ -6,4 +6,4 @@
 -- (ENQUEUED -> PENDING -> SUCCESS only updates this index on entry/exit
 -- of PENDING).
 
-CREATE INDEX %s IF NOT EXISTS "idx_workflow_status_pending" ON %s."workflow_status" ("created_at") WHERE "status" = 'PENDING';
+CREATE INDEX %[1]s IF NOT EXISTS "idx_workflow_status_pending" ON %[2]s."workflow_status" ("created_at") WHERE "status" = 'PENDING';

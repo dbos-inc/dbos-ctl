@@ -4,4 +4,4 @@
 -- Superseded by idx_workflow_status_partition_dequeue_v2 (migration 46) and
 -- dropped by migration 47.
 
-CREATE INDEX %s IF NOT EXISTS "idx_workflow_status_partition_dequeue" ON %s."workflow_status" ("queue_name", "status", "queue_partition_key", "priority", "created_at") WHERE "status" IN ('ENQUEUED', 'PENDING') AND "queue_partition_key" IS NOT NULL;
+CREATE INDEX %[1]s IF NOT EXISTS "idx_workflow_status_partition_dequeue" ON %[2]s."workflow_status" ("queue_name", "status", "queue_partition_key", "priority", "created_at") WHERE "status" IN ('ENQUEUED', 'PENDING') AND "queue_partition_key" IS NOT NULL;

@@ -30,5 +30,5 @@
 -- one transaction. Both statements are IF NOT EXISTS, so re-running the whole
 -- migration after a failure between them would be safe.
 
-ALTER TABLE %s."workflow_status" ADD COLUMN IF NOT EXISTS "completed_at" BIGINT;
-CREATE INDEX IF NOT EXISTS "idx_workflow_status_completed_at" ON %s."workflow_status" ("completed_at") WHERE "completed_at" IS NOT NULL;
+ALTER TABLE %[1]s."workflow_status" ADD COLUMN IF NOT EXISTS "completed_at" BIGINT;
+CREATE INDEX IF NOT EXISTS "idx_workflow_status_completed_at" ON %[1]s."workflow_status" ("completed_at") WHERE "completed_at" IS NOT NULL;

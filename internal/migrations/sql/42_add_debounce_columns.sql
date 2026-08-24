@@ -5,5 +5,5 @@
 -- DELAYED->ENQUEUED transition. ADD COLUMN with a constant default is
 -- catalog-only, so no CONCURRENTLY is needed.
 
-ALTER TABLE %s."workflow_status" ADD COLUMN IF NOT EXISTS "debounce_deadline_epoch_ms" BIGINT DEFAULT NULL;
-ALTER TABLE %s."workflow_status" ADD COLUMN IF NOT EXISTS "is_debounced" BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE %[1]s."workflow_status" ADD COLUMN IF NOT EXISTS "debounce_deadline_epoch_ms" BIGINT DEFAULT NULL;
+ALTER TABLE %[1]s."workflow_status" ADD COLUMN IF NOT EXISTS "is_debounced" BOOLEAN NOT NULL DEFAULT FALSE;

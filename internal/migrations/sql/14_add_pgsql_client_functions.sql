@@ -1,6 +1,6 @@
 -- Migration 14: Add plpgsql stored functions for direct SQL client access.
 
-CREATE FUNCTION %s.enqueue_workflow(
+CREATE FUNCTION %[1]s.enqueue_workflow(
     workflow_name TEXT,
     queue_name TEXT,
     positional_args JSON[] DEFAULT ARRAY[]::JSON[],
@@ -47,7 +47,7 @@ BEGIN
     )::TEXT;
     v_now := EXTRACT(epoch FROM now()) * 1000;
 
-    INSERT INTO %s.workflow_status (
+    INSERT INTO %[1]s.workflow_status (
         workflow_uuid, status, inputs,
         name, class_name, config_name,
         authenticated_user, assumed_role,
@@ -80,7 +80,7 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE FUNCTION %s.send_message(
+CREATE FUNCTION %[1]s.send_message(
     destination_id TEXT,
     message JSON,
     topic TEXT DEFAULT NULL,
@@ -90,7 +90,7 @@ DECLARE
     v_topic TEXT := COALESCE(topic, '__null__topic__');
     v_message_id TEXT := COALESCE(message_id, gen_random_uuid()::TEXT);
 BEGIN
-    INSERT INTO %s.notifications (
+    INSERT INTO %[1]s.notifications (
         destination_uuid, topic, message, message_uuid, serialization
     ) VALUES (
         destination_id, v_topic, message, v_message_id, 'portable_json'

@@ -6,4 +6,4 @@
 -- ALTER TABLE ADD COLUMN with a constant default is fast on Postgres because
 -- it is a catalog-only update (attmissingval), so CONCURRENTLY is not needed.
 
-ALTER TABLE %s."workflow_status" ADD COLUMN IF NOT EXISTS "rate_limited" BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE %[1]s."workflow_status" ADD COLUMN IF NOT EXISTS "rate_limited" BOOLEAN NOT NULL DEFAULT FALSE;

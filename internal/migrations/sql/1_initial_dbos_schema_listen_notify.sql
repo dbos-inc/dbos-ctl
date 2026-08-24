@@ -1,5 +1,5 @@
 -- Create notification function
-CREATE OR REPLACE FUNCTION %s.notifications_function() RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION %[1]s.notifications_function() RETURNS TRIGGER AS $$
 DECLARE
     payload text := NEW.destination_uuid || '::' || NEW.topic;
 BEGIN
@@ -10,11 +10,11 @@ $$ LANGUAGE plpgsql;
 
 -- Create notification trigger
 CREATE TRIGGER dbos_notifications_trigger
-AFTER INSERT ON %s.notifications
-FOR EACH ROW EXECUTE FUNCTION %s.notifications_function();
+AFTER INSERT ON %[1]s.notifications
+FOR EACH ROW EXECUTE FUNCTION %[1]s.notifications_function();
 
 -- Create events function
-CREATE OR REPLACE FUNCTION %s.workflow_events_function() RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION %[1]s.workflow_events_function() RETURNS TRIGGER AS $$
 DECLARE
     payload text := NEW.workflow_uuid || '::' || NEW.key;
 BEGIN
@@ -25,6 +25,6 @@ $$ LANGUAGE plpgsql;
 
 -- Create events trigger
 CREATE TRIGGER dbos_workflow_events_trigger
-AFTER INSERT ON %s.workflow_events
-FOR EACH ROW EXECUTE FUNCTION %s.workflow_events_function();
+AFTER INSERT ON %[1]s.workflow_events
+FOR EACH ROW EXECUTE FUNCTION %[1]s.workflow_events_function();
 

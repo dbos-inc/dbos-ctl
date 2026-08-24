@@ -10,10 +10,10 @@
 -- The LISTEN/NOTIFY functions are pinned by the companion file, which only
 -- runs where they were created.
 
-ALTER FUNCTION %s.enqueue_workflow(
+ALTER FUNCTION %[1]s.enqueue_workflow(
     TEXT, TEXT, JSON[], JSON, TEXT, TEXT, TEXT, TEXT, BIGINT, BIGINT, TEXT, INT4, TEXT
 ) SET search_path = pg_catalog, pg_temp;
 
-ALTER FUNCTION %s.send_message(
+ALTER FUNCTION %[1]s.send_message(
     TEXT, JSON, TEXT, TEXT
 ) SET search_path = pg_catalog, pg_temp;

@@ -8,4 +8,4 @@
 -- on a constraint-backed index. The runner picks the right statement
 -- based on the dialect.
 
-ALTER TABLE %s.workflow_status DROP CONSTRAINT IF EXISTS uq_workflow_status_queue_name_dedup_id;
+ALTER TABLE %[1]s.workflow_status DROP CONSTRAINT IF EXISTS uq_workflow_status_queue_name_dedup_id;

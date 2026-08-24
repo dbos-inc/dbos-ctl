@@ -2,4 +2,4 @@
 -- to quickly find recent workflows in a rate-limited queue. The index is only
 -- maintained for workflows actually dequeued under a rate limiter.
 
-CREATE INDEX %s IF NOT EXISTS "idx_workflow_status_rate_limited" ON %s."workflow_status" ("queue_name", "started_at_epoch_ms") WHERE "rate_limited" = TRUE;
+CREATE INDEX %[1]s IF NOT EXISTS "idx_workflow_status_rate_limited" ON %[2]s."workflow_status" ("queue_name", "started_at_epoch_ms") WHERE "rate_limited" = TRUE;

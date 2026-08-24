@@ -2,8 +2,12 @@ package migrations
 
 import (
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -14,12 +18,17 @@ import (
 // when only two of them happened. They are what turns a half-finished migration
 // into a failed build rather than a failed customer database.
 
-// TestEveryRenderedMigrationConsumesItsPlaceholders proves each file's %s verbs
-// match the arguments BuildMigrations passes. fmt reports both directions in
-// the rendered string (%!s(MISSING) for too few arguments, %!(EXTRA for too
-// many), which is why the check is a substring scan and not a count. A bare %s
-// surviving in the output is not an error: PL/pgSQL format() calls carry their
-// own %%s escapes, which render to exactly that.
+// TestEveryRenderedMigrationConsumesItsPlaceholders proves no file renders with
+// a placeholder problem. Every verb in these files is an explicit-index %[n]s,
+// so a file asking for more arguments than the call site passes renders
+// %!s(BADINDEX) — this catches that. A bare %s surviving in the output is not
+// an error: PL/pgSQL format() calls carry their own %%s escapes, which render
+// to exactly that.
+//
+// This scan cannot see the opposite mistake. Once a format string uses any
+// explicit index, fmt stops reporting unconsumed arguments, so a call passing
+// three schemas to a file that names %[1]s once renders perfectly and says
+// nothing. TestEveryPlaceholderIndexIsSupplied is what covers that direction.
 func TestEveryRenderedMigrationConsumesItsPlaceholders(t *testing.T) {
 	forEachVariant(func(name string, isCockroach, listenNotify bool) {
 		for _, m := range BuildMigrations("dbos", isCockroach, listenNotify) {
@@ -28,6 +37,142 @@ func TestEveryRenderedMigrationConsumesItsPlaceholders(t *testing.T) {
 			}
 		}
 	})
+}
+
+// verbPattern matches one format verb: an explicit-index %[n]s, or a bare %s.
+// The %%-escaped literals PL/pgSQL needs are consumed by the leading
+// alternative so they never reach the verb alternatives.
+var verbPattern = regexp.MustCompile(`%%|%\[(\d+)\]([a-zA-Z])|%([a-zA-Z])`)
+
+// TestEveryPlaceholderIndexIsSupplied proves each SQL file's highest %[n]s is
+// exactly the number of arguments its fmt.Sprintf passes.
+//
+// These files name the schema many times but take it once, which only works
+// because every verb carries an explicit index. That is also what makes this
+// test necessary: explicit indexes turn "passes more arguments than the file
+// uses" from a visible %!(EXTRA in the output into silence, so nothing but a
+// check against the source notices an argument list that has outlived its
+// placeholders. It is the same class of drift as an orphaned SQL file, and it
+// is why migration 1 once passed fifteen copies of one string.
+//
+// Reading the package's own source is the point: the arity lives at the call
+// site, and no amount of rendering reveals it.
+func TestEveryPlaceholderIndexIsSupplied(t *testing.T) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "migrations.go", nil, parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// embed maps each //go:embed var to the file it holds, and alias maps a
+	// local that stands in for one of several such vars (migration 28 picks its
+	// dialect that way) to every file it can hold.
+	embed := map[string]string{}
+	for _, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.VAR {
+			continue
+		}
+		for _, spec := range gen.Specs {
+			value, ok := spec.(*ast.ValueSpec)
+			if !ok || gen.Doc == nil || len(value.Names) != 1 {
+				continue
+			}
+			for _, comment := range gen.Doc.List {
+				if path, found := strings.CutPrefix(comment.Text, "//go:embed sql/"); found {
+					embed[value.Names[0].Name] = path
+				}
+			}
+		}
+	}
+	if len(embed) == 0 {
+		t.Fatal("found no //go:embed vars in migrations.go")
+	}
+
+	alias := map[string][]string{}
+	ast.Inspect(file, func(n ast.Node) bool {
+		assign, ok := n.(*ast.AssignStmt)
+		if !ok {
+			return true
+		}
+		for i, rhs := range assign.Rhs {
+			source, ok := rhs.(*ast.Ident)
+			if !ok || i >= len(assign.Lhs) {
+				continue
+			}
+			target, ok := assign.Lhs[i].(*ast.Ident)
+			if !ok {
+				continue
+			}
+			if path, ok := embed[source.Name]; ok {
+				alias[target.Name] = append(alias[target.Name], path)
+			}
+		}
+		return true
+	})
+
+	checked := 0
+	ast.Inspect(file, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok || len(call.Args) == 0 {
+			return true
+		}
+		fun, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok || fun.Sel.Name != "Sprintf" {
+			return true
+		}
+		pkg, ok := fun.X.(*ast.Ident)
+		if !ok || pkg.Name != "fmt" {
+			return true
+		}
+		format, ok := call.Args[0].(*ast.Ident)
+		if !ok {
+			return true
+		}
+		paths := alias[format.Name]
+		if path, ok := embed[format.Name]; ok {
+			paths = []string{path}
+		}
+		for _, path := range paths {
+			checked++
+			body, err := os.ReadFile(filepath.Join("sql", path))
+			if err != nil {
+				t.Error(err)
+				continue
+			}
+			top, bare := highestIndex(string(body))
+			if bare {
+				t.Errorf("sql/%s mixes bare %%s with explicit-index %%[n]s; fmt numbers the bare ones from wherever the last index left off, so every verb in a file must be indexed", path)
+			}
+			if args := len(call.Args) - 1; top != args {
+				t.Errorf("sql/%s uses up to %%[%d]s but %s passes it %d argument(s) at %s",
+					path, top, format.Name, args, fset.Position(call.Pos()))
+			}
+		}
+		return true
+	})
+	if checked == 0 {
+		t.Fatal("found no fmt.Sprintf calls on an embedded migration")
+	}
+}
+
+// highestIndex returns the largest n in a file's %[n]s verbs, and whether any
+// bare (unindexed) verb appears alongside them.
+func highestIndex(sql string) (top int, bare bool) {
+	for _, match := range verbPattern.FindAllStringSubmatch(sql, -1) {
+		switch {
+		case match[0] == "%%":
+			continue
+		case match[1] != "":
+			n, err := strconv.Atoi(match[1])
+			if err == nil && n > top {
+				top = n
+			}
+		default:
+			bare = true
+		}
+	}
+	return top, bare
 }
 
 // forEachVariant runs fn over all four combinations of the two switches that

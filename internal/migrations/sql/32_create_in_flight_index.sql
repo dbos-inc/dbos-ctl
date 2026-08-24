@@ -3,4 +3,4 @@
 -- predicates and sort order of the dequeue query — restricted to in-flight
 -- (ENQUEUED or PENDING) workflows.
 
-CREATE INDEX %s IF NOT EXISTS "idx_workflow_status_in_flight" ON %s."workflow_status" ("queue_name", "status", "priority", "created_at") WHERE "status" IN ('ENQUEUED', 'PENDING');
+CREATE INDEX %[1]s IF NOT EXISTS "idx_workflow_status_in_flight" ON %[2]s."workflow_status" ("queue_name", "status", "priority", "created_at") WHERE "status" IN ('ENQUEUED', 'PENDING');

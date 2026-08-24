@@ -3,11 +3,11 @@
 -- feature) enqueue an unclaimed workflow. The old 16-arg function is dropped
 -- first so only the new signature remains.
 
-DROP FUNCTION IF EXISTS %s.enqueue_workflow(
+DROP FUNCTION IF EXISTS %[1]s.enqueue_workflow(
     TEXT, TEXT, JSON[], JSON, TEXT, TEXT, TEXT, TEXT, BIGINT, BIGINT, TEXT, INT4, TEXT, TEXT, TEXT, BIGINT
 );
 
-CREATE OR REPLACE FUNCTION %s.enqueue_workflow(
+CREATE OR REPLACE FUNCTION %[1]s.enqueue_workflow(
     workflow_name TEXT,
     queue_name TEXT,
     positional_args JSON[] DEFAULT ARRAY[]::JSON[],
@@ -63,7 +63,7 @@ BEGIN
     v_now := EXTRACT(epoch FROM now()) * 1000;
     v_status := CASE WHEN delay_until_epoch_ms IS NULL THEN 'ENQUEUED' ELSE 'DELAYED' END;
 
-    INSERT INTO %s.workflow_status (
+    INSERT INTO %[1]s.workflow_status (
         workflow_uuid, status, inputs,
         name, class_name, config_name,
         queue_name, deduplication_id, priority, queue_partition_key,

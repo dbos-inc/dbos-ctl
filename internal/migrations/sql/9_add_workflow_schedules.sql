@@ -1,7 +1,7 @@
 -- Migration 9: Add workflow_schedules table
 -- Stores schedule metadata for workflow cron/interval scheduling.
 
-CREATE TABLE %s.workflow_schedules (
+CREATE TABLE %[1]s.workflow_schedules (
     schedule_id TEXT PRIMARY KEY,
     schedule_name TEXT NOT NULL UNIQUE,
     workflow_name TEXT NOT NULL,

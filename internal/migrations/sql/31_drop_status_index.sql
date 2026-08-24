@@ -2,4 +2,4 @@
 -- Replaced by the two partial indexes idx_workflow_status_pending and
 -- idx_workflow_status_failed.
 
-DROP INDEX %s IF EXISTS %s."workflow_status_status_index";
+DROP INDEX %[1]s IF EXISTS %[2]s."workflow_status_status_index";

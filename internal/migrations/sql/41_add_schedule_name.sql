@@ -10,5 +10,5 @@
 -- transaction. See 36_add_completed_at.sql for the error, the versions it was
 -- measured on, and why every SDK is affected.
 
-ALTER TABLE %s."workflow_status" ADD COLUMN IF NOT EXISTS "schedule_name" TEXT;
-CREATE INDEX IF NOT EXISTS "idx_workflow_status_schedule_name" ON %s."workflow_status" ("schedule_name") WHERE "schedule_name" IS NOT NULL;
+ALTER TABLE %[1]s."workflow_status" ADD COLUMN IF NOT EXISTS "schedule_name" TEXT;
+CREATE INDEX IF NOT EXISTS "idx_workflow_status_schedule_name" ON %[1]s."workflow_status" ("schedule_name") WHERE "schedule_name" IS NOT NULL;

@@ -231,13 +231,9 @@ func concurrentlyKw(isCockroach bool) string {
 func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationFile {
 	sanitizedSchema := pgx.Identifier{schema}.Sanitize()
 
-	migration1SQLProcessed := fmt.Sprintf(migration1SQL,
-		sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema,
-		sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema,
-		sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema)
+	migration1SQLProcessed := fmt.Sprintf(migration1SQL, sanitizedSchema)
 	if listenNotify {
-		migration1ListenNotifySQLProcessed := fmt.Sprintf(migration1ListenNotifySQL,
-			sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema)
+		migration1ListenNotifySQLProcessed := fmt.Sprintf(migration1ListenNotifySQL, sanitizedSchema)
 		migration1SQLProcessed = migration1SQLProcessed + "\n" + migration1ListenNotifySQLProcessed
 	}
 
@@ -249,9 +245,9 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 	// appended only where that block ran — the functions do not otherwise exist.
 	migration20SQLProcessed := ""
 	if !isCockroach {
-		migration20SQLProcessed = fmt.Sprintf(migration20SQL, sanitizedSchema, sanitizedSchema)
+		migration20SQLProcessed = fmt.Sprintf(migration20SQL, sanitizedSchema)
 		if listenNotify {
-			migration20SQLProcessed = migration20SQLProcessed + "\n" + fmt.Sprintf(migration20ListenNotifySQL, sanitizedSchema, sanitizedSchema)
+			migration20SQLProcessed = migration20SQLProcessed + "\n" + fmt.Sprintf(migration20ListenNotifySQL, sanitizedSchema)
 		}
 	}
 
@@ -269,7 +265,7 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 	// authenticated_user, authenticated_roles, and delay_until_epoch_ms. The
 	// DROP/CREATE base runs everywhere; the trailing search_path hardening is
 	// Postgres-only (CockroachDB rejects ALTER FUNCTION ... SET).
-	migration38SQLProcessed := fmt.Sprintf(migration38SQL, sanitizedSchema, sanitizedSchema, sanitizedSchema)
+	migration38SQLProcessed := fmt.Sprintf(migration38SQL, sanitizedSchema)
 	if !isCockroach {
 		migration38SQLProcessed = migration38SQLProcessed + "\n" + fmt.Sprintf(migration38SearchPathSQL, sanitizedSchema)
 	}
@@ -279,8 +275,7 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 	// the migration is a no-op (the version row still advances).
 	migration39SQLProcessed := ""
 	if listenNotify {
-		migration39SQLProcessed = fmt.Sprintf(migration39SQL,
-			sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema)
+		migration39SQLProcessed = fmt.Sprintf(migration39SQL, sanitizedSchema)
 	}
 
 	// Migrations 43 and 44 drop the streams and workflow_events triggers
@@ -301,14 +296,14 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 	// every write transaction — the cost these migrations exist to remove.
 	migration43SQLProcessed, migration44SQLProcessed := "", ""
 	if !isCockroach {
-		migration43SQLProcessed = fmt.Sprintf(migration43SQL, sanitizedSchema, sanitizedSchema)
-		migration44SQLProcessed = fmt.Sprintf(migration44SQL, sanitizedSchema, sanitizedSchema)
+		migration43SQLProcessed = fmt.Sprintf(migration43SQL, sanitizedSchema)
+		migration44SQLProcessed = fmt.Sprintf(migration44SQL, sanitizedSchema)
 	}
 
 	// Migration 105 replaces enqueue_workflow with a signature adding a
 	// trailing application_name. Like migration 38, the DROP/CREATE base runs
 	// everywhere and the search_path hardening is Postgres-only.
-	migration105SQLProcessed := fmt.Sprintf(migration105SQL, sanitizedSchema, sanitizedSchema, sanitizedSchema)
+	migration105SQLProcessed := fmt.Sprintf(migration105SQL, sanitizedSchema)
 	if !isCockroach {
 		migration105SQLProcessed = migration105SQLProcessed + "\n" + fmt.Sprintf(migration105SearchPathSQL, sanitizedSchema)
 	}
@@ -317,19 +312,19 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 		{Version: 1, SQL: migration1SQLProcessed},
 		{Version: 2, SQL: fmt.Sprintf(migration2SQL, sanitizedSchema)},
 		{Version: 3, SQL: fmt.Sprintf(migration3SQL, sanitizedSchema)},
-		{Version: 4, SQL: fmt.Sprintf(migration4SQL, sanitizedSchema, sanitizedSchema)},
+		{Version: 4, SQL: fmt.Sprintf(migration4SQL, sanitizedSchema)},
 		{Version: 5, SQL: fmt.Sprintf(migration5SQL, sanitizedSchema)},
-		{Version: 6, SQL: fmt.Sprintf(migration6SQL, sanitizedSchema, sanitizedSchema, sanitizedSchema)},
+		{Version: 6, SQL: fmt.Sprintf(migration6SQL, sanitizedSchema)},
 		{Version: 7, SQL: fmt.Sprintf(migration7SQL, sanitizedSchema)},
-		{Version: 8, SQL: fmt.Sprintf(migration8SQL, sanitizedSchema, sanitizedSchema)},
+		{Version: 8, SQL: fmt.Sprintf(migration8SQL, sanitizedSchema)},
 		{Version: 9, SQL: fmt.Sprintf(migration9SQL, sanitizedSchema)},
 		{Version: 10, SQL: fmt.Sprintf(migration10SQL, schema, sanitizedSchema)},
-		{Version: 11, SQL: fmt.Sprintf(migration11SQL, sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema)},
-		{Version: 12, SQL: fmt.Sprintf(migration12SQL, sanitizedSchema, sanitizedSchema)},
+		{Version: 11, SQL: fmt.Sprintf(migration11SQL, sanitizedSchema)},
+		{Version: 12, SQL: fmt.Sprintf(migration12SQL, sanitizedSchema)},
 		{Version: 13, SQL: fmt.Sprintf(migration13SQL, sanitizedSchema)},
-		{Version: 14, SQL: fmt.Sprintf(migration14SQL, sanitizedSchema, sanitizedSchema, sanitizedSchema, sanitizedSchema)},
-		{Version: 15, SQL: fmt.Sprintf(migration15SQL, sanitizedSchema, sanitizedSchema, sanitizedSchema)},
-		{Version: 16, SQL: fmt.Sprintf(migration16SQL, sanitizedSchema, sanitizedSchema)},
+		{Version: 14, SQL: fmt.Sprintf(migration14SQL, sanitizedSchema)},
+		{Version: 15, SQL: fmt.Sprintf(migration15SQL, sanitizedSchema)},
+		{Version: 16, SQL: fmt.Sprintf(migration16SQL, sanitizedSchema)},
 		{Version: 17, SQL: fmt.Sprintf(migration17SQL, sanitizedSchema)},
 		{Version: 18, SQL: fmt.Sprintf(migration18SQL, sanitizedSchema)},
 		{Version: 19, SQL: fmt.Sprintf(migration19SQL, sanitizedSchema)},
@@ -349,13 +344,13 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 		{Version: 33, SQL: fmt.Sprintf(migration33SQL, sanitizedSchema)},
 		{Version: 34, SQL: fmt.Sprintf(migration34SQL, c, sanitizedSchema), Online: !isCockroach},
 		{Version: 35, SQL: fmt.Sprintf(migration35SQL, c, sanitizedSchema), Online: !isCockroach},
-		{Version: 36, SQL: fmt.Sprintf(migration36SQL, sanitizedSchema, sanitizedSchema)},
+		{Version: 36, SQL: fmt.Sprintf(migration36SQL, sanitizedSchema)},
 		{Version: 37, SQL: fmt.Sprintf(migration37SQL, c, sanitizedSchema), Online: !isCockroach},
 		{Version: 38, SQL: migration38SQLProcessed},
 		{Version: 39, SQL: migration39SQLProcessed},
-		{Version: 40, SQL: fmt.Sprintf(migration40SQL, sanitizedSchema, sanitizedSchema)},
-		{Version: 41, SQL: fmt.Sprintf(migration41SQL, sanitizedSchema, sanitizedSchema)},
-		{Version: 42, SQL: fmt.Sprintf(migration42SQL, sanitizedSchema, sanitizedSchema)},
+		{Version: 40, SQL: fmt.Sprintf(migration40SQL, sanitizedSchema)},
+		{Version: 41, SQL: fmt.Sprintf(migration41SQL, sanitizedSchema)},
+		{Version: 42, SQL: fmt.Sprintf(migration42SQL, sanitizedSchema)},
 		{Version: 43, SQL: migration43SQLProcessed},
 		{Version: 44, SQL: migration44SQLProcessed},
 		{Version: 45, SQL: fmt.Sprintf(migration45SQL, c, sanitizedSchema), Online: !isCockroach},

@@ -4,5 +4,5 @@
 -- Notifications are now coalesced in memory and pushed off the write path by
 -- the notifier loop. Postgres-only, matching migration 39.
 
-DROP TRIGGER IF EXISTS dbos_streams_trigger ON %s.streams;
-DROP FUNCTION IF EXISTS %s.streams_function();
+DROP TRIGGER IF EXISTS dbos_streams_trigger ON %[1]s.streams;
+DROP FUNCTION IF EXISTS %[1]s.streams_function();

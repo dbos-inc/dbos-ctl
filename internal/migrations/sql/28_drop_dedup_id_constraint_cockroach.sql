@@ -4,4 +4,4 @@
 -- so we DROP INDEX ... CASCADE instead. The constraint was superseded by
 -- the partial unique index uq_workflow_status_dedup_id created in migration 27.
 
-DROP INDEX IF EXISTS %s."uq_workflow_status_queue_name_dedup_id" CASCADE;
+DROP INDEX IF EXISTS %[1]s."uq_workflow_status_queue_name_dedup_id" CASCADE;

@@ -3,7 +3,7 @@
 -- polling cadence) so it can be inspected and updated independently of any
 -- particular running executor.
 
-CREATE TABLE %s.queues (
+CREATE TABLE %[1]s.queues (
     queue_id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
     name TEXT NOT NULL UNIQUE,
     concurrency INT4,

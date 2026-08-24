@@ -2,4 +2,4 @@
 -- Runs online because every pre-upgrade row is unclaimed, so the index covers
 -- them all.
 
-CREATE UNIQUE INDEX %s IF NOT EXISTS "uq_application_versions_unclaimed_version" ON %s."application_versions" ("version_name") WHERE "application_name" IS NULL;
+CREATE UNIQUE INDEX %[1]s IF NOT EXISTS "uq_application_versions_unclaimed_version" ON %[2]s."application_versions" ("version_name") WHERE "application_name" IS NULL;

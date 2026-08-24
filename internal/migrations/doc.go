@@ -23,6 +23,13 @@
 // orphaned file and a placeholder count that does not match the arguments both
 // report there rather than against a customer's database.
 //
+// Write every placeholder as an explicit-index %[n]s, never a bare %s, so a
+// value named many times is passed once: the schema is %[1]s throughout a
+// file that takes only the schema, and %[2]s in one that takes the
+// CONCURRENTLY keyword first. Mixing the two forms is the trap the tests
+// guard — after an explicit index, fmt numbers any bare verb that follows
+// from that index onward rather than from where it left off.
+//
 // Set Online on a migration whose SQL contains CREATE or DROP INDEX
 // CONCURRENTLY: those cannot run inside a transaction, so the runner applies
 // them outside one and bumps the version separately, which means such a
