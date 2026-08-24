@@ -114,10 +114,14 @@ jobs:
   #
   # Every supported version, not just the newest, because the differences that
   # matter here are between *releases* of one engine and a single current
-  # version hides them. Migrations 36, 40 and 41 add a column and index it, and
-  # CockroachDB refused that in one transaction until v25 — a bug that survived
-  # in four SDKs precisely because every CI ran one recent CockroachDB. The
-  # oldest supported release is the one that catches this class of thing.
+  # version hides them. Migrations 36, 40 and 41 add a column and index it,
+  # which CockroachDB refused to do in one transaction until v25 — the kind of
+  # gap only an older release shows, and the reason the oldest supported one is
+  # in this list rather than just the newest.
+  #
+  # CockroachDB starts at v25.2: v24 is not a supported system database. The
+  # migration set does not apply to it, and that is a decision rather than a
+  # bug to fix, so there is no job here to tell us about it.
   #
   # Versions are pinned to a minor stream (or a major, for PostgreSQL) rather
   # than :latest so a database release cannot turn a job red with no change in
@@ -149,12 +153,6 @@ jobs:
           - engine: postgres
             version: "18"
             postgres_image: postgres:18
-          - engine: cockroach
-            version: "24.1"
-            cockroach_image: cockroachdb/cockroach:latest-v24.1
-          - engine: cockroach
-            version: "24.3"
-            cockroach_image: cockroachdb/cockroach:latest-v24.3
           - engine: cockroach
             version: "25.2"
             cockroach_image: cockroachdb/cockroach:latest-v25.2
