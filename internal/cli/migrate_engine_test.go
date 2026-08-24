@@ -184,3 +184,29 @@ func functionExists(t *testing.T, conn *pgx.Conn, schema, name string) bool {
 		JOIN pg_namespace n ON n.oid = p.pronamespace
 		WHERE n.nspname = $1 AND p.proname = $2)`, schema, name)
 }
+
+// notificationsPrimaryKey returns the definition of the notifications table's
+// primary key — "PRIMARY KEY (message_uuid)" and the like — or "" if it has
+// none.
+//
+// The definition rather than the constraint name, because the name cannot tell
+// the two engines apart in the one situation that matters. CockroachDB gives a
+// table declared without a key an implicit one over its hidden rowid column,
+// and calls it notifications_pkey: exactly the name migration 10 adds. A test
+// asking only whether a constraint by that name exists would pass on a database
+// whose key is still rowid, which is the bug it is supposed to catch.
+func notificationsPrimaryKey(t *testing.T, conn *pgx.Conn, schema string) string {
+	t.Helper()
+	var def string
+	err := conn.QueryRow(context.Background(), `SELECT pg_get_constraintdef(c.oid) FROM pg_constraint c
+		JOIN pg_class cl ON cl.oid = c.conrelid
+		JOIN pg_namespace n ON n.oid = cl.relnamespace
+		WHERE n.nspname = $1 AND cl.relname = 'notifications' AND c.contype = 'p'`, schema).Scan(&def)
+	if err == pgx.ErrNoRows {
+		return ""
+	}
+	if err != nil {
+		t.Fatalf("look up the notifications primary key: %v", err)
+	}
+	return def
+}
