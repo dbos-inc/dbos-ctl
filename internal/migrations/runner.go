@@ -34,6 +34,9 @@ func Apply(ctx context.Context, databaseURL, schema string, listenNotify bool, p
 	if schema == "" {
 		schema = DefaultSchema
 	}
+	if err := ValidateSchemaName(schema); err != nil {
+		return err
+	}
 
 	config, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {

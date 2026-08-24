@@ -107,10 +107,11 @@ func printSQL(cmd *cobra.Command, schema, appRole, printMigrations string, print
 	if printMigrationsSet && printUserRole {
 		return &exitError{code: 2, msg: "--print-user-role cannot be combined with --print-migrations"}
 	}
-	// These names reach the SQL as quoted identifiers. A quote inside one would
-	// escape the quoting, and no legitimate name needs it.
-	if strings.ContainsAny(schema, `"'`) {
-		return &exitError{code: 2, msg: "schema names containing quotes are not supported"}
+	// The same guard Apply and Grant enforce, run early so a print never
+	// renders a name it would refuse to migrate, and so a typo is a usage
+	// error rather than a failure further in.
+	if err := migrations.ValidateSchemaName(schema); err != nil {
+		return &exitError{code: 2, msg: err.Error()}
 	}
 	out := cmd.OutOrStdout()
 
@@ -118,8 +119,8 @@ func printSQL(cmd *cobra.Command, schema, appRole, printMigrations string, print
 		if appRole == "" {
 			return &exitError{code: 2, msg: "--print-user-role requires --app-role"}
 		}
-		if strings.ContainsAny(appRole, `"'`) {
-			return &exitError{code: 2, msg: "role names containing quotes are not supported"}
+		if err := migrations.ValidateRoleName(appRole); err != nil {
+			return &exitError{code: 2, msg: err.Error()}
 		}
 		fmt.Fprintf(out, "-- Permissions on DBOS schema %s for role %s\n", schema, appRole)
 		for _, query := range migrations.GrantQueries(appRole, schema) {

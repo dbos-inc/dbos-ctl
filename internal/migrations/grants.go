@@ -17,7 +17,8 @@ const grantTimeout = 30 * time.Second
 // GrantQueries returns the statements that give roleName full access to the
 // DBOS system tables in schemaName, including default privileges so that tables
 // a later migration adds are covered too. Neither name may contain a quote;
-// callers validate that before rendering, since these are identifiers and not
+// Grant and the CLI check that with ValidateSchemaName and ValidateRoleName
+// before rendering, since these are identifiers and not
 // bound parameters.
 func GrantQueries(roleName, schemaName string) []string {
 	schemaSQL := pgx.Identifier{schemaName}.Sanitize()
@@ -40,6 +41,12 @@ func GrantQueries(roleName, schemaName string) []string {
 func Grant(ctx context.Context, databaseURL, roleName, schemaName string, progress io.Writer) error {
 	if schemaName == "" {
 		schemaName = DefaultSchema
+	}
+	if err := ValidateSchemaName(schemaName); err != nil {
+		return err
+	}
+	if err := ValidateRoleName(roleName); err != nil {
+		return err
 	}
 	logf(progress, "Granting privileges on schema %s to %s", schemaName, roleName)
 
