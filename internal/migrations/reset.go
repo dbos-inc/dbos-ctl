@@ -113,7 +113,13 @@ func Empty(ctx context.Context, databaseURL, schema, applicationName string, pro
 	if err := checkNotAheadOfBinary(execCtx, conn, schema, present); err != nil {
 		return nil, err
 	}
-	tables, err := resetTargets(schema, applicationName, present)
+	var owned map[string]struct{}
+	if applicationName != "" {
+		if owned, err = applicationNameTables(execCtx, conn, schema); err != nil {
+			return nil, err
+		}
+	}
+	tables, err := resetTargets(schema, applicationName, present, owned)
 	if err != nil {
 		return nil, err
 	}
@@ -160,15 +166,23 @@ func Empty(ctx context.Context, databaseURL, schema, applicationName string, pro
 // Intersecting with what is present rather than assuming the full set, because
 // a schema may be migrated only part of the way — a table added by a migration
 // it has not reached yet is not there to empty.
-func resetTargets(schema, applicationName string, present map[string]struct{}) ([]string, error) {
-	known := SystemTables
+//
+// An application-scoped reset intersects against owned rather than present.
+// Presence is the wrong question there: workflow_status, queues, and
+// operation_outputs all predate migration 100 by a long way, so a schema that
+// never reached 100 still has every table in applicationOwnedTables and would
+// pass a presence check, only to fail on the first DELETE with a bare
+// SQLSTATE 42703. What decides whether a table can be scoped to an application
+// is the application_name column, so that is what is checked.
+func resetTargets(schema, applicationName string, present, owned map[string]struct{}) ([]string, error) {
+	known, have := SystemTables, present
 	if applicationName != "" {
-		known = applicationOwnedTables
+		known, have = applicationOwnedTables, owned
 	}
 
 	out := make([]string, 0, len(known))
 	for _, table := range known {
-		if _, ok := present[table]; ok {
+		if _, ok := have[table]; ok {
 			out = append(out, table)
 		}
 	}
@@ -272,4 +286,34 @@ func DropDatabase(ctx context.Context, databaseURL string, progress io.Writer) e
 
 	logf(progress, "Dropped database %s", dbName)
 	return nil
+}
+
+// applicationNameTables returns the base tables in a schema that carry an
+// application_name column, as a set.
+//
+// Separate from schemaTables because the two answer different questions and an
+// application-scoped reset needs both: which tables exist, and which of those
+// migrations 100-104 taught to name their owner. A schema can be migrated to
+// any point in that range, so the answers genuinely differ.
+func applicationNameTables(ctx context.Context, conn *pgx.Conn, schema string) (map[string]struct{}, error) {
+	rows, err := conn.Query(ctx,
+		`SELECT table_name FROM information_schema.columns
+		 WHERE table_schema = $1 AND column_name = 'application_name'`, schema)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list the application_name columns in schema %s: %w", schema, err)
+	}
+	defer rows.Close()
+
+	owned := map[string]struct{}{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, fmt.Errorf("failed to read the application_name column list for schema %s: %w", schema, err)
+		}
+		owned[name] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the application_name column list for schema %s: %w", schema, err)
+	}
+	return owned, nil
 }
