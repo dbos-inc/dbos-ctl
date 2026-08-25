@@ -156,19 +156,31 @@ Two ways to bypass the flow:
 | `dbosctl api-key delete <name>` | Delete an API key |
 | `dbosctl permission list` | List grantable permissions |
 | `dbosctl config list \| show \| use \| set` | Manage profiles |
-| `dbosctl migrate` | Create or upgrade a DBOS system database (connects to Postgres directly) |
+| `dbosctl sysdb migrate` | Create or upgrade a DBOS system database |
+| `dbosctl sysdb reset` | Empty the DBOS system database |
+| `dbosctl sysdb rename-application` | Re-own rows after an application is renamed |
 | `dbosctl version` (or `--version`) | Print version information |
 
-### migrate
+## sysdb
 
-`dbosctl migrate` is the only command that opens a database. It creates the
-system database and schema if they are missing and applies whatever migrations
-they lack, so it takes a database URL rather than a profile:
+`sysdb` groups the commands that open a database instead of calling Conductor.
+They connect to PostgreSQL (or CockroachDB) directly, take a database URL rather
+than a profile, and honour none of the [common flags](#common-flags). `-D` and
+`--schema` are defined once on the group, so every subcommand shares them:
 
 ```sh
-dbosctl migrate -D postgres://user:pass@host:5432/dbos_sys
-DBOS_SYSTEM_DATABASE_URL=... dbosctl migrate
+dbosctl sysdb migrate -D postgres://user:pass@host:5432/dbos_sys
+DBOS_SYSTEM_DATABASE_URL=... dbosctl sysdb migrate
 ```
+
+The subcommand names are the ones Python, TypeScript, and Go use for the same
+operations. The grouping is this CLI's own grammar — it groups by noun
+everywhere else — not a renaming.
+
+### sysdb migrate
+
+Creates the system database and schema if they are missing and applies whatever
+migrations they lack.
 
 It is safe to re-run: migrations already recorded are skipped, and an up-to-date
 database is left alone. The system schema is shared by every DBOS SDK, and the
@@ -194,7 +206,7 @@ application does not keep — and nothing can detect that, so pass
 `--no-listen-notify`:
 
 ```sh
-dbosctl migrate -D postgres://... --no-listen-notify        # e.g. behind PgBouncer
+dbosctl sysdb migrate -D postgres://... --no-listen-notify        # e.g. behind PgBouncer
 ```
 
 The database is complete either way and reports the same migration version; only
@@ -205,7 +217,7 @@ generated script says in its header which of the two it is.
 For the same reason, a printed script for CockroachDB has to be asked for:
 
 ```sh
-dbosctl migrate --print-migrations all --cockroach > schema.sql
+dbosctl sysdb migrate --print-migrations all --cockroach > schema.sql
 ```
 
 CockroachDB differs in more than the triggers — no `ALTER FUNCTION … SET
@@ -218,8 +230,8 @@ The print modes never connect, and write nothing but SQL and comments to stdout,
 for a database whose DDL goes through review:
 
 ```sh
-dbosctl migrate --print-migrations all > schema.sql
-dbosctl migrate --print-user-role -r myapp_role > grants.sql
+dbosctl sysdb migrate --print-migrations all > schema.sql
+dbosctl sysdb migrate --print-user-role -r myapp_role > grants.sql
 ```
 
 Because the SQL is CREATE/DROP INDEX CONCURRENTLY in places, run those scripts
@@ -240,7 +252,7 @@ wins and the profile is the fallback:
 | Organization | `--org` | `DBOS_ORG` |
 | Application | `-a`, `--app` | `DBOS_APP` |
 | Bearer token | — | `DBOS_TOKEN` |
-| System database (`migrate`) | `-D`, `--db-url` | `DBOS_SYSTEM_DATABASE_URL` |
+| System database (`sysdb`) | `-D`, `--db-url` | `DBOS_SYSTEM_DATABASE_URL` |
 | Output format | `-o`, `--output` | — |
 
 Flags are scoped to the command that uses them, so pass them **after** the
@@ -285,9 +297,9 @@ make test        # unit tests
 make lint        # golangci-lint
 make snapshot    # build all-platform artifacts without publishing
 
-make test-integration                   # conductor-backed tests (needs Docker)
-make test-migrations ENGINE=postgres    # migration tests against one engine
-make test-migrations ENGINE=cockroach
+make test-integration              # conductor-backed tests (needs Docker)
+make test-sysdb ENGINE=postgres    # sysdb tests against one engine
+make test-sysdb ENGINE=cockroach
 ```
 
 The generated client (`internal/api`) is committed; CI fails on spec drift
@@ -302,10 +314,11 @@ Integration tests are tagged `integration` and stand up real Conductor +
 Postgres in throwaway containers — see `make test-integration` and
 `.env.example` for the required license key and image/checkout settings.
 
-The migration tests are their own tier, run once per supported system database.
-They skip unless `DBOS_TEST_ENGINE` names one, which is what `make
-test-migrations` sets; CI runs a job per engine, so a failure says which one
-broke. That tier needs no license key, so it still gates fork PRs, where the
+The sysdb tests are their own tier, run once per supported system database.
+They cover every `sysdb` command, since all three run real SQL the two engines
+do not always agree on. They skip unless `DBOS_TEST_ENGINE` names one, which is
+what `make test-sysdb` sets; CI runs a job per engine, so a failure says which
+one broke. That tier needs no license key, so it still gates fork PRs, where the
 conductor tier can only skip.
 
 
