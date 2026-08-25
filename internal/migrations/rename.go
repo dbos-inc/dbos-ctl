@@ -204,25 +204,44 @@ func RenameApplication(ctx context.Context, databaseURL string, in RenameInput, 
 // plans as a whole-table hash join. Bounding each batch by a key means the work
 // already done is behind the watermark and never looked at again, and an
 // interrupted run resumes where it stopped rather than starting over.
+//
+// That only holds if each batch carries the previous watermark forward as its
+// lower bound, which is what lowerBound below is for. Dropping it would still
+// be *correct* — a moved row stops matching the predicate — but nothing indexes
+// application_name, so both statements would scan from the start of the table
+// every pass and filter the whole moved prefix back out. That is the quadratic
+// shape this is written to avoid: at the default batch size a ten-million-row
+// history would visit billions of rows and hit renameTimeout. With the bound,
+// both statements are key ranges over the primary key and each row is visited
+// once across the whole rename.
 func renameInBatches(ctx context.Context, conn *pgx.Conn, table string, in RenameInput, match rowPredicate, progress io.Writer) (int64, error) {
 	qualified := pgx.Identifier{in.Schema, table}.Sanitize()
 	var moved int64
 
+	// Everything below this key has already been moved, so each batch starts
+	// where the last one stopped. Empty means "from the beginning of the
+	// table"; a workflow_uuid is never empty, so there is no ambiguity.
+	var lowerBound string
+
 	for {
 		// Find the key that bounds this batch: the batch-size-th distinct
-		// workflow_uuid still matching. DISTINCT so one workflow's steps are
-		// never split across two batches.
+		// workflow_uuid still matching, at or after the previous watermark.
+		// DISTINCT so one workflow's steps are never split across two batches.
 		boundArgs := []any{}
 		boundPredicate := match(in, &boundArgs)
+		boundQuery := fmt.Sprintf("SELECT DISTINCT workflow_uuid FROM %s WHERE %s", qualified, boundPredicate)
+		if lowerBound != "" {
+			boundArgs = append(boundArgs, lowerBound)
+			boundQuery += fmt.Sprintf(" AND workflow_uuid >= $%d", len(boundArgs))
+		}
 		boundArgs = append(boundArgs, in.BatchSize)
-		boundQuery := fmt.Sprintf(
-			"SELECT DISTINCT workflow_uuid FROM %s WHERE %s ORDER BY workflow_uuid OFFSET $%d LIMIT 1",
-			qualified, boundPredicate, len(boundArgs))
+		boundQuery += fmt.Sprintf(" ORDER BY workflow_uuid OFFSET $%d LIMIT 1", len(boundArgs))
 
 		var watermark string
 		hasWatermark := true
 		if err := conn.QueryRow(ctx, boundQuery, boundArgs...).Scan(&watermark); err != nil {
 			if err != pgx.ErrNoRows {
+				logf(progress, "Re-owned %d %s row(s) before failing", moved, table)
 				return moved, fmt.Errorf("failed to bound a %s rename batch: %w", table, err)
 			}
 			// Fewer than a full batch remained, so this pass takes the rest.
@@ -232,6 +251,10 @@ func renameInBatches(ctx context.Context, conn *pgx.Conn, table string, in Renam
 		args := []any{in.NewName}
 		predicate := match(in, &args)
 		query := fmt.Sprintf("UPDATE %s SET application_name = $1 WHERE %s", qualified, predicate)
+		if lowerBound != "" {
+			args = append(args, lowerBound)
+			query += fmt.Sprintf(" AND workflow_uuid >= $%d", len(args))
+		}
 		if hasWatermark {
 			args = append(args, watermark)
 			query += fmt.Sprintf(" AND workflow_uuid < $%d", len(args))
@@ -239,6 +262,7 @@ func renameInBatches(ctx context.Context, conn *pgx.Conn, table string, in Renam
 
 		tag, err := conn.Exec(ctx, query, args...)
 		if err != nil {
+			logf(progress, "Re-owned %d %s row(s) before failing", moved, table)
 			return moved, fmt.Errorf("failed to re-own %s rows: %w", table, err)
 		}
 		moved += tag.RowsAffected()
@@ -248,9 +272,11 @@ func renameInBatches(ctx context.Context, conn *pgx.Conn, table string, in Renam
 			return moved, nil
 		}
 		// A batch that moved nothing while a watermark still exists would spin:
-		// nothing below the bound matches, and the bound never advances.
+		// nothing in the bounded range matches, and the bound never advances.
 		if tag.RowsAffected() == 0 {
+			logf(progress, "Re-owned %d %s row(s) before failing", moved, table)
 			return moved, fmt.Errorf("a %s rename batch moved no rows while more remained; refusing to loop", table)
 		}
+		lowerBound = watermark
 	}
 }
