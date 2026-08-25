@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -37,17 +36,37 @@ var applicationOwnedTables = []string{
 	"application_versions",
 }
 
-// cascadeParents are the tables other DBOS tables reference. Every foreign key
-// in the schema points at one of these and cascades on delete.
+// SystemTables is every table the DBOS system schema holds, apart from
+// MigrationTable, which a reset spares.
 //
-// They are emptied last. Correctness does not require it — a cascade and an
-// explicit delete reach the same empty table either way — but the reported
-// counts do: emptying a parent first cascades its children away, and their own
-// DELETE then reports zero rows for a table it just cleared. Draining the
-// children first means each one reports what it actually removed, and the
-// parent's cascade has nothing left to do.
-var cascadeParents = map[string]struct{}{
-	"workflow_status": {},
+// Named rather than read from the catalog. This binary owns the migrations that
+// create these tables, so it knows the set exactly — and a reset that emptied
+// whatever the catalog reported would empty an application's own tables in a
+// schema that holds both. --schema makes that reachable: point it at a schema
+// carrying application tables, and enumeration turns a reset into data loss the
+// operator never asked for. Leaving a row behind is recoverable; that is not.
+//
+// The order is the order a reset empties them in. workflow_status goes last
+// because every foreign key in the schema points at it and cascades on delete:
+// emptying it first would clear the tables that reference it, and each of their
+// own DELETEs would then report zero rows for a table it had just cleared.
+// Correctness does not depend on this — a cascade and an explicit delete reach
+// the same empty table — but the reported counts do.
+//
+// A migration that adds a table adds it here too. The tests fail otherwise:
+// TestSystemTablesMatchTheMigratedSchemaIntegration compares this list against
+// a freshly migrated database.
+var SystemTables = []string{
+	"application_versions",
+	"event_dispatch_kv",
+	"notifications",
+	"operation_outputs",
+	"queues",
+	"streams",
+	"workflow_events",
+	"workflow_events_history",
+	"workflow_schedules",
+	"workflow_status",
 }
 
 // TableCount is the number of rows a reset removed from one table.
@@ -87,7 +106,14 @@ func Empty(ctx context.Context, databaseURL, schema, applicationName string, pro
 	execCtx, cancel := context.WithTimeout(ctx, resetTimeout)
 	defer cancel()
 
-	tables, err := resetTargets(execCtx, conn, schema, applicationName)
+	present, err := schemaTables(execCtx, conn, schema)
+	if err != nil {
+		return nil, err
+	}
+	if err := checkNotAheadOfBinary(execCtx, conn, schema, present); err != nil {
+		return nil, err
+	}
+	tables, err := resetTargets(schema, applicationName, present)
 	if err != nil {
 		return nil, err
 	}
@@ -128,46 +154,56 @@ func Empty(ctx context.Context, databaseURL, schema, applicationName string, pro
 	return counts, nil
 }
 
-// resetTargets lists the tables a reset should delete from.
+// resetTargets lists the tables a reset should delete from: the ones this
+// binary knows about that the schema actually has.
 //
-// Scoped to an application, that is the fixed set carrying application_name.
-// Unscoped, it is read from the catalog rather than hard-coded: which tables
-// exist depends on how far the schema is migrated, so a list compiled into the
-// binary would silently leave rows behind in a database newer than it.
-func resetTargets(ctx context.Context, conn *pgx.Conn, schema, applicationName string) ([]string, error) {
-	present, err := schemaTables(ctx, conn, schema)
-	if err != nil {
-		return nil, err
-	}
-	if applicationName == "" {
-		var children, parents []string
-		for table := range present {
-			if table == MigrationTable {
-				continue
-			}
-			if _, isParent := cascadeParents[table]; isParent {
-				parents = append(parents, table)
-			} else {
-				children = append(children, table)
-			}
-		}
-		// Sorted within each group, so a run reports the same way twice; the
-		// grouping is what keeps the counts honest.
-		sort.Strings(children)
-		sort.Strings(parents)
-		return append(children, parents...), nil
+// Intersecting with what is present rather than assuming the full set, because
+// a schema may be migrated only part of the way — a table added by a migration
+// it has not reached yet is not there to empty.
+func resetTargets(schema, applicationName string, present map[string]struct{}) ([]string, error) {
+	known := SystemTables
+	if applicationName != "" {
+		known = applicationOwnedTables
 	}
 
-	out := make([]string, 0, len(applicationOwnedTables))
-	for _, table := range applicationOwnedTables {
+	out := make([]string, 0, len(known))
+	for _, table := range known {
 		if _, ok := present[table]; ok {
 			out = append(out, table)
 		}
 	}
-	if len(out) == 0 {
+	if len(out) == 0 && applicationName != "" {
 		return nil, fmt.Errorf("schema %s has no application_name columns: it predates migration 100, so it cannot be reset per application", schema)
 	}
 	return out, nil
+}
+
+// checkNotAheadOfBinary refuses to empty a schema migrated past what this build
+// knows.
+//
+// The table list is compiled in, which is what keeps a reset from touching
+// tables DBOS did not create — but it also means a migration this build has
+// never seen could have added a table that would then be left full while the
+// command reported success. The system schema is shared by every SDK and they
+// release on their own schedules, so a database ahead of this dbosctl is a
+// normal thing to meet rather than a corrupt one. Say so, and name the fix.
+func checkNotAheadOfBinary(ctx context.Context, conn *pgx.Conn, schema string, present map[string]struct{}) error {
+	if _, ok := present[MigrationTable]; !ok {
+		// Nothing has migrated this schema, so there is no version to be ahead of.
+		return nil
+	}
+	var version int64
+	q := fmt.Sprintf("SELECT version FROM %s LIMIT 1", pgx.Identifier{schema, MigrationTable}.Sanitize())
+	if err := conn.QueryRow(ctx, q).Scan(&version); err != nil {
+		if err == pgx.ErrNoRows {
+			return nil
+		}
+		return fmt.Errorf("failed to read the migration version of schema %s: %w", schema, err)
+	}
+	if latest := LatestVersion(); version > latest {
+		return fmt.Errorf("schema %s is at migration %d but this dbosctl knows up to %d: a newer migration may have added tables this build would leave behind; upgrade dbosctl", schema, version, latest)
+	}
+	return nil
 }
 
 // schemaTables returns the base tables in a schema, as a set.

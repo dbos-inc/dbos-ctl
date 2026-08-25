@@ -208,6 +208,21 @@ func TestSysdbOwnsTheDatabaseCommands(t *testing.T) {
 		}
 	}
 
+	// rename-application is a mouthful, and the short form is what people will
+	// actually type; the full name stays canonical because the SDKs use it.
+	var rename *cobra.Command
+	for _, c := range sysdb.Commands() {
+		if c.Name() == "rename-application" {
+			rename = c
+		}
+	}
+	if rename == nil {
+		t.Fatal("sysdb has no rename-application command")
+	}
+	if !rename.HasAlias("rename-app") {
+		t.Errorf("rename-application does not accept the rename-app alias, aliases: %v", rename.Aliases)
+	}
+
 	for _, flag := range []string{"db-url", "schema"} {
 		if sysdb.PersistentFlags().Lookup(flag) == nil {
 			t.Errorf("sysdb does not define --%s persistently, so its subcommands cannot share one definition", flag)

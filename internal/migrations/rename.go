@@ -19,7 +19,14 @@ const DefaultRenameBatchSize = 10_000
 // the application it is renaming reports instead of hanging.
 const renameTimeout = 30 * time.Minute
 
-// ApplicationRowCounts reports what a rename moved, by kind.
+// ApplicationRowCounts reports what a rename durably moved, by kind.
+//
+// Counts and errors are not exclusive: the terminal workflows and steps move in
+// their own transactions, so a rename that fails partway reports how far it
+// committed, which is what a re-run resumes from. Nothing from the first
+// transaction is counted until that transaction commits — it either all moved
+// or none of it did, and reporting rows a rollback took back would be worse
+// than reporting nothing.
 type ApplicationRowCounts struct {
 	Workflows int64 `json:"workflows"`
 	Steps     int64 `json:"steps"`
@@ -115,14 +122,18 @@ func RenameApplication(ctx context.Context, databaseURL string, in RenameInput, 
 		return tag.RowsAffected(), nil
 	}
 
-	if counts.Queues, err = move("queues"); err != nil {
-		return counts, err
+	// Held aside rather than accumulated into counts: until the commit below
+	// these describe a transaction that may still roll back, and returning them
+	// alongside an error would report rows that never moved.
+	var queues, schedules, versions int64
+	if queues, err = move("queues"); err != nil {
+		return ApplicationRowCounts{}, err
 	}
-	if counts.Schedules, err = move("workflow_schedules"); err != nil {
-		return counts, err
+	if schedules, err = move("workflow_schedules"); err != nil {
+		return ApplicationRowCounts{}, err
 	}
-	if counts.Versions, err = move("application_versions"); err != nil {
-		return counts, err
+	if versions, err = move("application_versions"); err != nil {
+		return ApplicationRowCounts{}, err
 	}
 
 	// In-flight workflows are bounded by how much the application is running,
@@ -134,26 +145,33 @@ func RenameApplication(ctx context.Context, databaseURL string, in RenameInput, 
 		pgx.Identifier{in.Schema, "workflow_status"}.Sanitize(), predicate)
 	tag, err := tx.Exec(execCtx, inFlightQuery, args...)
 	if err != nil {
-		return counts, fmt.Errorf("failed to re-own in-flight workflow rows: %w", err)
+		return ApplicationRowCounts{}, fmt.Errorf("failed to re-own in-flight workflow rows: %w", err)
 	}
 	inFlight := tag.RowsAffected()
 
 	if err := tx.Commit(execCtx); err != nil {
-		return counts, fmt.Errorf("failed to commit the rename: %w", err)
+		return ApplicationRowCounts{}, fmt.Errorf("failed to commit the rename: %w", err)
 	}
+	// Committed, so these are now facts rather than intentions.
+	counts.Queues, counts.Schedules, counts.Versions = queues, schedules, versions
+	counts.Workflows = inFlight
 	logf(progress, "Re-owned %d queue(s), %d schedule(s), %d version(s), %d in-flight workflow(s)",
 		counts.Queues, counts.Schedules, counts.Versions, inFlight)
 
 	// Terminal workflows and their steps are unbounded — a year of history is
 	// however many rows it is — so they move in their own transactions.
-	terminal, err := renameInBatches(execCtx, conn, "workflow_status", in, progress)
-	if err != nil {
-		return counts, err
+	// Each batch commits on its own, so what these moved before failing is real
+	// and worth reporting: it is where a re-run picks up.
+	terminal, batchErr := renameInBatches(execCtx, conn, "workflow_status", in, progress)
+	counts.Workflows += terminal
+	if batchErr != nil {
+		return counts, batchErr
 	}
-	counts.Workflows = inFlight + terminal
 
-	if counts.Steps, err = renameInBatches(execCtx, conn, "operation_outputs", in, progress); err != nil {
-		return counts, err
+	steps, batchErr := renameInBatches(execCtx, conn, "operation_outputs", in, progress)
+	counts.Steps = steps
+	if batchErr != nil {
+		return counts, batchErr
 	}
 	return counts, nil
 }

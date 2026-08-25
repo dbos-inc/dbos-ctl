@@ -15,8 +15,11 @@ import (
 // on: a runbook that names this command should not have to change because the
 // binary running it did.
 var renameApplicationCmd = &cobra.Command{
-	Use:   "rename-application",
-	Short: "Re-own a system database's rows after an application is renamed",
+	Use: "rename-application",
+	// The full name is the one the SDK CLIs use, so it stays the name; typing
+	// it is another matter.
+	Aliases: []string{"rename-app"},
+	Short:   "Re-own a system database's rows after an application is renamed",
 	Long: `Re-own a system database's rows after an application is renamed.
 
 An application owns the workflows, steps, queues, schedules, and versions it

@@ -5,6 +5,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 
@@ -131,6 +132,55 @@ func TestResetReportsWhatEachTableLostIntegration(t *testing.T) {
 	}
 }
 
+// TestSystemTablesMatchTheMigratedSchemaIntegration is what makes naming the
+// tables safe instead of merely convenient. The list is compiled in so a reset
+// can never touch a table DBOS did not create; the risk it takes on is going
+// stale, and a migration that added a table would then leave it full while the
+// command reported success. Compare the list against a real migrated schema so
+// that adding a migration without adding its table fails here.
+func TestSystemTablesMatchTheMigratedSchemaIntegration(t *testing.T) {
+	e := startEngine(t)
+	dbURL := e.url("dbos_sys")
+	runMigrateOrFail(t, "--db-url", dbURL)
+
+	conn := connect(t, dbURL)
+	rows, err := conn.Query(context.Background(),
+		`SELECT table_name FROM information_schema.tables
+		 WHERE table_schema = 'dbos' AND table_type = 'BASE TABLE'`)
+	if err != nil {
+		t.Fatalf("list tables: %v", err)
+	}
+	defer rows.Close()
+
+	actual := map[string]bool{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			t.Fatal(err)
+		}
+		// The migration table is the one a reset spares, so it is not in the list.
+		if name != migrations.MigrationTable {
+			actual[name] = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	named := map[string]bool{}
+	for _, table := range migrations.SystemTables {
+		named[table] = true
+		if !actual[table] {
+			t.Errorf("SystemTables names %q, which a migrated schema does not have", table)
+		}
+	}
+	for table := range actual {
+		if !named[table] {
+			t.Errorf("a migrated schema has %q, which SystemTables does not name: a reset would leave it full", table)
+		}
+	}
+}
+
 // A second reset must be as safe as the first: nothing to delete is not an
 // error, which is what makes this usable between test runs.
 func TestResetIsRepeatableIntegration(t *testing.T) {
@@ -238,6 +288,47 @@ func TestRenameMovesEveryOwnedKindIntegration(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("reported counts are missing %s:\n%s", want, out)
 		}
+	}
+}
+
+// TestRenameReportsNothingWhenTheFirstTransactionRollsBackIntegration forces a
+// failure partway through the opening transaction. Queues and schedules have
+// already been updated at that point, so the counts would happily report them —
+// but the rollback takes them back, and a count of rows that did not move is
+// worse than no count at all.
+func TestRenameReportsNothingWhenTheFirstTransactionRollsBackIntegration(t *testing.T) {
+	e := startEngine(t)
+	dbURL := e.url("dbos_sys")
+	runMigrateOrFail(t, "--db-url", dbURL)
+
+	conn := connect(t, dbURL)
+	seedWorkflow(t, conn, "wf-1", "SUCCESS", "old-app")
+	seedOwnedRows(t, conn, "old", "old-app")
+	// Drop the third table the transaction touches, so the first two succeed
+	// and then it fails with work already done. Nothing references it.
+	exec(t, conn, `DROP TABLE dbos.application_versions`)
+
+	// Called directly rather than through the command: the CLI discards the
+	// counts when it gets an error, so the contract this is about — what the
+	// counts say alongside a failure — is only visible here.
+	counts, err := migrations.RenameApplication(context.Background(), dbURL, migrations.RenameInput{
+		OldName: "old-app",
+		NewName: "new-app",
+	}, io.Discard)
+	if err == nil {
+		t.Fatal("rename succeeded against a schema missing application_versions")
+	}
+
+	// The rollback: the queue and schedule updates that did run must be gone.
+	for _, table := range []string{"queues", "workflow_schedules"} {
+		n := scalar[int64](t, conn, fmt.Sprintf(`SELECT count(*) FROM dbos.%s WHERE application_name = 'new-app'`, table))
+		if n != 0 {
+			t.Errorf("%s kept %d row(s) re-owned by a transaction that rolled back", table, n)
+		}
+	}
+	// And nothing may be reported as moved, since nothing was.
+	if counts != (migrations.ApplicationRowCounts{}) {
+		t.Errorf("counts report %+v after a rollback that moved nothing", counts)
 	}
 }
 

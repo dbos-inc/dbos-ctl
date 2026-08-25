@@ -158,7 +158,7 @@ Two ways to bypass the flow:
 | `dbosctl config list \| show \| use \| set` | Manage profiles |
 | `dbosctl sysdb migrate` | Create or upgrade a DBOS system database |
 | `dbosctl sysdb reset` | Empty the DBOS system database |
-| `dbosctl sysdb rename-application` | Re-own rows after an application is renamed |
+| `dbosctl sysdb rename-application` | Re-own rows after an application is renamed (alias: `rename-app`) |
 | `dbosctl version` (or `--version`) | Print version information |
 
 ## sysdb
@@ -275,6 +275,10 @@ in the same schema are untouched, and so are rows no application owns.
 `--application` or `--schema` — both describe work inside the database it
 destroys.
 
+Only the tables DBOS creates are emptied. They are named in the binary rather
+than read from the catalog, so pointing `--schema` at a schema that also holds
+application tables empties the DBOS ones and leaves the rest alone.
+
 ### sysdb rename-application
 
 An application owns what it creates, keyed by its configured name, so renaming
@@ -282,7 +286,7 @@ it strands those rows under the old name. This moves them:
 
 ```sh
 dbosctl sysdb rename-application --from old-name --to new-name
-dbosctl sysdb rename-application --to new-name --adopt-unclaimed-rows
+dbosctl sysdb rename-app --to new-name --adopt-unclaimed-rows   # same command
 ```
 
 **Stop the application being renamed first.** Nothing here locks it out, and a
@@ -305,6 +309,10 @@ half-owned application would dequeue work whose version row it can no longer
 see. Terminal workflows and their steps are unbounded, so they move in batches
 of `--batch-size` keys, and an interrupted run resumes rather than starting
 over. The moved-row counts go to stdout as JSON, with progress on stderr.
+
+Those counts are rows *durably* moved. A failure inside the opening transaction
+reports nothing, because the rollback moved nothing; a failure in the batched
+tail reports what committed before it, which is where a re-run picks up.
 
 ## Configuration precedence
 
