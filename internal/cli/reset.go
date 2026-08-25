@@ -29,8 +29,8 @@ Deletes the DBOS rows, leaving the schema itself migrated and ready to use, so
 the database does not have to be provisioned again. The migration history is
 kept: clearing it would re-run applied migrations over tables that exist.
 
-Pass --application to empty one application's rows in a system database shared
-by several. Everything else in the schema is left alone.
+Pass --app to empty one application's rows in a system database shared by
+several. Everything else in the schema is left alone.
 
 Pass --drop-database to drop the whole database instead. That reaches past
 --schema: it takes any application tables sharing the database, and every
@@ -51,14 +51,19 @@ func init() {
 // can build a command carrying exactly these definitions.
 func addResetFlags(cmd *cobra.Command) {
 	f := cmd.Flags()
-	f.String("application", "", "empty only this application's rows, for a shared system database")
+	// --app, spelled and abbreviated as the rest of dbosctl spells an
+	// application name, but declared here rather than taken from
+	// addRequestFlags: the common --app resolves through $DBOS_APP and the
+	// profile, and a flag deciding how much of a database to destroy must not
+	// pick its value out of ambient configuration. This one is explicit only.
+	f.StringP("app", "a", "", "empty only this application's rows, for a shared system database")
 	f.Bool("drop-database", false, "drop the whole database instead of emptying the DBOS tables")
 	f.Bool("force", false, "skip the confirmation prompt (required when non-interactive)")
 }
 
 func runReset(cmd *cobra.Command, _ []string) error {
 	schema, _ := cmd.Flags().GetString("schema")
-	application, _ := cmd.Flags().GetString("application")
+	application, _ := cmd.Flags().GetString("app")
 	dropDatabase, _ := cmd.Flags().GetBool("drop-database")
 	force, _ := cmd.Flags().GetBool("force")
 
@@ -67,12 +72,12 @@ func runReset(cmd *cobra.Command, _ []string) error {
 		// dropping it asks for two different things at once. Reporting that
 		// beats picking one and destroying more than the operator described.
 		//
-		// Changed rather than a non-empty value, as for --schema: `--application
-		// "$APP"` with APP unset is a mistake, and reading it as "no
-		// --application" would wave it past this guard into a wider reset than
-		// anything on the command line asked for.
-		if cmd.Flags().Changed("application") {
-			return &exitError{code: 2, msg: "--application cannot be combined with --drop-database: dropping the database takes every application's rows"}
+		// Changed rather than a non-empty value, as for --schema: `--app "$APP"`
+		// with APP unset is a mistake, and reading it as "no --app" would wave
+		// it past this guard into a wider reset than anything on the command
+		// line asked for.
+		if cmd.Flags().Changed("app") {
+			return &exitError{code: 2, msg: "--app cannot be combined with --drop-database: dropping the database takes every application's rows"}
 		}
 		if cmd.Flags().Changed("schema") {
 			return &exitError{code: 2, msg: "--schema cannot be combined with --drop-database: dropping the database takes every schema in it"}
@@ -81,8 +86,8 @@ func runReset(cmd *cobra.Command, _ []string) error {
 	// Same mistake, without --drop-database: the flag asks to scope the reset to
 	// one application and names none. Widening that to every application's rows
 	// — no prompt to catch it under --force — is the worst reading available.
-	if cmd.Flags().Changed("application") && application == "" {
-		return &exitError{code: 2, msg: "--application was given an empty name: omit it entirely to empty every application's rows"}
+	if cmd.Flags().Changed("app") && application == "" {
+		return &exitError{code: 2, msg: "--app was given an empty name: omit it entirely to empty every application's rows"}
 	}
 	if err := migrations.ValidateSchemaName(schema); err != nil {
 		return &exitError{code: 2, msg: err.Error()}

@@ -262,18 +262,21 @@ CockroachDB it is the difference between cheap deletes and a schema change.
 
 | Flag | Purpose |
 |---|---|
-| `--application <name>` | Empty only this application's rows, for a shared system database |
+| `-a`, `--app <name>` | Empty only this application's rows, for a shared system database |
 | `--drop-database` | Drop the whole database instead |
 | `--force` | Skip the confirmation prompt (required when non-interactive) |
 
-`--application` deletes the rows that name it and lets the foreign keys take the
-rest: every workflow-keyed table cascades from `workflow_status`, so a
-workflow's steps, messages, events, and streams go with it. Other applications
-in the same schema are untouched, and so are rows no application owns.
+`--app` deletes the rows that name it and lets the foreign keys take the rest:
+every workflow-keyed table cascades from `workflow_status`, so a workflow's
+steps, messages, events, and streams go with it. Other applications in the same
+schema are untouched, and so are rows no application owns.
 
-`--drop-database` is the blunt version, and cannot be combined with
-`--application` or `--schema` — both describe work inside the database it
-destroys.
+Unlike the `--app` the Conductor commands take, this one resolves from the
+command line only — no `$DBOS_APP`, no profile. What decides how much of a
+database to destroy should have to be typed.
+
+`--drop-database` is the blunt version, and cannot be combined with `--app` or
+`--schema` — both describe work inside the database it destroys.
 
 Only the tables DBOS creates are emptied. They are named in the binary rather
 than read from the catalog, so pointing `--schema` at a schema that also holds

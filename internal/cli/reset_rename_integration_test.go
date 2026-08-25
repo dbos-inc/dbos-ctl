@@ -212,7 +212,7 @@ func TestResetScopedToApplicationIntegration(t *testing.T) {
 	seedOwnedRows(t, conn, "billing", "billing")
 	seedOwnedRows(t, conn, "orders", "orders")
 
-	runResetOrFail(t, "--db-url", dbURL, "--application", "billing")
+	runResetOrFail(t, "--db-url", dbURL, "--app", "billing")
 
 	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.workflow_status WHERE application_name = 'billing'`); n != 0 {
 		t.Errorf("billing still has %d workflow(s)", n)

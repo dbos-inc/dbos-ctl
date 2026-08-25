@@ -62,8 +62,8 @@ func wantUsageError(t *testing.T, err error, want string) {
 func TestResetRejectsApplicationWithDropDatabase(t *testing.T) {
 	// Scoping to one application and dropping the database ask for opposite
 	// blast radii; guessing which one was meant would destroy the difference.
-	cmd, _ := newResetCmd(t, "--drop-database", "--application", "billing", "--db-url", unreachableURL)
-	wantUsageError(t, cmd.Execute(), "--application cannot be combined with --drop-database")
+	cmd, _ := newResetCmd(t, "--drop-database", "--app", "billing", "--db-url", unreachableURL)
+	wantUsageError(t, cmd.Execute(), "--app cannot be combined with --drop-database")
 }
 
 func TestResetRejectsSchemaWithDropDatabase(t *testing.T) {
@@ -84,19 +84,19 @@ func TestResetAllowsDropDatabaseWithoutExplicitSchema(t *testing.T) {
 	}
 }
 
-// An empty --application is a shell variable that did not expand. Reading it as
-// "no --application" would turn a request to empty one application's rows into
+// An empty --app is a shell variable that did not expand. Reading it as
+// "no --app" would turn a request to empty one application's rows into
 // emptying every application's, and --force would skip the prompt that is the
 // only other thing standing in the way.
 func TestResetRejectsAnEmptyApplication(t *testing.T) {
-	cmd, _ := newResetCmd(t, "--application", "", "--force", "--db-url", unreachableURL)
-	wantUsageError(t, cmd.Execute(), "--application was given an empty name")
+	cmd, _ := newResetCmd(t, "--app", "", "--force", "--db-url", unreachableURL)
+	wantUsageError(t, cmd.Execute(), "--app was given an empty name")
 }
 
 // The same mistake must not slip past the --drop-database guard either.
 func TestResetRejectsEmptyApplicationWithDropDatabase(t *testing.T) {
-	cmd, _ := newResetCmd(t, "--drop-database", "--application", "", "--force", "--db-url", unreachableURL)
-	wantUsageError(t, cmd.Execute(), "--application cannot be combined with --drop-database")
+	cmd, _ := newResetCmd(t, "--drop-database", "--app", "", "--force", "--db-url", unreachableURL)
+	wantUsageError(t, cmd.Execute(), "--app cannot be combined with --drop-database")
 }
 
 func TestResetRefusesWithoutATerminal(t *testing.T) {
