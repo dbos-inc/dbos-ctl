@@ -279,6 +279,11 @@ Only the tables DBOS creates are emptied. They are named in the binary rather
 than read from the catalog, so pointing `--schema` at a schema that also holds
 application tables empties the DBOS ones and leaves the rest alone.
 
+Per-table row counts go to stdout as JSON, with progress on stderr, the same
+split `rename-application` uses. `--drop-database` prints none — the tables go
+with the database — and neither does a failure, since the deletes are one
+transaction and a rollback removed nothing.
+
 ### sysdb rename-application
 
 An application owns what it creates, keyed by its configured name, so renaming

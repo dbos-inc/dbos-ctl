@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -102,11 +103,22 @@ func runReset(cmd *cobra.Command, _ []string) error {
 
 	progress := cmd.ErrOrStderr()
 	if dropDatabase {
+		// Nothing to count: the tables go with the database.
 		return migrations.DropDatabase(cmd.Context(), dbURL, progress)
 	}
 	fmt.Fprintf(progress, "Emptying %s (schema %s)\n", maskPassword(dbURL), schema)
-	_, err = migrations.Empty(cmd.Context(), dbURL, schema, application, progress)
-	return err
+	counts, err := migrations.Empty(cmd.Context(), dbURL, schema, application, progress)
+	if err != nil {
+		// Empty is one transaction, so a failure emptied nothing; the counts it
+		// returns alongside describe a rollback and are not worth printing.
+		return err
+	}
+	// Per-table counts go to stdout as JSON, with the progress on stderr, so a
+	// scripted reset can read what it removed without parsing log lines. Same
+	// split as rename-application.
+	enc := json.NewEncoder(cmd.OutOrStdout())
+	enc.SetIndent("", "  ")
+	return enc.Encode(counts)
 }
 
 // confirmReset asks before destroying anything, unless --force was passed. It
