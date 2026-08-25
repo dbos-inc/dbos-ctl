@@ -283,6 +283,13 @@ Only the tables DBOS creates are emptied. They are named in the binary rather
 than read from the catalog, so pointing `--schema` at a schema that also holds
 application tables empties the DBOS ones and leaves the rest alone.
 
+That list is also why both `reset` and `rename-application` refuse a schema
+migrated past what the binary knows: a migration this build has never seen may
+have added a table it would silently skip, leaving it full — or, for a rename,
+leaving its rows under the old name — while reporting success. The system schema
+is shared by every SDK and they release on their own schedules, so meeting a
+newer database is normal rather than alarming. Upgrade dbosctl.
+
 Per-table row counts go to stdout, with progress on stderr, the same split
 `rename-application` uses — a table by default, `-o json` for a scripted reset.
 `--drop-database` prints none — the tables go with the database — and neither
@@ -325,6 +332,9 @@ default, `-o json` for a scripted rename.
 Those counts are rows *durably* moved. A failure inside the opening transaction
 reports nothing, because the rollback moved nothing; a failure in the batched
 tail reports what committed before it, which is where a re-run picks up.
+
+Like `reset`, this refuses a schema migrated past what the binary knows, and
+refuses before moving anything.
 
 ## Configuration precedence
 

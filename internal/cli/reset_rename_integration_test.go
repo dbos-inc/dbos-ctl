@@ -205,6 +205,50 @@ func TestResetIsRepeatableIntegration(t *testing.T) {
 	runResetOrFail(t, "--db-url", dbURL)
 }
 
+// A schema migrated past what this build knows may carry tables neither command
+// names, and both work from compiled-in lists. Reset would leave such a table
+// full and report success; rename would leave its rows under the old name and
+// report success, which is the half-renamed application the whole design avoids.
+// Both must refuse, and refuse before doing anything.
+func TestSysdbCommandsRefuseASchemaAheadOfTheBinaryIntegration(t *testing.T) {
+	e := startEngine(t)
+	dbURL := e.url("dbos_sys")
+	runMigrateOrFail(t, "--db-url", dbURL)
+
+	conn := connect(t, dbURL)
+	seedWorkflow(t, conn, "wf-1", "SUCCESS", "old-app")
+	seedOwnedRows(t, conn, "old", "old-app")
+	// Stand in for a newer SDK having migrated this schema.
+	exec(t, conn, `UPDATE dbos.dbos_migrations SET version = $1`, migrations.LatestVersion()+1)
+
+	resetCmd, resetOut := newResetCmd(t, "--db-url", dbURL, "--force")
+	if err := resetCmd.Execute(); err == nil {
+		t.Errorf("reset emptied a schema ahead of the binary:\n%s", resetOut)
+	} else if !strings.Contains(err.Error(), "upgrade dbosctl") {
+		t.Errorf("reset refusal does not name the fix: %v", err)
+	}
+
+	renameCmd, renameOut := newRenameCmd(t, "--db-url", dbURL, "--from", "old-app", "--to", "new-app", "--force")
+	if err := renameCmd.Execute(); err == nil {
+		t.Errorf("rename re-owned rows in a schema ahead of the binary:\n%s", renameOut)
+	} else if !strings.Contains(err.Error(), "upgrade dbosctl") {
+		t.Errorf("rename refusal does not name the fix: %v", err)
+	}
+
+	// Refusing has to mean nothing moved. A rename that renamed the tables it
+	// knows and then reported a version error would leave exactly the split
+	// ownership the refusal exists to prevent.
+	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.workflow_status WHERE application_name = 'old-app'`); n != 1 {
+		t.Errorf("the refused rename moved workflow rows anyway: %d left under the old name", n)
+	}
+	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.queues WHERE application_name = 'old-app'`); n != 1 {
+		t.Errorf("the refused rename moved queue rows anyway: %d left under the old name", n)
+	}
+	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.workflow_status WHERE application_name = 'new-app'`); n != 0 {
+		t.Errorf("the refused rename created %d row(s) under the new name", n)
+	}
+}
+
 // TestResetScopedToApplicationIntegration covers the shared system database:
 // one application's history goes, its neighbour's stays, and the steps of the
 // deleted workflows go with them by foreign key rather than by a second pass.

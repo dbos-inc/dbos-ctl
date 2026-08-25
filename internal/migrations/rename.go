@@ -121,6 +121,18 @@ func RenameApplication(ctx context.Context, databaseURL string, in RenameInput, 
 	execCtx, cancel := context.WithTimeout(ctx, renameTimeout)
 	defer cancel()
 
+	// Checked before anything moves. The tables below are compiled in, so a
+	// migration this build has never seen could carry application_name on one
+	// they do not name, and the rename would report success over rows still
+	// owned by the old name.
+	present, err := schemaTables(execCtx, conn, in.Schema)
+	if err != nil {
+		return counts, err
+	}
+	if err := checkNotAheadOfBinary(execCtx, conn, in.Schema, present); err != nil {
+		return counts, err
+	}
+
 	// Queues, schedules, versions, and the in-flight workflows move together.
 	// A half-owned application is the one state worse than either end: it
 	// dequeues work whose application_version row it can no longer see.

@@ -199,15 +199,19 @@ func resetTargets(schema, applicationName string, present, owned map[string]stru
 	return out, nil
 }
 
-// checkNotAheadOfBinary refuses to empty a schema migrated past what this build
-// knows.
+// checkNotAheadOfBinary refuses to work on a schema migrated past what this
+// build knows. Both Empty and RenameApplication call it.
 //
-// The table list is compiled in, which is what keeps a reset from touching
-// tables DBOS did not create — but it also means a migration this build has
-// never seen could have added a table that would then be left full while the
-// command reported success. The system schema is shared by every SDK and they
-// release on their own schedules, so a database ahead of this dbosctl is a
-// normal thing to meet rather than a corrupt one. Say so, and name the fix.
+// Their table lists are compiled in, which is what keeps them off tables DBOS
+// did not create — but it also means a migration this build has never seen
+// could have added a table they would silently skip. A reset would leave that
+// table full and report success. A rename would leave its rows under the old
+// name and report success, which is the half-owned application the opening
+// transaction exists to prevent, arrived at the long way round.
+//
+// The system schema is shared by every SDK and they release on their own
+// schedules, so a database ahead of this dbosctl is a normal thing to meet
+// rather than a corrupt one. Say so, and name the fix.
 func checkNotAheadOfBinary(ctx context.Context, conn *pgx.Conn, schema string, present map[string]struct{}) error {
 	if _, ok := present[MigrationTable]; !ok {
 		// Nothing has migrated this schema, so there is no version to be ahead of.
