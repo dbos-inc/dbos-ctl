@@ -61,6 +61,26 @@ func sourcePredicate(in RenameInput, args *[]any) string {
 	return "(" + strings.Join(clauses, " OR ") + ")"
 }
 
+// rowPredicate renders the WHERE clause matching the rows one table's rename
+// moves. Both tables pass sourcePredicate today, so the seam buys nothing yet;
+// it is here because operation_outputs is known to need its own.
+//
+// Migration 104 added operation_outputs.application_name with DEFAULT NULL and
+// no backfill, so every step row written before a database reached 104 is NULL
+// no matter who owns its workflow. Matching that column alone leaves all of
+// them behind: a rename over a long-lived database reports "steps": 0 and
+// strands the entire history, while the reset path never notices because it
+// deletes through the foreign key cascade instead.
+//
+// Every SDK has that gap, and closing it here alone would mean dbosctl and
+// `dbos rename-application` disagreeing about the same database, so it wants
+// designing once and porting rather than inventing in the CLI. Whatever comes
+// out of that lands as a second rowPredicate.
+//
+// Whatever it is, it has to keep the invariant renameInBatches advances on:
+// a row this clause moves must stop matching it, or the watermark never moves.
+type rowPredicate func(in RenameInput, args *[]any) string
+
 // RenameApplication gives NewName ownership of the rows OldName holds, of the
 // unclaimed rows, or of both.
 //
@@ -162,13 +182,13 @@ func RenameApplication(ctx context.Context, databaseURL string, in RenameInput, 
 	// however many rows it is — so they move in their own transactions.
 	// Each batch commits on its own, so what these moved before failing is real
 	// and worth reporting: it is where a re-run picks up.
-	terminal, batchErr := renameInBatches(execCtx, conn, "workflow_status", in, progress)
+	terminal, batchErr := renameInBatches(execCtx, conn, "workflow_status", in, sourcePredicate, progress)
 	counts.Workflows += terminal
 	if batchErr != nil {
 		return counts, batchErr
 	}
 
-	steps, batchErr := renameInBatches(execCtx, conn, "operation_outputs", in, progress)
+	steps, batchErr := renameInBatches(execCtx, conn, "operation_outputs", in, sourcePredicate, progress)
 	counts.Steps = steps
 	if batchErr != nil {
 		return counts, batchErr
@@ -184,7 +204,7 @@ func RenameApplication(ctx context.Context, databaseURL string, in RenameInput, 
 // plans as a whole-table hash join. Bounding each batch by a key means the work
 // already done is behind the watermark and never looked at again, and an
 // interrupted run resumes where it stopped rather than starting over.
-func renameInBatches(ctx context.Context, conn *pgx.Conn, table string, in RenameInput, progress io.Writer) (int64, error) {
+func renameInBatches(ctx context.Context, conn *pgx.Conn, table string, in RenameInput, match rowPredicate, progress io.Writer) (int64, error) {
 	qualified := pgx.Identifier{in.Schema, table}.Sanitize()
 	var moved int64
 
@@ -193,7 +213,7 @@ func renameInBatches(ctx context.Context, conn *pgx.Conn, table string, in Renam
 		// workflow_uuid still matching. DISTINCT so one workflow's steps are
 		// never split across two batches.
 		boundArgs := []any{}
-		boundPredicate := sourcePredicate(in, &boundArgs)
+		boundPredicate := match(in, &boundArgs)
 		boundArgs = append(boundArgs, in.BatchSize)
 		boundQuery := fmt.Sprintf(
 			"SELECT DISTINCT workflow_uuid FROM %s WHERE %s ORDER BY workflow_uuid OFFSET $%d LIMIT 1",
@@ -210,7 +230,7 @@ func renameInBatches(ctx context.Context, conn *pgx.Conn, table string, in Renam
 		}
 
 		args := []any{in.NewName}
-		predicate := sourcePredicate(in, &args)
+		predicate := match(in, &args)
 		query := fmt.Sprintf("UPDATE %s SET application_name = $1 WHERE %s", qualified, predicate)
 		if hasWatermark {
 			args = append(args, watermark)
