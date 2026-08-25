@@ -84,6 +84,21 @@ func TestResetAllowsDropDatabaseWithoutExplicitSchema(t *testing.T) {
 	}
 }
 
+// An empty --application is a shell variable that did not expand. Reading it as
+// "no --application" would turn a request to empty one application's rows into
+// emptying every application's, and --force would skip the prompt that is the
+// only other thing standing in the way.
+func TestResetRejectsAnEmptyApplication(t *testing.T) {
+	cmd, _ := newResetCmd(t, "--application", "", "--force", "--db-url", unreachableURL)
+	wantUsageError(t, cmd.Execute(), "--application was given an empty name")
+}
+
+// The same mistake must not slip past the --drop-database guard either.
+func TestResetRejectsEmptyApplicationWithDropDatabase(t *testing.T) {
+	cmd, _ := newResetCmd(t, "--drop-database", "--application", "", "--force", "--db-url", unreachableURL)
+	wantUsageError(t, cmd.Execute(), "--application cannot be combined with --drop-database")
+}
+
 func TestResetRefusesWithoutATerminal(t *testing.T) {
 	notATerminal(t)
 	cmd, _ := newResetCmd(t, "--db-url", unreachableURL)

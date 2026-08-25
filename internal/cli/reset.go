@@ -65,12 +65,23 @@ func runReset(cmd *cobra.Command, _ []string) error {
 		// Both of these describe work inside the database, so pairing them with
 		// dropping it asks for two different things at once. Reporting that
 		// beats picking one and destroying more than the operator described.
-		if application != "" {
+		//
+		// Changed rather than a non-empty value, as for --schema: `--application
+		// "$APP"` with APP unset is a mistake, and reading it as "no
+		// --application" would wave it past this guard into a wider reset than
+		// anything on the command line asked for.
+		if cmd.Flags().Changed("application") {
 			return &exitError{code: 2, msg: "--application cannot be combined with --drop-database: dropping the database takes every application's rows"}
 		}
 		if cmd.Flags().Changed("schema") {
 			return &exitError{code: 2, msg: "--schema cannot be combined with --drop-database: dropping the database takes every schema in it"}
 		}
+	}
+	// Same mistake, without --drop-database: the flag asks to scope the reset to
+	// one application and names none. Widening that to every application's rows
+	// — no prompt to catch it under --force — is the worst reading available.
+	if cmd.Flags().Changed("application") && application == "" {
+		return &exitError{code: 2, msg: "--application was given an empty name: omit it entirely to empty every application's rows"}
 	}
 	if err := migrations.ValidateSchemaName(schema); err != nil {
 		return &exitError{code: 2, msg: err.Error()}
