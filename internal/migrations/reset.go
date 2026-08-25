@@ -37,6 +37,19 @@ var applicationOwnedTables = []string{
 	"application_versions",
 }
 
+// cascadeParents are the tables other DBOS tables reference. Every foreign key
+// in the schema points at one of these and cascades on delete.
+//
+// They are emptied last. Correctness does not require it — a cascade and an
+// explicit delete reach the same empty table either way — but the reported
+// counts do: emptying a parent first cascades its children away, and their own
+// DELETE then reports zero rows for a table it just cleared. Draining the
+// children first means each one reports what it actually removed, and the
+// parent's cascade has nothing left to do.
+var cascadeParents = map[string]struct{}{
+	"workflow_status": {},
+}
+
 // TableCount is the number of rows a reset removed from one table.
 type TableCount struct {
 	Table string `json:"table"`
@@ -127,17 +140,22 @@ func resetTargets(ctx context.Context, conn *pgx.Conn, schema, applicationName s
 		return nil, err
 	}
 	if applicationName == "" {
-		out := make([]string, 0, len(present))
+		var children, parents []string
 		for table := range present {
 			if table == MigrationTable {
 				continue
 			}
-			out = append(out, table)
+			if _, isParent := cascadeParents[table]; isParent {
+				parents = append(parents, table)
+			} else {
+				children = append(children, table)
+			}
 		}
-		// Deterministic order, so a dry run and the real one report the same
-		// way. Any order is correct: every foreign key here cascades on delete.
-		sort.Strings(out)
-		return out, nil
+		// Sorted within each group, so a run reports the same way twice; the
+		// grouping is what keeps the counts honest.
+		sort.Strings(children)
+		sort.Strings(parents)
+		return append(children, parents...), nil
 	}
 
 	out := make([]string, 0, len(applicationOwnedTables))

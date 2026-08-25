@@ -101,6 +101,36 @@ func TestResetEmptiesWithoutUnmigratingIntegration(t *testing.T) {
 	}
 }
 
+// TestResetReportsWhatEachTableLostIntegration pins the ordering rule. Every
+// foreign key in the schema cascades from workflow_status, so emptying it first
+// would clear the child tables and leave their own DELETE reporting zero rows
+// for a table it had just emptied. The counts are the only thing that notices,
+// which is exactly why it needs a test rather than a comment.
+func TestResetReportsWhatEachTableLostIntegration(t *testing.T) {
+	e := startEngine(t)
+	dbURL := e.url("dbos_sys")
+	runMigrateOrFail(t, "--db-url", dbURL)
+
+	conn := connect(t, dbURL)
+	seedWorkflow(t, conn, "wf-1", "SUCCESS", "app")
+	seedWorkflow(t, conn, "wf-2", "SUCCESS", "app")
+
+	out := runResetOrFail(t, "--db-url", dbURL)
+
+	// Two workflows and their two steps: both lines must show 2, not the 0 a
+	// cascade would leave behind.
+	for _, want := range []string{"Emptied workflow_status (2 rows)", "Emptied operation_outputs (2 rows)"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("reset did not report %q; a cascade emptied the table before its own delete:\n%s", want, out)
+		}
+	}
+	// The child has to be reported before the parent, since that ordering is
+	// what makes the number above true.
+	if strings.Index(out, "Emptied operation_outputs") > strings.Index(out, "Emptied workflow_status") {
+		t.Errorf("workflow_status was emptied before the tables that reference it:\n%s", out)
+	}
+}
+
 // A second reset must be as safe as the first: nothing to delete is not an
 // error, which is what makes this usable between test runs.
 func TestResetIsRepeatableIntegration(t *testing.T) {
