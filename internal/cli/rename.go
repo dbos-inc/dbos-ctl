@@ -109,22 +109,28 @@ func runRenameApplication(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	counts, err := migrations.RenameApplication(cmd.Context(), dbURL, migrations.RenameInput{
+	counts, renameErr := migrations.RenameApplication(cmd.Context(), dbURL, migrations.RenameInput{
 		OldName:            oldName,
 		NewName:            newName,
 		Schema:             schema,
 		BatchSize:          batchSize,
 		AdoptUnclaimedRows: adopt,
 	}, cmd.ErrOrStderr())
-	if err != nil {
-		return err
-	}
 
 	// Counts go to stdout as JSON, with the progress on stderr, so a scripted
 	// rename can read what moved without parsing log lines.
+	//
+	// Printed on failure too, and that is the case it exists for: the batched
+	// tail commits as it goes, so a rename that dies partway has durably moved
+	// what these report, and that is where a re-run picks up. Dropping them
+	// would leave the operator to guess. RenameApplication zeroes them when the
+	// opening transaction rolls back, so a failure there still reports nothing.
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetIndent("", "  ")
-	return enc.Encode(counts)
+	if err := enc.Encode(counts); err != nil && renameErr == nil {
+		return err
+	}
+	return renameErr
 }
 
 // renameSources describes the rows a rename will move, for the prompt. Empty
