@@ -133,6 +133,32 @@ func RenameApplication(ctx context.Context, databaseURL string, in RenameInput, 
 		return counts, err
 	}
 
+	// Which of the tables a rename re-owns actually carry application_name.
+	// Migrations 100-104 added the column one table at a time, so a schema
+	// part-way through that range has some and not others — and a table without
+	// the column records no ownership at all. There are no rows under the old
+	// name in it, so passing it over is the right answer rather than a gap.
+	// Empty intersects the same way, for the same reason.
+	//
+	// This is the other half of checkNotAheadOfBinary above, and the two want
+	// opposite answers. Ahead of this build a table exists that it cannot see,
+	// its rows would be stranded, and the rename must refuse. Behind it the
+	// column does not exist at all, nothing can be stranded, and the rename
+	// should get on with the tables that do record ownership: reaching the first
+	// UPDATE and failing on a bare SQLSTATE 42703 helps nobody.
+	owned, err := applicationNameTables(execCtx, conn, in.Schema)
+	if err != nil {
+		return counts, err
+	}
+	movable, skipped := renameTargets(owned)
+	if len(movable) == 0 {
+		return counts, fmt.Errorf("schema %s has no application_name columns: it predates migration 100, so it records no application ownership to re-own", in.Schema)
+	}
+	if len(skipped) > 0 {
+		logf(progress, "Skipping %s: no application_name column, so nothing there records ownership",
+			strings.Join(skipped, ", "))
+	}
+
 	// Queues, schedules, versions, and the in-flight workflows move together.
 	// A half-owned application is the one state worse than either end: it
 	// dequeues work whose application_version row it can no longer see.
@@ -143,6 +169,9 @@ func RenameApplication(ctx context.Context, databaseURL string, in RenameInput, 
 	defer tx.Rollback(context.WithoutCancel(execCtx))
 
 	move := func(table string) (int64, error) {
+		if _, ok := movable[table]; !ok {
+			return 0, nil
+		}
 		args := []any{in.NewName}
 		predicate := sourcePredicate(in, &args)
 		q := fmt.Sprintf("UPDATE %s SET application_name = $1 WHERE %s",
@@ -170,16 +199,19 @@ func RenameApplication(ctx context.Context, databaseURL string, in RenameInput, 
 
 	// In-flight workflows are bounded by how much the application is running,
 	// not by how long it has run, so they fit in the transaction above.
-	args := []any{in.NewName}
-	predicate := sourcePredicate(in, &args)
-	inFlightQuery := fmt.Sprintf(
-		"UPDATE %s SET application_name = $1 WHERE %s AND status IN ('PENDING', 'ENQUEUED', 'DELAYED')",
-		pgx.Identifier{in.Schema, "workflow_status"}.Sanitize(), predicate)
-	tag, err := tx.Exec(execCtx, inFlightQuery, args...)
-	if err != nil {
-		return ApplicationRowCounts{}, fmt.Errorf("failed to re-own in-flight workflow rows: %w", err)
+	var inFlight int64
+	if _, ok := movable["workflow_status"]; ok {
+		args := []any{in.NewName}
+		predicate := sourcePredicate(in, &args)
+		inFlightQuery := fmt.Sprintf(
+			"UPDATE %s SET application_name = $1 WHERE %s AND status IN ('PENDING', 'ENQUEUED', 'DELAYED')",
+			pgx.Identifier{in.Schema, "workflow_status"}.Sanitize(), predicate)
+		tag, err := tx.Exec(execCtx, inFlightQuery, args...)
+		if err != nil {
+			return ApplicationRowCounts{}, fmt.Errorf("failed to re-own in-flight workflow rows: %w", err)
+		}
+		inFlight = tag.RowsAffected()
 	}
-	inFlight := tag.RowsAffected()
 
 	if err := tx.Commit(execCtx); err != nil {
 		return ApplicationRowCounts{}, fmt.Errorf("failed to commit the rename: %w", err)
@@ -194,18 +226,37 @@ func RenameApplication(ctx context.Context, databaseURL string, in RenameInput, 
 	// however many rows it is — so they move in their own transactions.
 	// Each batch commits on its own, so what these moved before failing is real
 	// and worth reporting: it is where a re-run picks up.
-	terminal, batchErr := renameInBatches(execCtx, conn, "workflow_status", in, sourcePredicate, progress)
-	counts.Workflows += terminal
-	if batchErr != nil {
-		return counts, batchErr
+	if _, ok := movable["workflow_status"]; ok {
+		terminal, batchErr := renameInBatches(execCtx, conn, "workflow_status", in, sourcePredicate, progress)
+		counts.Workflows += terminal
+		if batchErr != nil {
+			return counts, batchErr
+		}
 	}
 
-	steps, batchErr := renameInBatches(execCtx, conn, "operation_outputs", in, sourcePredicate, progress)
-	counts.Steps = steps
-	if batchErr != nil {
-		return counts, batchErr
+	if _, ok := movable["operation_outputs"]; ok {
+		steps, batchErr := renameInBatches(execCtx, conn, "operation_outputs", in, sourcePredicate, progress)
+		counts.Steps = steps
+		if batchErr != nil {
+			return counts, batchErr
+		}
 	}
 	return counts, nil
+}
+
+// renameTargets splits the tables a rename re-owns into the ones this schema can
+// scope by application and the ones it cannot, in applicationOwnedTables' order
+// so the skip message reads the same way every time.
+func renameTargets(owned map[string]struct{}) (movable map[string]struct{}, skipped []string) {
+	movable = make(map[string]struct{}, len(applicationOwnedTables))
+	for _, table := range applicationOwnedTables {
+		if _, ok := owned[table]; ok {
+			movable[table] = struct{}{}
+		} else {
+			skipped = append(skipped, table)
+		}
+	}
+	return movable, skipped
 }
 
 // renameInBatches re-owns a table's rows in half-open workflow_uuid ranges.

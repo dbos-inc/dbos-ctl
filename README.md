@@ -336,6 +336,13 @@ tail reports what committed before it, which is where a re-run picks up.
 Like `reset`, this refuses a schema migrated past what the binary knows, and
 refuses before moving anything.
 
+The opposite direction is not an error. Migrations 100-104 added
+`application_name` one table at a time, so a schema part-way through that range
+has it on some of these tables and not others — and a table without the column
+records no ownership, so nothing in it is stranded under the old name. The
+rename moves what it can and names what it passed over on stderr. Only a schema
+older than migration 100, which records no ownership anywhere, is refused.
+
 ## Configuration precedence
 
 Each setting is resolved **flag → environment → profile**, so a flag always

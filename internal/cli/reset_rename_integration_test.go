@@ -249,6 +249,75 @@ func TestSysdbCommandsRefuseASchemaAheadOfTheBinaryIntegration(t *testing.T) {
 	}
 }
 
+// The other direction from the check above: a schema migrated only part-way
+// through 100-104 has application_name on some tables and not others. A table
+// without it records no ownership, so there is nothing in it under the old name
+// -- the rename should move what it can and say what it passed over, rather than
+// reaching the first UPDATE and failing on a bare SQLSTATE 42703.
+func TestRenameSkipsTablesWithoutTheOwnershipColumnIntegration(t *testing.T) {
+	e := startEngine(t)
+	dbURL := e.url("dbos_sys")
+	runMigrateOrFail(t, "--db-url", dbURL)
+
+	conn := connect(t, dbURL)
+	seedWorkflow(t, conn, "wf-1", "SUCCESS", "old-app")
+	seedOwnedRows(t, conn, "old", "old-app")
+	// Stand in for a schema that stopped at migration 103, before the steps
+	// column arrived.
+	exec(t, conn, `ALTER TABLE dbos.operation_outputs DROP COLUMN application_name CASCADE`)
+
+	out := runRenameOrFail(t, "--db-url", dbURL, "--from", "old-app", "--to", "new-app")
+
+	if !strings.Contains(out, "operation_outputs") {
+		t.Errorf("the rename did not say it passed over operation_outputs:\n%s", out)
+	}
+	// Everything that does record ownership still moved.
+	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.workflow_status WHERE application_name = 'new-app'`); n != 1 {
+		t.Errorf("workflow rows did not move: %d under the new name", n)
+	}
+	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.queues WHERE application_name = 'new-app'`); n != 1 {
+		t.Errorf("queue rows did not move: %d under the new name", n)
+	}
+	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.workflow_status WHERE application_name = 'old-app'`); n != 0 {
+		t.Errorf("%d workflow row(s) left under the old name", n)
+	}
+}
+
+// A schema older than migration 100 records no ownership anywhere, so a rename
+// has nothing it could move. Say that, rather than report a successful rename of
+// nothing.
+func TestRenameRefusesASchemaWithNoOwnershipColumnsIntegration(t *testing.T) {
+	e := startEngine(t)
+	dbURL := e.url("dbos_sys")
+	runMigrateOrFail(t, "--db-url", dbURL)
+
+	conn := connect(t, dbURL)
+
+	// Build a genuine pre-100 schema rather than hacking the columns off a
+	// current one. Demolition runs into everything else that references
+	// application_name, and the list is engine-specific: CockroachDB refuses
+	// over the partial indexes from migrations 106 and 107, and again over the
+	// enqueue_workflow function. Applying only the migrations that predate the
+	// column is both portable and the thing actually being described.
+	const oldSchema = "dbos_pre100"
+	exec(t, conn, `CREATE SCHEMA `+oldSchema)
+	for _, m := range migrations.BuildMigrations(oldSchema, e.cockroach, e.listenNotify) {
+		if m.Version >= migrations.SharedMigrationBase {
+			break
+		}
+		exec(t, conn, m.SQL)
+	}
+
+	cmd, out := newRenameCmd(t, "--db-url", dbURL, "--schema", oldSchema, "--from", "old-app", "--to", "new-app", "--force")
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("rename reported success against a schema that records no ownership:\n%s", out)
+	}
+	if !strings.Contains(err.Error(), "predates migration 100") {
+		t.Errorf("refusal does not explain why: %v", err)
+	}
+}
+
 // TestResetScopedToApplicationIntegration covers the shared system database:
 // one application's history goes, its neighbour's stays, and the steps of the
 // deleted workflows go with them by foreign key rather than by a second pass.
