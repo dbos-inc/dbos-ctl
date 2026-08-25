@@ -53,7 +53,9 @@ func addRenameApplicationFlags(cmd *cobra.Command) {
 	f.Bool("adopt-unclaimed-rows", false, "also take rows no application owns (application_name is null)")
 	f.Int("batch-size", migrations.DefaultRenameBatchSize, "workflows and steps re-owned per transaction")
 	f.Bool("force", false, "skip the confirmation prompt (required when non-interactive)")
-	_ = cmd.MarkFlagRequired("to")
+	// --to is required, but not via MarkFlagRequired: cobra rejects that before
+	// RunE and returns a plain error, which exits 1. Every other usage mistake
+	// here exits 2, and scripts branch on that, so the check lives in RunE.
 }
 
 func runRenameApplication(cmd *cobra.Command, _ []string) error {
@@ -64,6 +66,9 @@ func runRenameApplication(cmd *cobra.Command, _ []string) error {
 	batchSize, _ := cmd.Flags().GetInt("batch-size")
 	force, _ := cmd.Flags().GetBool("force")
 
+	if newName == "" {
+		return &exitError{code: 2, msg: "no application to re-own the rows to: pass --to"}
+	}
 	// Naming no source is the easy mistake to make, and it would otherwise be a
 	// rename that reports moving nothing rather than an error.
 	sources := renameSources(oldName, adopt)

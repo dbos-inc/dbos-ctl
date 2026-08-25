@@ -126,11 +126,10 @@ func TestRenameRejectsSameFromAndTo(t *testing.T) {
 }
 
 func TestRenameRequiresTo(t *testing.T) {
+	// Exit 2 like every other usage mistake here, which is why the check is in
+	// RunE rather than MarkFlagRequired: cobra's own refusal exits 1.
 	cmd, _ := newRenameCmd(t, "--from", "old", "--db-url", unreachableURL)
-	err := cmd.Execute()
-	if err == nil || !strings.Contains(err.Error(), "to") {
-		t.Fatalf("expected --to to be required, got %v", err)
-	}
+	wantUsageError(t, cmd.Execute(), "--to")
 }
 
 func TestRenameRefusesWithoutATerminal(t *testing.T) {
