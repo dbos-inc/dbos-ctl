@@ -240,6 +240,72 @@ outside a transaction block — plain `psql`, not `psql --single-transaction`.
 Postgres (and CockroachDB) only. A SQLite system database is migrated by the
 application process that opens it.
 
+### sysdb reset
+
+Deletes the DBOS rows, leaving the schema migrated and immediately usable:
+
+```sh
+dbosctl sysdb reset -D postgres://user:pass@host:5432/dbos_sys
+```
+
+This is narrower than `dbos reset` in the SDK CLIs, which drop the database.
+Two reasons. `--schema` exists so the DBOS tables can share a database with
+application tables, and a system database is [shareable between
+applications](https://docs.dbos.dev/explanations/sharing-a-system-database) —
+so dropping it reaches past what was asked about. And emptying needs only the
+privileges `--app-role` grants, which is the point of provisioning out of band
+in the first place.
+
+The migration history is kept, so nothing has to migrate the database again
+afterwards. That is what makes this usable between test runs, and on
+CockroachDB it is the difference between cheap deletes and a schema change.
+
+| Flag | Purpose |
+|---|---|
+| `--application <name>` | Empty only this application's rows, for a shared system database |
+| `--drop-database` | Drop the whole database instead |
+| `--force` | Skip the confirmation prompt (required when non-interactive) |
+
+`--application` deletes the rows that name it and lets the foreign keys take the
+rest: every workflow-keyed table cascades from `workflow_status`, so a
+workflow's steps, messages, events, and streams go with it. Other applications
+in the same schema are untouched, and so are rows no application owns.
+
+`--drop-database` is the blunt version, and cannot be combined with
+`--application` or `--schema` — both describe work inside the database it
+destroys.
+
+### sysdb rename-application
+
+An application owns what it creates, keyed by its configured name, so renaming
+it strands those rows under the old name. This moves them:
+
+```sh
+dbosctl sysdb rename-application --from old-name --to new-name
+dbosctl sysdb rename-application --to new-name --adopt-unclaimed-rows
+```
+
+**Stop the application being renamed first.** Nothing here locks it out, and a
+running one keeps dequeuing under its old name.
+
+| Flag | Purpose |
+|---|---|
+| `-f`, `--from` | The application's previous name; omit to only adopt unclaimed rows |
+| `-t`, `--to` | The application that ends up owning the rows (required) |
+| `--adopt-unclaimed-rows` | Also take rows no application owns (`application_name` is null) |
+| `--batch-size` | Workflows and steps re-owned per transaction (default 10000) |
+| `--force` | Skip the confirmation prompt (required when non-interactive) |
+
+Rows no application owns predate system-database sharing, so claiming them is a
+decision rather than a default: naming neither source is an error rather than a
+rename that reports moving nothing.
+
+Queues, schedules, versions, and in-flight workflows move in one transaction — a
+half-owned application would dequeue work whose version row it can no longer
+see. Terminal workflows and their steps are unbounded, so they move in batches
+of `--batch-size` keys, and an interrupted run resumes rather than starting
+over. The moved-row counts go to stdout as JSON, with progress on stderr.
+
 ## Configuration precedence
 
 Each setting is resolved **flag → environment → profile**, so a flag always

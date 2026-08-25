@@ -17,7 +17,7 @@ ifneq ($(JUNIT),)
 GOTEST := go tool gotestsum --junitfile $(JUNIT) --format testname --
 endif
 
-.PHONY: all generate spec build snapshot test test-integration test-migrations lint tidy
+.PHONY: all generate spec build snapshot test test-integration test-sysdb lint tidy
 
 all: generate build
 
@@ -44,15 +44,17 @@ test:
 	$(GOTEST) ./...
 
 ## test-integration: container-backed tests (needs Docker; see Testing in AGENTS.md)
-##   The migration tests skip here: they are per-engine, and `test-migrations` runs them.
+##   The sysdb tests skip here: they are per-engine, and `test-sysdb` runs them.
 test-integration:
 	$(GOTEST) -tags integration -timeout 20m ./...
 
-## test-migrations: migration tests against one engine (ENGINE=postgres|cockroach)
+## test-sysdb: sysdb tests against one engine (ENGINE=postgres|cockroach)
+##   Covers every `dbosctl sysdb` command -- migrate, reset, rename-application --
+##   since all three run real SQL that the two engines do not always agree on.
 ##   One engine per run because a process migrates one database; CI matrixes over both.
 ENGINE ?= postgres
-test-migrations:
-	DBOS_TEST_ENGINE=$(ENGINE) $(GOTEST) -tags integration -timeout 20m -run Migrate ./internal/cli/
+test-sysdb:
+	DBOS_TEST_ENGINE=$(ENGINE) $(GOTEST) -tags integration -timeout 20m -run 'Migrate|Reset|Rename' ./internal/cli/
 
 ## lint: go vet + gofmt check
 lint:
