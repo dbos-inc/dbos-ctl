@@ -17,6 +17,13 @@ import (
 // reports instead of hanging the CLI.
 const resetTimeout = 10 * time.Minute
 
+// dropTimeout bounds dropping the database. A drop is quick when it can run at
+// all; what makes it slow is a session still holding the database open. Postgres
+// clears those with WITH (FORCE), but CockroachDB has no such thing and the
+// eviction below is best effort, so the blocked case is reachable — and there it
+// waits with nothing on stderr to say why. Finite, so it reports instead.
+const dropTimeout = 2 * time.Minute
+
 // applicationOwnedTables are the tables carrying an application_name column,
 // added by migrations 100-104. An application-scoped reset deletes from these
 // and lets the foreign keys take the rest: every workflow-keyed table
@@ -267,20 +274,25 @@ func DropDatabase(ctx context.Context, databaseURL string, progress io.Writer) e
 	if err != nil {
 		return fmt.Errorf("failed to connect to the PostgreSQL server: %w", err)
 	}
+	// Closing is not part of the timed sequence: it should still run when the
+	// deadline is what ended the work.
 	defer conn.Close(context.WithoutCancel(ctx))
+
+	execCtx, cancel := context.WithTimeout(ctx, dropTimeout)
+	defer cancel()
 
 	sanitized := pgx.Identifier{dbName}.Sanitize()
 	if IsCockroachDB(conn) {
 		// CockroachDB has no DROP DATABASE ... WITH (FORCE), so sessions are
 		// evicted by hand first. Best effort: a role may not be allowed to
 		// signal other backends, and the drop is worth attempting regardless.
-		_, _ = conn.Exec(ctx,
+		_, _ = conn.Exec(execCtx,
 			`SELECT pg_terminate_backend(pid) FROM pg_stat_activity
 			 WHERE datname = $1 AND pid <> pg_backend_pid()`, dbName)
-		if _, err := conn.Exec(ctx, "DROP DATABASE IF EXISTS "+sanitized); err != nil {
+		if _, err := conn.Exec(execCtx, "DROP DATABASE IF EXISTS "+sanitized); err != nil {
 			return fmt.Errorf("failed to drop database %s: %w", dbName, err)
 		}
-	} else if _, err := conn.Exec(ctx, "DROP DATABASE IF EXISTS "+sanitized+" WITH (FORCE)"); err != nil {
+	} else if _, err := conn.Exec(execCtx, "DROP DATABASE IF EXISTS "+sanitized+" WITH (FORCE)"); err != nil {
 		return fmt.Errorf("failed to drop database %s: %w", dbName, err)
 	}
 
