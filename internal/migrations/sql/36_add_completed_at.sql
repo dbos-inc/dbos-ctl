@@ -1,0 +1,33 @@
+-- Migration 36: Add completed_at column to workflow_status, recording when a
+-- workflow reached a terminal state. ADD COLUMN with no default is catalog-only;
+-- the partial index built in the same transaction covers zero rows, so no
+-- CONCURRENTLY is needed.
+--
+-- WHY V25.2 IS THE FLOOR: this migration is why CockroachDB support starts
+-- there. The partial index has the just-added column in its predicate, and
+-- v24 will not index a column that became visible in the same transaction:
+--
+--     ERROR: cannot create partial index on column "completed_at" (33)
+--     which is not public (SQLSTATE 0A000)
+--
+-- Measured on v24.1.32 and v24.3.35; v25.2 and later accept it. The constraint
+-- is the transaction, not the batching: sending the two statements as one
+-- multi-statement query, as two queries inside one transaction, or as one
+-- multi-statement query with no explicit transaction (which is itself an
+-- implicit one) all fail the same way. Only committing the ALTER before the
+-- CREATE INDEX runs works, and since every migration here applies as one
+-- transaction, nothing in this file can do that.
+--
+-- This is settled, not outstanding: v24 is not a supported system database, so
+-- the migration runs as one transaction everywhere and the CI matrix starts at
+-- v25.2. Supporting v24 again would mean a runner that can apply one migration
+-- as more than one transaction; git log 73703aa is what that looked like.
+--
+-- Migrations 40 and 41 have the same shape. Migrations 4, 8 and 12 do not:
+-- their indexes are not partial. Migration 16's index is partial but its
+-- predicate names an existing column, which is fine. A new migration of this
+-- shape is safe on every supported release — the shape is only a problem
+-- below the floor.
+
+ALTER TABLE %[1]s."workflow_status" ADD COLUMN IF NOT EXISTS "completed_at" BIGINT;
+CREATE INDEX IF NOT EXISTS "idx_workflow_status_completed_at" ON %[1]s."workflow_status" ("completed_at") WHERE "completed_at" IS NOT NULL;

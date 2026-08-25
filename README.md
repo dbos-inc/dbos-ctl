@@ -156,7 +156,77 @@ Two ways to bypass the flow:
 | `dbosctl api-key delete <name>` | Delete an API key |
 | `dbosctl permission list` | List grantable permissions |
 | `dbosctl config list \| show \| use \| set` | Manage profiles |
+| `dbosctl migrate` | Create or upgrade a DBOS system database (connects to Postgres directly) |
 | `dbosctl version` (or `--version`) | Print version information |
+
+### migrate
+
+`dbosctl migrate` is the only command that opens a database. It creates the
+system database and schema if they are missing and applies whatever migrations
+they lack, so it takes a database URL rather than a profile:
+
+```sh
+dbosctl migrate -D postgres://user:pass@host:5432/dbos_sys
+DBOS_SYSTEM_DATABASE_URL=... dbosctl migrate
+```
+
+It is safe to re-run: migrations already recorded are skipped, and an up-to-date
+database is left alone. The system schema is shared by every DBOS SDK, and the
+migrations are vendored into this binary, so provisioning a database does not
+mean picking an SDK and installing its toolchain.
+
+| Flag | Purpose |
+|---|---|
+| `-D`, `--db-url` | System database URL (else `$DBOS_SYSTEM_DATABASE_URL`) |
+| `--schema` | Schema holding the system tables (default `dbos`) |
+| `-r`, `--app-role` | Grant this role access to the system tables, so the application need not own the database |
+| `--no-listen-notify` | Leave out the triggers that fire `pg_notify` |
+| `--cockroach` | Render the printed SQL for CockroachDB (print mode only) |
+| `--print-migrations all\|N` | Print the SQL from that migration onward instead of running it |
+| `--print-user-role` | Print the `--app-role` grants instead of running them |
+
+By default the system schema carries a trigger that fires `pg_notify` when a
+message is sent, so a waiting application is woken rather than left to poll.
+That does not work everywhere. CockroachDB has no LISTEN/NOTIFY at all, which
+`migrate` detects and handles without being asked. A connection pooler in
+transaction mode also breaks it — the notification arrives on a session the
+application does not keep — and nothing can detect that, so pass
+`--no-listen-notify`:
+
+```sh
+dbosctl migrate -D postgres://... --no-listen-notify        # e.g. behind PgBouncer
+```
+
+The database is complete either way and reports the same migration version; only
+the triggers differ, and the applications fall back to polling. In print mode
+the flag is the only signal there is — nothing to detect against — so the
+generated script says in its header which of the two it is.
+
+For the same reason, a printed script for CockroachDB has to be asked for:
+
+```sh
+dbosctl migrate --print-migrations all --cockroach > schema.sql
+```
+
+CockroachDB differs in more than the triggers — no `ALTER FUNCTION … SET
+search_path`, a different statement for migration 28, no `DROP TRIGGER` before
+v25, no `CONCURRENTLY` — and a script for the wrong engine fails partway
+through, leaving a half-migrated database. Live migration needs none of this: it
+asks the server, so `--cockroach` there is an error rather than an override.
+
+The print modes never connect, and write nothing but SQL and comments to stdout,
+for a database whose DDL goes through review:
+
+```sh
+dbosctl migrate --print-migrations all > schema.sql
+dbosctl migrate --print-user-role -r myapp_role > grants.sql
+```
+
+Because the SQL is CREATE/DROP INDEX CONCURRENTLY in places, run those scripts
+outside a transaction block — plain `psql`, not `psql --single-transaction`.
+
+Postgres (and CockroachDB) only. A SQLite system database is migrated by the
+application process that opens it.
 
 ## Configuration precedence
 
@@ -170,6 +240,7 @@ wins and the profile is the fallback:
 | Organization | `--org` | `DBOS_ORG` |
 | Application | `-a`, `--app` | `DBOS_APP` |
 | Bearer token | — | `DBOS_TOKEN` |
+| System database (`migrate`) | `-D`, `--db-url` | `DBOS_SYSTEM_DATABASE_URL` |
 | Output format | `-o`, `--output` | — |
 
 Flags are scoped to the command that uses them, so pass them **after** the
@@ -213,13 +284,45 @@ make build       # build ./dbosctl
 make test        # unit tests
 make lint        # golangci-lint
 make snapshot    # build all-platform artifacts without publishing
+
+make test-integration                   # conductor-backed tests (needs Docker)
+make test-migrations ENGINE=postgres    # migration tests against one engine
+make test-migrations ENGINE=cockroach
 ```
 
 The generated client (`internal/api`) is committed; CI fails on spec drift
-(`make generate` must be a no-op). Integration tests are tagged `integration`
-and stand up real Conductor + Postgres in throwaway containers — see
-`make test-integration` and `.env.example` for the required license key and
-image/checkout settings.
+(`make generate` must be a no-op).
+
+The system-database migrations in `internal/migrations` are the master copy: new
+migrations are written there and the SDKs follow, so nothing regenerates them
+from a transact checkout. `internal/migrations/doc.go` covers what adding one
+involves, and why migrations numbered 100 and up cannot be added here alone.
+
+Integration tests are tagged `integration` and stand up real Conductor +
+Postgres in throwaway containers — see `make test-integration` and
+`.env.example` for the required license key and image/checkout settings.
+
+The migration tests are their own tier, run once per supported system database.
+They skip unless `DBOS_TEST_ENGINE` names one, which is what `make
+test-migrations` sets; CI runs a job per engine, so a failure says which one
+broke. That tier needs no license key, so it still gates fork PRs, where the
+conductor tier can only skip.
+
+
+### Update flake.nix
+
+If go.sum is updated, the `vendorHash` value in flake.nix has to be updated too.
+
+The updated `vendorHash` can be generated via the nixos/nix docker container 
+using the following command:
+
+```sh
+docker run --rm \
+  -v "$(pwd)":/workspace \
+  -w /workspace \
+  nixos/nix \
+  sh -c "git config --global --add safe.directory /workspace && nix --extra-experimental-features 'nix-command flakes' build"
+```
 
 ### Publishing a Release
 

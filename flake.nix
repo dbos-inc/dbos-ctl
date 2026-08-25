@@ -43,7 +43,7 @@
           # Pins the Go dependency closure; refresh on any go.sum change by
           # setting it to nixpkgs.lib.fakeHash and copying the hash from the
           # build error. CI's nix job catches a stale one.
-          vendorHash = "sha256-MsXf3kmJAPuC1OPbEDe8NxZJ/juo9GQBtblfOT8L+lM=";
+          vendorHash = "sha256-YpwSIgjNGea9oHxHGswThDTg/w87Aj13GJKWep6hBzs=";
 
           env.CGO_ENABLED = 0;
 

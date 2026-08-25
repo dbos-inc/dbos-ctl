@@ -17,7 +17,7 @@ ifneq ($(JUNIT),)
 GOTEST := go tool gotestsum --junitfile $(JUNIT) --format testname --
 endif
 
-.PHONY: all generate spec build snapshot test lint tidy
+.PHONY: all generate spec build snapshot test test-integration test-migrations lint tidy
 
 all: generate build
 
@@ -44,8 +44,15 @@ test:
 	$(GOTEST) ./...
 
 ## test-integration: container-backed tests (needs Docker; see Testing in AGENTS.md)
+##   The migration tests skip here: they are per-engine, and `test-migrations` runs them.
 test-integration:
 	$(GOTEST) -tags integration -timeout 20m ./...
+
+## test-migrations: migration tests against one engine (ENGINE=postgres|cockroach)
+##   One engine per run because a process migrates one database; CI matrixes over both.
+ENGINE ?= postgres
+test-migrations:
+	DBOS_TEST_ENGINE=$(ENGINE) $(GOTEST) -tags integration -timeout 20m -run Migrate ./internal/cli/
 
 ## lint: go vet + gofmt check
 lint:

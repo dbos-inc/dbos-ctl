@@ -61,7 +61,9 @@ jobs:
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       # The Go dependency derivation is never on cache.nixos.org, so cache the store.
-      - uses: nix-community/cache-nix-action@v6
+      # v7 or later: v6 cannot restore a store cachix/install-nix-action made.
+      # See nix-community/cache-nix-action#296.
+      - uses: nix-community/cache-nix-action@v7
         with:
           primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', 'go.sum') }}
       # A bare `nix flake check` evaluates only the current system (since Nix 2.19).
@@ -103,6 +105,89 @@ jobs:
         with:
           name: integration-test-results
           path: integration-tests.xml
+
+  # The migration tests, once per supported system database *version*. The
+  # migration set differs between the two engines in a dozen places — no
+  # CONCURRENTLY, a different migration 10 and 28, no triggers, no ALTER
+  # FUNCTION — so running the same suite against each is the only thing that
+  # says those differences are the intended ones. Separate from the integration
+  # job so a failure names the engine in the checks list, and so conductor is
+  # not stood up twice to learn nothing.
+  #
+  # Every supported version, not just the newest, because the differences that
+  # matter here are between *releases* of one engine and a single current
+  # version hides them. Migrations 36, 40 and 41 add a column and index it,
+  # which CockroachDB refused to do in one transaction until v25 — the kind of
+  # gap only an older release shows, and the reason the oldest supported one is
+  # in this list rather than just the newest.
+  #
+  # CockroachDB starts at v25.2: v24 is not a supported system database. The
+  # migration set does not apply to it, and that is a decision rather than a
+  # bug to fix, so there is no job here to tell us about it.
+  #
+  # Versions are pinned to a minor stream (or a major, for PostgreSQL) rather
+  # than :latest so a database release cannot turn a job red with no change in
+  # this repo. Retiring a version means deleting its row; adding one means
+  # adding a row. The suite reads DBOS_TEST_<ENGINE>_IMAGE, and the unset half
+  # of each pair is an empty string, which imageFor treats as absent.
+  #
+  # Needs no license key, so this tier still gates fork PRs, where the conductor
+  # tier can only skip.
+  migrations:
+    name: migrations (${{ matrix.engine }} ${{ matrix.version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - engine: postgres
+            version: "14"
+            postgres_image: postgres:14
+          - engine: postgres
+            version: "15"
+            postgres_image: postgres:15
+          - engine: postgres
+            version: "16"
+            postgres_image: postgres:16
+          - engine: postgres
+            version: "17"
+            postgres_image: postgres:17
+          - engine: postgres
+            version: "18"
+            postgres_image: postgres:18
+          - engine: cockroach
+            version: "25.2"
+            cockroach_image: cockroachdb/cockroach:latest-v25.2
+          - engine: cockroach
+            version: "25.4"
+            cockroach_image: cockroachdb/cockroach:latest-v25.4
+          - engine: cockroach
+            version: "26.2"
+            cockroach_image: cockroachdb/cockroach:latest-v26.2
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: migration tests
+        env:
+          DBOS_TEST_POSTGRES_IMAGE: ${{ matrix.postgres_image }}
+          DBOS_TEST_COCKROACH_IMAGE: ${{ matrix.cockroach_image }}
+        run: make test-migrations ENGINE=${{ matrix.engine }} JUNIT=migration-tests.xml
+
+      - name: migration test summary
+        uses: test-summary/action@v2
+        if: always()
+        with:
+          paths: migration-tests.xml
+          show: "fail, skip"
+
+      - name: upload migration test results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: migration-test-results-${{ matrix.engine }}-${{ matrix.version }}
+          path: migration-tests.xml
 
   # Regenerate the client from each *upstream* spec and check the CLI still
   # compiles. The build job's drift check is hermetic — it only proves the
