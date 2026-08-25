@@ -1,12 +1,13 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/spf13/cobra"
 
 	"github.com/dbos-inc/dbos-ctl/internal/migrations"
+	"github.com/dbos-inc/dbos-ctl/internal/output"
 )
 
 // reset empties the DBOS system tables. Like migrate it opens a database
@@ -59,9 +60,25 @@ func addResetFlags(cmd *cobra.Command) {
 	f.StringP("app", "a", "", "empty only this application's rows, for a shared system database")
 	f.Bool("drop-database", false, "drop the whole database instead of emptying the DBOS tables")
 	f.Bool("force", false, "skip the confirmation prompt (required when non-interactive)")
+	// Counts render as a table or as JSON, the same -o every other command
+	// that prints data honors.
+	addRequestFlags(cmd, "output")
 }
 
 func runReset(cmd *cobra.Command, _ []string) error {
+	// Resolved first: an unusable -o should fail before the prompt, not after
+	// the rows are gone and there is nothing left to render.
+	format, err := resolvedFormat(cmd)
+	if err != nil {
+		return &exitError{code: 2, msg: err.Error()}
+	}
+	// -o ids names nothing here: these print counts, not identifiers.
+	// output.List and output.Detail refuse it too, but only when they come to
+	// render -- which is after the rows are gone. For a destructive command the
+	// refusal has to come first, so it is spelled out here.
+	if format == output.FormatIDs {
+		return &exitError{code: 2, msg: `output format "ids" is not supported by this command (try table or json)`}
+	}
 	schema, _ := cmd.Flags().GetString("schema")
 	application, _ := cmd.Flags().GetString("app")
 	dropDatabase, _ := cmd.Flags().GetBool("drop-database")
@@ -118,12 +135,19 @@ func runReset(cmd *cobra.Command, _ []string) error {
 		// returns alongside describe a rollback and are not worth printing.
 		return err
 	}
-	// Per-table counts go to stdout as JSON, with the progress on stderr, so a
-	// scripted reset can read what it removed without parsing log lines. Same
-	// split as rename-application.
-	enc := json.NewEncoder(cmd.OutOrStdout())
-	enc.SetIndent("", "  ")
-	return enc.Encode(counts)
+	// Per-table counts go to stdout, with the progress on stderr, so a scripted
+	// reset can read what it removed without parsing log lines. Same split as
+	// rename-application, and the same -o as every other command that prints
+	// data: a table by default, JSON on request.
+	return output.List(cmd.OutOrStdout(), format, counts, resetCountColumns())
+}
+
+// resetCountColumns renders what each emptied table lost.
+func resetCountColumns() []output.Column[migrations.TableCount] {
+	return []output.Column[migrations.TableCount]{
+		{Header: "TABLE", Value: func(c migrations.TableCount) string { return c.Table }},
+		{Header: "ROWS", Value: func(c migrations.TableCount) string { return strconv.FormatInt(c.Rows, 10) }},
+	}
 }
 
 // confirmReset asks before destroying anything, unless --force was passed. It

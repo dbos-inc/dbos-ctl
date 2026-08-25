@@ -265,6 +265,7 @@ CockroachDB it is the difference between cheap deletes and a schema change.
 | `-a`, `--app <name>` | Empty only this application's rows, for a shared system database |
 | `--drop-database` | Drop the whole database instead |
 | `--force` | Skip the confirmation prompt (required when non-interactive) |
+| `-o`, `--output` | `table` (default) or `json` |
 
 `--app` deletes the rows that name it and lets the foreign keys take the rest:
 every workflow-keyed table cascades from `workflow_status`, so a workflow's
@@ -282,10 +283,11 @@ Only the tables DBOS creates are emptied. They are named in the binary rather
 than read from the catalog, so pointing `--schema` at a schema that also holds
 application tables empties the DBOS ones and leaves the rest alone.
 
-Per-table row counts go to stdout as JSON, with progress on stderr, the same
-split `rename-application` uses. `--drop-database` prints none — the tables go
-with the database — and neither does a failure, since the deletes are one
-transaction and a rollback removed nothing.
+Per-table row counts go to stdout, with progress on stderr, the same split
+`rename-application` uses — a table by default, `-o json` for a scripted reset.
+`--drop-database` prints none — the tables go with the database — and neither
+does a failure, since the deletes are one transaction and a rollback removed
+nothing.
 
 ### sysdb rename-application
 
@@ -307,6 +309,7 @@ running one keeps dequeuing under its old name.
 | `--adopt-unclaimed-rows` | Also take rows no application owns (`application_name` is null) |
 | `--batch-size` | Workflows and steps re-owned per transaction (default 10000) |
 | `--force` | Skip the confirmation prompt (required when non-interactive) |
+| `-o`, `--output` | `table` (default) or `json` |
 
 Rows no application owns predate system-database sharing, so claiming them is a
 decision rather than a default: naming neither source is an error rather than a
@@ -316,7 +319,8 @@ Queues, schedules, versions, and in-flight workflows move in one transaction —
 half-owned application would dequeue work whose version row it can no longer
 see. Terminal workflows and their steps are unbounded, so they move in batches
 of `--batch-size` keys, and an interrupted run resumes rather than starting
-over. The moved-row counts go to stdout as JSON, with progress on stderr.
+over. The moved-row counts go to stdout, with progress on stderr — a table by
+default, `-o json` for a scripted rename.
 
 Those counts are rows *durably* moved. A failure inside the opening transaction
 reports nothing, because the rollback moved nothing; a failure in the batched

@@ -130,10 +130,18 @@ func TestResetReportsWhatEachTableLostIntegration(t *testing.T) {
 	if strings.Index(out, "Emptied operation_outputs") > strings.Index(out, "Emptied workflow_status") {
 		t.Errorf("workflow_status was emptied before the tables that reference it:\n%s", out)
 	}
-	// The same counts go to stdout as JSON, so a scripted reset reads them
-	// without parsing the log lines above.
-	if !strings.Contains(out, `"table": "workflow_status"`) || !strings.Contains(out, `"rows": 2`) {
-		t.Errorf("reset did not write its per-table counts as JSON:\n%s", out)
+	// The same counts go to stdout, as a table by default: the log lines above
+	// are progress on stderr, the table is the result.
+	if !strings.Contains(out, "TABLE") || !strings.Contains(out, "ROWS") {
+		t.Errorf("reset did not write its per-table counts as a table:\n%s", out)
+	}
+
+	// And as JSON on request, so a scripted reset reads them without parsing
+	// anything. Re-run against the now-empty schema: the shape is what is under
+	// test, not the numbers.
+	jsonOut := runResetOrFail(t, "--db-url", dbURL, "-o", "json")
+	if !strings.Contains(jsonOut, `"table": "workflow_status"`) || !strings.Contains(jsonOut, `"rows":`) {
+		t.Errorf("reset -o json did not write its per-table counts as JSON:\n%s", jsonOut)
 	}
 }
 

@@ -116,6 +116,26 @@ func TestResetRefusesWithoutATerminal(t *testing.T) {
 	}
 }
 
+// -o is validated before anything is destroyed. Both of these would otherwise
+// only fail at render time, with the rows already gone.
+func TestResetRejectsAnUnusableOutputFormatBeforeDestroying(t *testing.T) {
+	for _, format := range []string{"bogus", "ids"} {
+		t.Run(format, func(t *testing.T) {
+			cmd, _ := newResetCmd(t, "-o", format, "--force", "--db-url", unreachableURL)
+			wantUsageError(t, cmd.Execute(), format)
+		})
+	}
+}
+
+func TestRenameRejectsAnUnusableOutputFormatBeforeMoving(t *testing.T) {
+	for _, format := range []string{"bogus", "ids"} {
+		t.Run(format, func(t *testing.T) {
+			cmd, _ := newRenameCmd(t, "--from", "old", "--to", "new", "-o", format, "--force", "--db-url", unreachableURL)
+			wantUsageError(t, cmd.Execute(), format)
+		})
+	}
+}
+
 func TestResetRejectsQuotedSchema(t *testing.T) {
 	cmd, _ := newResetCmd(t, "--schema", `db"os`, "--db-url", unreachableURL)
 	wantUsageError(t, cmd.Execute(), "quotes")

@@ -17,8 +17,12 @@ const dbURLEnv = "DBOS_SYSTEM_DATABASE_URL"
 // Every other command in this CLI works through a profile: it names a Conductor
 // and an application, and Conductor answers or forwards. These do not. They
 // connect to PostgreSQL directly, take a database URL, and honour none of the
-// common flags — so they are their own noun rather than three bare verbs mixed
-// in among login and whoami.
+// flags that resolve a profile — so they are their own noun rather than three
+// bare verbs mixed in among login and whoami.
+//
+// -o is the exception, and not really one: it decides how a result is printed
+// rather than where the result comes from, so the two that print data honour it
+// like every other command that prints data.
 //
 // The grouping is dbosctl's grammar, not a renaming: the subcommand names are
 // the ones Python, TypeScript, and Go use, so what a runbook calls this
@@ -29,8 +33,8 @@ var sysdbCmd = &cobra.Command{
 	Long: `Manage the DBOS system database.
 
 These commands connect to PostgreSQL (or CockroachDB) directly rather than
-through Conductor, so they take a database URL rather than a profile, and none
-of the common flags apply to them.
+through Conductor, so they take a database URL rather than a profile, and the
+flags that resolve one do not apply to them.
 
 The system schema is shared by every DBOS SDK and the migrations are built into
 this binary, so provisioning and maintaining a system database does not mean

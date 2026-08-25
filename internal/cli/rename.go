@@ -1,13 +1,14 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/dbos-inc/dbos-ctl/internal/migrations"
+	"github.com/dbos-inc/dbos-ctl/internal/output"
 )
 
 // rename-application re-owns rows after an application is renamed. The name and
@@ -53,12 +54,28 @@ func addRenameApplicationFlags(cmd *cobra.Command) {
 	f.Bool("adopt-unclaimed-rows", false, "also take rows no application owns (application_name is null)")
 	f.Int("batch-size", migrations.DefaultRenameBatchSize, "workflows and steps re-owned per transaction")
 	f.Bool("force", false, "skip the confirmation prompt (required when non-interactive)")
+	// Counts render as a table or as JSON, the same -o every other command that
+	// prints data honors.
+	addRequestFlags(cmd, "output")
 	// --to is required, but not via MarkFlagRequired: cobra rejects that before
 	// RunE and returns a plain error, which exits 1. Every other usage mistake
 	// here exits 2, and scripts branch on that, so the check lives in RunE.
 }
 
 func runRenameApplication(cmd *cobra.Command, _ []string) error {
+	// Resolved first: an unusable -o should fail before the prompt, not after
+	// the rows have moved and there is nothing left to render.
+	format, err := resolvedFormat(cmd)
+	if err != nil {
+		return &exitError{code: 2, msg: err.Error()}
+	}
+	// -o ids names nothing here: these print counts, not identifiers.
+	// output.List and output.Detail refuse it too, but only when they come to
+	// render -- which is after the rows are gone. For a destructive command the
+	// refusal has to come first, so it is spelled out here.
+	if format == output.FormatIDs {
+		return &exitError{code: 2, msg: `output format "ids" is not supported by this command (try table or json)`}
+	}
 	schema, _ := cmd.Flags().GetString("schema")
 	oldName, _ := cmd.Flags().GetString("from")
 	newName, _ := cmd.Flags().GetString("to")
@@ -117,20 +134,32 @@ func runRenameApplication(cmd *cobra.Command, _ []string) error {
 		AdoptUnclaimedRows: adopt,
 	}, cmd.ErrOrStderr())
 
-	// Counts go to stdout as JSON, with the progress on stderr, so a scripted
-	// rename can read what moved without parsing log lines.
+	// Counts go to stdout, with the progress on stderr, so a scripted rename can
+	// read what moved without parsing log lines, and through the same -o as
+	// every other command that prints data: a table by default, JSON on request.
 	//
 	// Printed on failure too, and that is the case it exists for: the batched
 	// tail commits as it goes, so a rename that dies partway has durably moved
 	// what these report, and that is where a re-run picks up. Dropping them
 	// would leave the operator to guess. RenameApplication zeroes them when the
 	// opening transaction rolls back, so a failure there still reports nothing.
-	enc := json.NewEncoder(cmd.OutOrStdout())
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(counts); err != nil && renameErr == nil {
+	if err := output.Detail(cmd.OutOrStdout(), format, counts, renameCountFields()); err != nil && renameErr == nil {
 		return err
 	}
 	return renameErr
+}
+
+// renameCountFields renders what a rename moved, by kind. Labelled with the
+// json names, as the other detail views are, so the table and the JSON name the
+// same things.
+func renameCountFields() []output.Field[migrations.ApplicationRowCounts] {
+	return []output.Field[migrations.ApplicationRowCounts]{
+		{Label: "workflows", Value: func(c migrations.ApplicationRowCounts) string { return strconv.FormatInt(c.Workflows, 10) }},
+		{Label: "steps", Value: func(c migrations.ApplicationRowCounts) string { return strconv.FormatInt(c.Steps, 10) }},
+		{Label: "queues", Value: func(c migrations.ApplicationRowCounts) string { return strconv.FormatInt(c.Queues, 10) }},
+		{Label: "schedules", Value: func(c migrations.ApplicationRowCounts) string { return strconv.FormatInt(c.Schedules, 10) }},
+		{Label: "versions", Value: func(c migrations.ApplicationRowCounts) string { return strconv.FormatInt(c.Versions, 10) }},
+	}
 }
 
 // renameSources describes the rows a rename will move, for the prompt. Empty
