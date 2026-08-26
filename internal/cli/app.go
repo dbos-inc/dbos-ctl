@@ -84,6 +84,7 @@ func init() {
 	// --org but not --app. The per-app reads name the app positionally.
 	addRequestFlags(appListCmd, "profile", "url", "org", "output")
 	addRequestFlags(appRegisterCmd, "profile", "url", "org")
+	appRegisterCmd.Flags().Bool("private-mode", false, "prevent sending workflow payload data (e.g., inputs, outputs, events) to Conductor")
 	addRequestFlags(appDeleteCmd, "profile", "url", "org")
 	appDeleteCmd.Flags().Bool("force", false, "skip the confirmation prompt (required when non-interactive)")
 	addRequestFlags(appGetCmd, "profile", "url", "org", "output")
@@ -144,8 +145,10 @@ func runAppRegister(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	// An empty body is enough to stand up a bare app record (no executor, no
-	// deploy); the tuning fields land with D3 `app update`.
-	resp, err := c.RegisterAppWithResponse(cmd.Context(), org, name, api.RegisterAppJSONRequestBody{})
+	// deploy); the remaining tuning fields land with D3 `app update`.
+	var body api.RegisterAppJSONRequestBody
+	patchBool(cmd, "private-mode", &body.PrivateMode, nil)
+	resp, err := c.RegisterAppWithResponse(cmd.Context(), org, name, body)
 	if err != nil {
 		return err
 	}
@@ -307,11 +310,7 @@ func runAppUpdate(cmd *cobra.Command, args []string) error {
 	patchInt64(cmd, "gc-rows-threshold", &body.GcRowsThreshold, &changed)
 	patchInt64(cmd, "gc-time-threshold-ms", &body.GcTimeThresholdMs, &changed)
 	patchInt64(cmd, "global-timeout-ms", &body.GlobalTimeoutMs, &changed)
-	if cmd.Flags().Changed("private-mode") {
-		v, _ := cmd.Flags().GetBool("private-mode")
-		body.PrivateMode = &v
-		changed = true
-	}
+	patchBool(cmd, "private-mode", &body.PrivateMode, &changed)
 	if !changed {
 		return fmt.Errorf("nothing to update: pass at least one field (see `dbosctl app update --help`)")
 	}
@@ -364,6 +363,16 @@ func patchInt64(cmd *cobra.Command, flag string, dst **int64, changed *bool) {
 		v, _ := cmd.Flags().GetInt64(flag)
 		*dst = &v
 		*changed = true
+	}
+}
+
+func patchBool(cmd *cobra.Command, flag string, dst **bool, changed *bool) {
+	if cmd.Flags().Changed(flag) {
+		v, _ := cmd.Flags().GetBool(flag)
+		*dst = &v
+		if changed != nil {
+			*changed = true
+		}
 	}
 }
 

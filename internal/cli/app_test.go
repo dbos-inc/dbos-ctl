@@ -275,6 +275,44 @@ func TestRunAppRegisterError(t *testing.T) {
 	}
 }
 
+func TestRunAppRegisterPrivateMode(t *testing.T) {
+	isolateConfig(t)
+	srv, body, method := patchServer(t, "/v2/orgs/local/apps/myapp")
+
+	cmd := newCmdWithGlobals()
+	cmd.Flags().Bool("private-mode", false, "")
+	_ = cmd.Flags().Set("url", srv.URL)
+	_ = cmd.Flags().Set("private-mode", "true")
+	cmd.SetOut(&bytes.Buffer{})
+	if err := runAppRegister(cmd, []string{"myapp"}); err != nil {
+		t.Fatal(err)
+	}
+	if *method != http.MethodPut {
+		t.Errorf("register used %s, want PUT", *method)
+	}
+	if got := (*body)["privateMode"]; got != true {
+		t.Errorf("privateMode = %v, want true", got)
+	}
+}
+
+// An unset --private-mode sends no field at all, leaving the server's default
+// rather than asserting false.
+func TestRunAppRegisterOmitsUnsetPrivateMode(t *testing.T) {
+	isolateConfig(t)
+	srv, body, _ := patchServer(t, "/v2/orgs/local/apps/myapp")
+
+	cmd := newCmdWithGlobals()
+	cmd.Flags().Bool("private-mode", false, "")
+	_ = cmd.Flags().Set("url", srv.URL)
+	cmd.SetOut(&bytes.Buffer{})
+	if err := runAppRegister(cmd, []string{"myapp"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := (*body)["privateMode"]; ok {
+		t.Errorf("privateMode should be omitted, got %v", (*body)["privateMode"])
+	}
+}
+
 // setInteractive forces the prompt-or-not decision for a test, restoring it
 // afterward, so neither path depends on the test process's real stdin.
 func setInteractive(t *testing.T, v bool) {
