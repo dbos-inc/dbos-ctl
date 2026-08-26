@@ -99,7 +99,7 @@ func init() {
 	appUpdateCmd.Flags().Int64("gc-rows-threshold", 0, "workflow rows kept before garbage collection")
 	appUpdateCmd.Flags().Int64("gc-time-threshold-ms", 0, "age in ms before a workflow is garbage-collected")
 	appUpdateCmd.Flags().Int64("global-timeout-ms", 0, "global workflow timeout in ms")
-	appUpdateCmd.Flags().Bool("private-mode", false, "restrict the app to org members")
+	appUpdateCmd.Flags().Bool("private-mode", false, "prevent sending workflow payload data (e.g., inputs, outputs, events) to Conductor")
 	addRequestFlags(appSetVersionCmd, "profile", "url", "org")
 
 	appCmd.AddCommand(appListCmd, appRegisterCmd, appDeleteCmd,
