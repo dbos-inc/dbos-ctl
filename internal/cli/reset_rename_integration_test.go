@@ -249,12 +249,12 @@ func TestSysdbCommandsRefuseASchemaAheadOfTheBinaryIntegration(t *testing.T) {
 	}
 }
 
-// The other direction from the check above: a schema migrated only part-way
-// through 100-104 has application_name on some tables and not others. A table
-// without it records no ownership, so there is nothing in it under the old name
-// -- the rename should move what it can and say what it passed over, rather than
-// reaching the first UPDATE and failing on a bare SQLSTATE 42703.
-func TestRenameSkipsTablesWithoutTheOwnershipColumnIntegration(t *testing.T) {
+// The other direction from the check above. Migrations 100-104 add
+// application_name a table at a time and each commits on its own, so a migrate
+// interrupted inside that range leaves a schema carrying some of the columns and
+// not others. That is a migration to finish rather than a shape to work around:
+// the rename must refuse, say which tables are short, and move nothing.
+func TestRenameRefusesAHalfMigratedSchemaIntegration(t *testing.T) {
 	e := startEngine(t)
 	dbURL := e.url("dbos_sys")
 	runMigrateOrFail(t, "--db-url", dbURL)
@@ -262,24 +262,31 @@ func TestRenameSkipsTablesWithoutTheOwnershipColumnIntegration(t *testing.T) {
 	conn := connect(t, dbURL)
 	seedWorkflow(t, conn, "wf-1", "SUCCESS", "old-app")
 	seedOwnedRows(t, conn, "old", "old-app")
-	// Stand in for a schema that stopped at migration 103, before the steps
-	// column arrived.
-	exec(t, conn, `ALTER TABLE dbos.operation_outputs DROP COLUMN application_name CASCADE`)
+	// Stand in for a migrate that stopped at 103, before the steps column. Only
+	// operation_outputs is dropped, which nothing else references -- the columns
+	// with dependants are what the pre-100 test below builds a real schema for.
+	exec(t, conn, `ALTER TABLE dbos.operation_outputs DROP COLUMN application_name`)
 
-	out := runRenameOrFail(t, "--db-url", dbURL, "--from", "old-app", "--to", "new-app")
+	cmd, out := newRenameCmd(t, "--db-url", dbURL, "--from", "old-app", "--to", "new-app", "--force")
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("rename proceeded across a half-migrated schema:\n%s", out)
+	}
+	if !strings.Contains(err.Error(), "operation_outputs") {
+		t.Errorf("refusal does not name the table that is short: %v", err)
+	}
+	if !strings.Contains(err.Error(), "sysdb migrate") {
+		t.Errorf("refusal does not name the fix: %v", err)
+	}
 
-	if !strings.Contains(out, "operation_outputs") {
-		t.Errorf("the rename did not say it passed over operation_outputs:\n%s", out)
+	// Refusing has to mean nothing moved: a rename that took the four tables it
+	// could and then reported an error would leave the split ownership it exists
+	// to prevent.
+	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.workflow_status WHERE application_name = 'old-app'`); n != 1 {
+		t.Errorf("the refused rename moved workflow rows anyway: %d left under the old name", n)
 	}
-	// Everything that does record ownership still moved.
-	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.workflow_status WHERE application_name = 'new-app'`); n != 1 {
-		t.Errorf("workflow rows did not move: %d under the new name", n)
-	}
-	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.queues WHERE application_name = 'new-app'`); n != 1 {
-		t.Errorf("queue rows did not move: %d under the new name", n)
-	}
-	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.workflow_status WHERE application_name = 'old-app'`); n != 0 {
-		t.Errorf("%d workflow row(s) left under the old name", n)
+	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.queues WHERE application_name = 'old-app'`); n != 1 {
+		t.Errorf("the refused rename moved queue rows anyway: %d left under the old name", n)
 	}
 }
 

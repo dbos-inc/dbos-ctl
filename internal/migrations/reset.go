@@ -117,7 +117,7 @@ func Empty(ctx context.Context, databaseURL, schema, applicationName string, pro
 	if err != nil {
 		return nil, err
 	}
-	if err := checkNotAheadOfBinary(execCtx, conn, schema, present); err != nil {
+	if err := checkNotAheadOfBinary(execCtx, conn, schema); err != nil {
 		return nil, err
 	}
 	var owned map[string]struct{}
@@ -212,8 +212,20 @@ func resetTargets(schema, applicationName string, present, owned map[string]stru
 // The system schema is shared by every SDK and they release on their own
 // schedules, so a database ahead of this dbosctl is a normal thing to meet
 // rather than a corrupt one. Say so, and name the fix.
-func checkNotAheadOfBinary(ctx context.Context, conn *pgx.Conn, schema string, present map[string]struct{}) error {
-	if _, ok := present[MigrationTable]; !ok {
+//
+// It asks the catalog whether the migration table exists rather than taking a
+// table set from the caller. Empty has that set already, for its own reasons,
+// but rename does not and would have had to enumerate every table in the schema
+// to answer a question about one -- the same one-row EXISTS the migration
+// runner asks.
+func checkNotAheadOfBinary(ctx context.Context, conn *pgx.Conn, schema string) error {
+	var migrated bool
+	if err := conn.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema = $1 AND table_name = $2)`,
+		schema, MigrationTable).Scan(&migrated); err != nil {
+		return fmt.Errorf("failed to look for the migration table in schema %s: %w", schema, err)
+	}
+	if !migrated {
 		// Nothing has migrated this schema, so there is no version to be ahead of.
 		return nil
 	}

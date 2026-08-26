@@ -336,12 +336,12 @@ tail reports what committed before it, which is where a re-run picks up.
 Like `reset`, this refuses a schema migrated past what the binary knows, and
 refuses before moving anything.
 
-The opposite direction is not an error. Migrations 100-104 added
-`application_name` one table at a time, so a schema part-way through that range
-has it on some of these tables and not others — and a table without the column
-records no ownership, so nothing in it is stranded under the old name. The
-rename moves what it can and names what it passed over on stderr. Only a schema
-older than migration 100, which records no ownership anywhere, is refused.
+A schema too old for the feature is refused too, and so is one part way into
+it. Migrations 100-104 add `application_name` a table at a time and each commits
+on its own, so a `migrate` interrupted inside that range leaves some of these
+tables carrying the column and some not. The rename names the tables that are
+short and tells you to finish migrating, rather than re-owning the ones it can
+and leaving you to work out from a zero why the rest stayed put.
 
 ## Configuration precedence
 
