@@ -147,10 +147,7 @@ func runAppRegister(cmd *cobra.Command, args []string) error {
 	// An empty body is enough to stand up a bare app record (no executor, no
 	// deploy); the remaining tuning fields land with D3 `app update`.
 	var body api.RegisterAppJSONRequestBody
-	if cmd.Flags().Changed("private-mode") {
-		v, _ := cmd.Flags().GetBool("private-mode")
-		body.PrivateMode = &v
-	}
+	patchBool(cmd, "private-mode", &body.PrivateMode, nil)
 	resp, err := c.RegisterAppWithResponse(cmd.Context(), org, name, body)
 	if err != nil {
 		return err
@@ -313,11 +310,7 @@ func runAppUpdate(cmd *cobra.Command, args []string) error {
 	patchInt64(cmd, "gc-rows-threshold", &body.GcRowsThreshold, &changed)
 	patchInt64(cmd, "gc-time-threshold-ms", &body.GcTimeThresholdMs, &changed)
 	patchInt64(cmd, "global-timeout-ms", &body.GlobalTimeoutMs, &changed)
-	if cmd.Flags().Changed("private-mode") {
-		v, _ := cmd.Flags().GetBool("private-mode")
-		body.PrivateMode = &v
-		changed = true
-	}
+	patchBool(cmd, "private-mode", &body.PrivateMode, &changed)
 	if !changed {
 		return fmt.Errorf("nothing to update: pass at least one field (see `dbosctl app update --help`)")
 	}
@@ -370,6 +363,16 @@ func patchInt64(cmd *cobra.Command, flag string, dst **int64, changed *bool) {
 		v, _ := cmd.Flags().GetInt64(flag)
 		*dst = &v
 		*changed = true
+	}
+}
+
+func patchBool(cmd *cobra.Command, flag string, dst **bool, changed *bool) {
+	if cmd.Flags().Changed(flag) {
+		v, _ := cmd.Flags().GetBool(flag)
+		*dst = &v
+		if changed != nil {
+			*changed = true
+		}
 	}
 }
 
