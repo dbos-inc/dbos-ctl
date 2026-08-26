@@ -169,13 +169,13 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-      - name: migration tests
+      - name: sysdb tests
         env:
           DBOS_TEST_POSTGRES_IMAGE: ${{ matrix.postgres_image }}
           DBOS_TEST_COCKROACH_IMAGE: ${{ matrix.cockroach_image }}
-        run: make test-migrations ENGINE=${{ matrix.engine }} JUNIT=migration-tests.xml
+        run: make test-sysdb ENGINE=${{ matrix.engine }} JUNIT=migration-tests.xml
 
-      - name: migration test summary
+      - name: sysdb test summary
         uses: test-summary/action@v2
         if: always()
         with:

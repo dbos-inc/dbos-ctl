@@ -156,19 +156,31 @@ Two ways to bypass the flow:
 | `dbosctl api-key delete <name>` | Delete an API key |
 | `dbosctl permission list` | List grantable permissions |
 | `dbosctl config list \| show \| use \| set` | Manage profiles |
-| `dbosctl migrate` | Create or upgrade a DBOS system database (connects to Postgres directly) |
+| `dbosctl sysdb migrate` | Create or upgrade a DBOS system database |
+| `dbosctl sysdb reset` | Empty the DBOS system database |
+| `dbosctl sysdb rename-application` | Re-own rows after an application is renamed (alias: `rename-app`) |
 | `dbosctl version` (or `--version`) | Print version information |
 
-### migrate
+## sysdb
 
-`dbosctl migrate` is the only command that opens a database. It creates the
-system database and schema if they are missing and applies whatever migrations
-they lack, so it takes a database URL rather than a profile:
+`sysdb` groups the commands that open a database instead of calling Conductor.
+They connect to PostgreSQL (or CockroachDB) directly, take a database URL rather
+than a profile, and honour none of the [common flags](#common-flags). `-D` and
+`--schema` are defined once on the group, so every subcommand shares them:
 
 ```sh
-dbosctl migrate -D postgres://user:pass@host:5432/dbos_sys
-DBOS_SYSTEM_DATABASE_URL=... dbosctl migrate
+dbosctl sysdb migrate -D postgres://user:pass@host:5432/dbos_sys
+DBOS_SYSTEM_DATABASE_URL=... dbosctl sysdb migrate
 ```
+
+The subcommand names are the ones Python, TypeScript, and Go use for the same
+operations. The grouping is this CLI's own grammar — it groups by noun
+everywhere else — not a renaming.
+
+### sysdb migrate
+
+Creates the system database and schema if they are missing and applies whatever
+migrations they lack.
 
 It is safe to re-run: migrations already recorded are skipped, and an up-to-date
 database is left alone. The system schema is shared by every DBOS SDK, and the
@@ -194,7 +206,7 @@ application does not keep — and nothing can detect that, so pass
 `--no-listen-notify`:
 
 ```sh
-dbosctl migrate -D postgres://... --no-listen-notify        # e.g. behind PgBouncer
+dbosctl sysdb migrate -D postgres://... --no-listen-notify        # e.g. behind PgBouncer
 ```
 
 The database is complete either way and reports the same migration version; only
@@ -205,7 +217,7 @@ generated script says in its header which of the two it is.
 For the same reason, a printed script for CockroachDB has to be asked for:
 
 ```sh
-dbosctl migrate --print-migrations all --cockroach > schema.sql
+dbosctl sysdb migrate --print-migrations all --cockroach > schema.sql
 ```
 
 CockroachDB differs in more than the triggers — no `ALTER FUNCTION … SET
@@ -218,8 +230,8 @@ The print modes never connect, and write nothing but SQL and comments to stdout,
 for a database whose DDL goes through review:
 
 ```sh
-dbosctl migrate --print-migrations all > schema.sql
-dbosctl migrate --print-user-role -r myapp_role > grants.sql
+dbosctl sysdb migrate --print-migrations all > schema.sql
+dbosctl sysdb migrate --print-user-role -r myapp_role > grants.sql
 ```
 
 Because the SQL is CREATE/DROP INDEX CONCURRENTLY in places, run those scripts
@@ -227,6 +239,109 @@ outside a transaction block — plain `psql`, not `psql --single-transaction`.
 
 Postgres (and CockroachDB) only. A SQLite system database is migrated by the
 application process that opens it.
+
+### sysdb reset
+
+Deletes the DBOS rows, leaving the schema migrated and immediately usable:
+
+```sh
+dbosctl sysdb reset -D postgres://user:pass@host:5432/dbos_sys
+```
+
+This is narrower than `dbos reset` in the SDK CLIs, which drop the database.
+Two reasons. `--schema` exists so the DBOS tables can share a database with
+application tables, and a system database is [shareable between
+applications](https://docs.dbos.dev/explanations/sharing-a-system-database) —
+so dropping it reaches past what was asked about. And emptying needs only the
+privileges `--app-role` grants, which is the point of provisioning out of band
+in the first place.
+
+The migration history is kept, so nothing has to migrate the database again
+afterwards. That is what makes this usable between test runs, and on
+CockroachDB it is the difference between cheap deletes and a schema change.
+
+| Flag | Purpose |
+|---|---|
+| `-a`, `--app <name>` | Empty only this application's rows, for a shared system database |
+| `--drop-database` | Drop the whole database instead |
+| `--force` | Skip the confirmation prompt (required when non-interactive) |
+| `-o`, `--output` | `table` (default) or `json` |
+
+`--app` deletes the rows that name it and lets the foreign keys take the rest:
+every workflow-keyed table cascades from `workflow_status`, so a workflow's
+steps, messages, events, and streams go with it. Other applications in the same
+schema are untouched, and so are rows no application owns.
+
+Unlike the `--app` the Conductor commands take, this one resolves from the
+command line only — no `$DBOS_APP`, no profile. What decides how much of a
+database to destroy should have to be typed.
+
+`--drop-database` is the blunt version, and cannot be combined with `--app` or
+`--schema` — both describe work inside the database it destroys.
+
+Only the tables DBOS creates are emptied. They are named in the binary rather
+than read from the catalog, so pointing `--schema` at a schema that also holds
+application tables empties the DBOS ones and leaves the rest alone.
+
+That list is also why both `reset` and `rename-application` refuse a schema
+migrated past what the binary knows: a migration this build has never seen may
+have added a table it would silently skip, leaving it full — or, for a rename,
+leaving its rows under the old name — while reporting success. The system schema
+is shared by every SDK and they release on their own schedules, so meeting a
+newer database is normal rather than alarming. Upgrade dbosctl.
+
+Per-table row counts go to stdout, with progress on stderr, the same split
+`rename-application` uses — a table by default, `-o json` for a scripted reset.
+`--drop-database` prints none — the tables go with the database — and neither
+does a failure, since the deletes are one transaction and a rollback removed
+nothing.
+
+### sysdb rename-application
+
+An application owns what it creates, keyed by its configured name, so renaming
+it strands those rows under the old name. This moves them:
+
+```sh
+dbosctl sysdb rename-application --from old-name --to new-name
+dbosctl sysdb rename-app --to new-name --adopt-unclaimed-rows   # same command
+```
+
+**Stop the application being renamed first.** Nothing here locks it out, and a
+running one keeps dequeuing under its old name.
+
+| Flag | Purpose |
+|---|---|
+| `-f`, `--from` | The application's previous name; omit to only adopt unclaimed rows |
+| `-t`, `--to` | The application that ends up owning the rows (required) |
+| `--adopt-unclaimed-rows` | Also take rows no application owns (`application_name` is null) |
+| `--batch-size` | Workflows and steps re-owned per transaction (default 10000) |
+| `--force` | Skip the confirmation prompt (required when non-interactive) |
+| `-o`, `--output` | `table` (default) or `json` |
+
+Rows no application owns predate system-database sharing, so claiming them is a
+decision rather than a default: naming neither source is an error rather than a
+rename that reports moving nothing.
+
+Queues, schedules, versions, and in-flight workflows move in one transaction — a
+half-owned application would dequeue work whose version row it can no longer
+see. Terminal workflows and their steps are unbounded, so they move in batches
+of `--batch-size` keys, and an interrupted run resumes rather than starting
+over. The moved-row counts go to stdout, with progress on stderr — a table by
+default, `-o json` for a scripted rename.
+
+Those counts are rows *durably* moved. A failure inside the opening transaction
+reports nothing, because the rollback moved nothing; a failure in the batched
+tail reports what committed before it, which is where a re-run picks up.
+
+Like `reset`, this refuses a schema migrated past what the binary knows, and
+refuses before moving anything.
+
+A schema too old for the feature is refused too, and so is one part way into
+it. Migrations 100-104 add `application_name` a table at a time and each commits
+on its own, so a `migrate` interrupted inside that range leaves some of these
+tables carrying the column and some not. The rename names the tables that are
+short and tells you to finish migrating, rather than re-owning the ones it can
+and leaving you to work out from a zero why the rest stayed put.
 
 ## Configuration precedence
 
@@ -240,7 +355,7 @@ wins and the profile is the fallback:
 | Organization | `--org` | `DBOS_ORG` |
 | Application | `-a`, `--app` | `DBOS_APP` |
 | Bearer token | — | `DBOS_TOKEN` |
-| System database (`migrate`) | `-D`, `--db-url` | `DBOS_SYSTEM_DATABASE_URL` |
+| System database (`sysdb`) | `-D`, `--db-url` | `DBOS_SYSTEM_DATABASE_URL` |
 | Output format | `-o`, `--output` | — |
 
 Flags are scoped to the command that uses them, so pass them **after** the
@@ -285,9 +400,9 @@ make test        # unit tests
 make lint        # golangci-lint
 make snapshot    # build all-platform artifacts without publishing
 
-make test-integration                   # conductor-backed tests (needs Docker)
-make test-migrations ENGINE=postgres    # migration tests against one engine
-make test-migrations ENGINE=cockroach
+make test-integration              # conductor-backed tests (needs Docker)
+make test-sysdb ENGINE=postgres    # sysdb tests against one engine
+make test-sysdb ENGINE=cockroach
 ```
 
 The generated client (`internal/api`) is committed; CI fails on spec drift
@@ -302,10 +417,11 @@ Integration tests are tagged `integration` and stand up real Conductor +
 Postgres in throwaway containers — see `make test-integration` and
 `.env.example` for the required license key and image/checkout settings.
 
-The migration tests are their own tier, run once per supported system database.
-They skip unless `DBOS_TEST_ENGINE` names one, which is what `make
-test-migrations` sets; CI runs a job per engine, so a failure says which one
-broke. That tier needs no license key, so it still gates fork PRs, where the
+The sysdb tests are their own tier, run once per supported system database.
+They cover every `sysdb` command, since all three run real SQL the two engines
+do not always agree on. They skip unless `DBOS_TEST_ENGINE` names one, which is
+what `make test-sysdb` sets; CI runs a job per engine, so a failure says which
+one broke. That tier needs no license key, so it still gates fork PRs, where the
 conductor tier can only skip.
 
 

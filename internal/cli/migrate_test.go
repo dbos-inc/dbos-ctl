@@ -13,6 +13,7 @@ import (
 func newMigrateCmd(t *testing.T, args ...string) (*cobra.Command, *bytes.Buffer) {
 	t.Helper()
 	cmd := &cobra.Command{Use: "migrate", RunE: runMigrate, SilenceUsage: true, SilenceErrors: true}
+	addSysdbFlags(cmd.Flags())
 	addMigrateFlags(cmd)
 	var out bytes.Buffer
 	cmd.SetOut(&out)

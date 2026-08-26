@@ -51,7 +51,7 @@ func (e engine) url(database string) string {
 
 // startEngine brings up the engine named by DBOS_TEST_ENGINE. Unset is a skip
 // rather than a default: these tests pull a database image and take minutes, so
-// running them is a choice, and `make test-migrations` is how it is made.
+// running them is a choice, and `make test-sysdb` is how it is made.
 func startEngine(t *testing.T) engine {
 	t.Helper()
 	// Tests run in the package directory, two levels below the module root.
@@ -63,7 +63,7 @@ func startEngine(t *testing.T) engine {
 	case engineCockroach:
 		return engine{urlFor: startCockroach(t), cockroach: true, name: engineCockroach}
 	case "":
-		t.Skipf("integration: %s not set (try `make test-migrations ENGINE=postgres`)", engineEnv)
+		t.Skipf("integration: %s not set (try `make test-sysdb ENGINE=postgres`)", engineEnv)
 		return engine{}
 	default:
 		t.Fatalf("%s=%q: want %q or %q", engineEnv, os.Getenv(engineEnv), enginePostgres, engineCockroach)

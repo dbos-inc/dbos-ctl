@@ -23,6 +23,12 @@
 // orphaned file and a placeholder count that does not match the arguments both
 // report there rather than against a customer's database.
 //
+// A migration that creates a table takes a fourth: name it in SystemTables, in
+// the order a reset empties them. That list is what reset works from, so a
+// table missing from it is one a reset leaves full while reporting success.
+// TestSystemTablesMatchTheMigratedSchemaIntegration compares the list against a
+// freshly migrated schema, so this fails in CI rather than in the field.
+//
 // Write every placeholder as an explicit-index %[n]s, never a bare %s, so a
 // value named many times is passed once: the schema is %[1]s throughout a
 // file that takes only the schema, and %[2]s in one that takes the

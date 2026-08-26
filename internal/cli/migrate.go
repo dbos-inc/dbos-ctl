@@ -14,11 +14,6 @@ import (
 	"github.com/dbos-inc/dbos-ctl/internal/migrations"
 )
 
-// dbURLEnv is the system database URL's environment variable, spelled the same
-// as every DBOS SDK spells it, so a shell already set up to run an application
-// can run this without repeating the URL.
-const dbURLEnv = "DBOS_SYSTEM_DATABASE_URL"
-
 // migrate is the only command that opens a database: it creates and upgrades the
 // DBOS system schema itself, from migrations vendored into this binary. That is
 // deliberate — the schema is shared by every SDK, so provisioning it should not
@@ -45,7 +40,7 @@ CockroachDB is detected and needs no flag.`,
 
 func init() {
 	addMigrateFlags(migrateCmd)
-	rootCmd.AddCommand(migrateCmd)
+	sysdbCmd.AddCommand(migrateCmd)
 }
 
 // addMigrateFlags installs the command's flags. It is separate from init so
@@ -53,8 +48,6 @@ func init() {
 // their own approximation of them.
 func addMigrateFlags(cmd *cobra.Command) {
 	f := cmd.Flags()
-	f.StringP("db-url", "D", "", "system database URL (overrides $"+dbURLEnv+")")
-	f.String("schema", migrations.DefaultSchema, "schema holding the DBOS system tables")
 	f.StringP("app-role", "r", "", "database role your DBOS application runs as; granted access to the system tables")
 	f.String("print-migrations", "", "print the SQL of migrations from `all|N` onward instead of running them")
 	f.Bool("print-user-role", false, "print the SQL granting --app-role access to the system tables instead of running it")
