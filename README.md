@@ -136,7 +136,7 @@ Two ways to bypass the flow:
 | `dbosctl app versions <name>` | List an application's versions |
 | `dbosctl app executors <name>` | List an application's connected executors |
 | `dbosctl app metrics <name>` | List an application's metrics (`--since`, default 24h) |
-| `dbosctl app register <name>` | Register an application |
+| `dbosctl app register <name>` | Register an application (optionally `--private-mode`) |
 | `dbosctl app update <name>` | Update tuning settings (e.g. `--executor-timeout-secs`, `--private-mode`) |
 | `dbosctl app set-version <name> <version>` | Set the application's latest version |
 | `dbosctl app delete <name>` | Delete an application (prompts to confirm; `--force` required when non-interactive) |

@@ -84,6 +84,7 @@ func init() {
 	// --org but not --app. The per-app reads name the app positionally.
 	addRequestFlags(appListCmd, "profile", "url", "org", "output")
 	addRequestFlags(appRegisterCmd, "profile", "url", "org")
+	appRegisterCmd.Flags().Bool("private-mode", false, "prevent sending workflow payload data (e.g., inputs, outputs, events) to Conductor")
 	addRequestFlags(appDeleteCmd, "profile", "url", "org")
 	appDeleteCmd.Flags().Bool("force", false, "skip the confirmation prompt (required when non-interactive)")
 	addRequestFlags(appGetCmd, "profile", "url", "org", "output")
@@ -144,8 +145,13 @@ func runAppRegister(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	// An empty body is enough to stand up a bare app record (no executor, no
-	// deploy); the tuning fields land with D3 `app update`.
-	resp, err := c.RegisterAppWithResponse(cmd.Context(), org, name, api.RegisterAppJSONRequestBody{})
+	// deploy); the remaining tuning fields land with D3 `app update`.
+	var body api.RegisterAppJSONRequestBody
+	if cmd.Flags().Changed("private-mode") {
+		v, _ := cmd.Flags().GetBool("private-mode")
+		body.PrivateMode = &v
+	}
+	resp, err := c.RegisterAppWithResponse(cmd.Context(), org, name, body)
 	if err != nil {
 		return err
 	}
