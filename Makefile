@@ -51,10 +51,12 @@ test-integration:
 ## test-sysdb: sysdb tests against one engine (ENGINE=postgres|cockroach)
 ##   Covers every `dbosctl sysdb` command -- migrate, reset, rename-application --
 ##   since all three run real SQL that the two engines do not always agree on.
+##   The name pattern has to match every sysdb test: one that names neither a
+##   command nor Sysdb would be skipped here and never run anywhere.
 ##   One engine per run because a process migrates one database; CI matrixes over both.
 ENGINE ?= postgres
 test-sysdb:
-	DBOS_TEST_ENGINE=$(ENGINE) $(GOTEST) -tags integration -timeout 20m -run 'Migrate|Reset|Rename' ./internal/cli/
+	DBOS_TEST_ENGINE=$(ENGINE) $(GOTEST) -tags integration -timeout 20m -run 'Migrate|Reset|Rename|Sysdb' ./internal/cli/
 
 ## lint: go vet + gofmt check
 lint:

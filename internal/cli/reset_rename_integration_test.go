@@ -396,7 +396,10 @@ func TestRenameMovesEveryOwnedKindIntegration(t *testing.T) {
 	seedOwnedRows(t, conn, "old", "old-app")
 	seedWorkflow(t, conn, "wf-other", "SUCCESS", "other-app")
 
-	out := runRenameOrFail(t, "--db-url", dbURL, "--from", "old-app", "--to", "new-app")
+	// -o json: the assertions below are about the counts a script reads, which
+	// is the JSON rendering. The default table is covered where reset's counts
+	// are.
+	out := runRenameOrFail(t, "--db-url", dbURL, "--from", "old-app", "--to", "new-app", "-o", "json")
 
 	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.workflow_status WHERE application_name = 'old-app'`); n != 0 {
 		t.Errorf("%d workflow(s) left under the old name", n)
@@ -437,9 +440,16 @@ func TestRenameReportsNothingWhenTheFirstTransactionRollsBackIntegration(t *test
 	conn := connect(t, dbURL)
 	seedWorkflow(t, conn, "wf-1", "SUCCESS", "old-app")
 	seedOwnedRows(t, conn, "old", "old-app")
-	// Drop the third table the transaction touches, so the first two succeed
-	// and then it fails with work already done. Nothing references it.
-	exec(t, conn, `DROP TABLE dbos.application_versions`)
+	// Make the third table the transaction touches reject the write, so the
+	// first two succeed and then it fails with work already done.
+	//
+	// A constraint rather than dropping the table, which is what this used to
+	// do: a missing application_versions is now caught by the precondition
+	// check before the transaction opens, so the rename would fail without ever
+	// reaching the rollback this is about — passing the test for the wrong
+	// reason. The column has to be there and the UPDATE has to fail.
+	exec(t, conn, `ALTER TABLE dbos.application_versions
+	               ADD CONSTRAINT reject_the_rename CHECK (application_name <> 'new-app')`)
 
 	// Called directly rather than through the command: the CLI discards the
 	// counts when it gets an error, so the contract this is about — what the
@@ -504,7 +514,7 @@ func TestRenameBatchesTerminalWorkflowsIntegration(t *testing.T) {
 		seedWorkflow(t, conn, fmt.Sprintf("wf-%02d", i), "SUCCESS", "old-app")
 	}
 
-	out := runRenameOrFail(t, "--db-url", dbURL, "--from", "old-app", "--to", "new-app", "--batch-size", "2")
+	out := runRenameOrFail(t, "--db-url", dbURL, "--from", "old-app", "--to", "new-app", "--batch-size", "2", "-o", "json")
 
 	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.workflow_status WHERE application_name = 'new-app'`); n != total {
 		t.Errorf("batched rename moved %d workflow(s), want %d", n, total)
