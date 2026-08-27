@@ -315,7 +315,7 @@ running one keeps dequeuing under its old name.
 | `-t`, `--to` | The application that ends up owning the rows (required) |
 | `--adopt-unclaimed-rows` | Also take rows no application owns (`application_name` is null) |
 | `--batch-size` | Workflows and steps re-owned per transaction (default 10000) |
-| `--force` | Skip the confirmation prompt and the `--to` name checks (required when non-interactive) |
+| `--force` | Skip the confirmation prompt and the `--to` name warnings (required when non-interactive) |
 | `-o`, `--output` | `table` (default) or `json` |
 
 Rows no application owns predate system-database sharing, so claiming them is a

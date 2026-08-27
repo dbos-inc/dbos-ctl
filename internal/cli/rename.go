@@ -59,7 +59,7 @@ func addRenameApplicationFlags(cmd *cobra.Command) {
 	f.StringP("to", "t", "", "the application that ends up owning the rows")
 	f.Bool("adopt-unclaimed-rows", false, "also take rows no application owns (application_name is null)")
 	f.Int("batch-size", migrations.DefaultRenameBatchSize, "workflows and steps re-owned per transaction")
-	f.Bool("force", false, "skip the confirmation prompt and the --to name checks (required when non-interactive)")
+	f.Bool("force", false, "skip the confirmation prompt and the --to name warnings (required when non-interactive)")
 	// Counts render as a table or as JSON, the same -o every other command that
 	// prints data honors.
 	addRequestFlags(cmd, "output")
