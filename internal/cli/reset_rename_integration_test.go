@@ -526,3 +526,98 @@ func TestRenameBatchesTerminalWorkflowsIntegration(t *testing.T) {
 		t.Errorf("counts do not add up across batches:\n%s", out)
 	}
 }
+
+// The name check informs a prompt, so what matters is that it finds a name
+// wherever an application can have left one — including in the history tables,
+// which it only reaches for a name the small ones do not carry — and that it
+// stays quiet rather than failing when the schema records no ownership at all.
+func TestRenameApplicationNameInUseIntegration(t *testing.T) {
+	e := startEngine(t)
+	dbURL := e.url("dbos_sys")
+	runMigrateOrFail(t, "--db-url", dbURL)
+
+	conn := connect(t, dbURL)
+	// Registered but with no history, which is what a freshly started
+	// application looks like.
+	seedOwnedRows(t, conn, "registered", "registered-app")
+	// The opposite: history left behind by an application that no longer runs,
+	// found only in the two tables the probe reaches last.
+	seedWorkflow(t, conn, "wf-history", "SUCCESS", "retired-app")
+	// Unclaimed rows belong to no name, so no name is in use because of them.
+	seedWorkflow(t, conn, "wf-unclaimed", "SUCCESS", "")
+
+	for _, tc := range []struct {
+		name   string
+		schema string
+		want   bool
+	}{
+		{name: "registered-app", schema: "dbos", want: true},
+		{name: "retired-app", schema: "dbos", want: true},
+		{name: "free-app", schema: "dbos", want: false},
+		// A schema holding no application_name columns is not an error here: the
+		// rename refuses it afterwards with a message that says which kind of
+		// unmigrated it is, and failing first would replace that with a worse one.
+		{name: "registered-app", schema: "dbos_missing", want: false},
+	} {
+		t.Run(tc.name+"/"+tc.schema, func(t *testing.T) {
+			inUse, err := migrations.ApplicationNameInUse(context.Background(), dbURL, tc.schema, tc.name)
+			if err != nil {
+				t.Fatalf("ApplicationNameInUse(%q, %q): %v", tc.schema, tc.name, err)
+			}
+			if inUse != tc.want {
+				t.Errorf("%q in use in %s = %v, want %v", tc.name, tc.schema, inUse, tc.want)
+			}
+		})
+	}
+}
+
+// End to end at the prompt: the two questions are asked in front of the
+// confirmation, and answering it still renames.
+func TestRenameWarnsAboutTheNewNameBeforeConfirmingIntegration(t *testing.T) {
+	e := startEngine(t)
+	dbURL := e.url("dbos_sys")
+	runMigrateOrFail(t, "--db-url", dbURL)
+
+	conn := connect(t, dbURL)
+	seedWorkflow(t, conn, "wf-old", "SUCCESS", "old-app")
+	seedOwnedRows(t, conn, "taken", "Taken App")
+
+	asTerminal(t)
+	cmd, out := newRenameCmd(t, "--db-url", dbURL, "--from", "old-app", "--to", "Taken App")
+	cmd.SetIn(strings.NewReader("y\n"))
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("rename: %v\n%s", err, out)
+	}
+	for _, want := range []string{"is not a valid DBOS application name", "already owns rows"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("the prompt did not mention %q:\n%s", want, out)
+		}
+	}
+	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.workflow_status WHERE application_name = 'Taken App'`); n != 1 {
+		t.Errorf("a confirmed rename moved %d workflow(s), want 1", n)
+	}
+}
+
+// Declining leaves the rows where they were, which is the whole point of
+// putting the warnings in front of the question.
+func TestRenameDecliningTheWarningMovesNothingIntegration(t *testing.T) {
+	e := startEngine(t)
+	dbURL := e.url("dbos_sys")
+	runMigrateOrFail(t, "--db-url", dbURL)
+
+	conn := connect(t, dbURL)
+	seedWorkflow(t, conn, "wf-old", "SUCCESS", "old-app")
+
+	asTerminal(t)
+	cmd, out := newRenameCmd(t, "--db-url", dbURL, "--from", "old-app", "--to", "New App")
+	cmd.SetIn(strings.NewReader("n\n"))
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("declining a rename is not an error: %v\n%s", err, out)
+	}
+	if !strings.Contains(out.String(), "is not a valid DBOS application name") {
+		t.Errorf("the prompt did not question the name:\n%s", out)
+	}
+	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.workflow_status WHERE application_name = 'old-app'`); n != 1 {
+		t.Errorf("a declined rename moved %d workflow(s) anyway", 1-n)
+	}
+}

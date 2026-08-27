@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -34,6 +35,11 @@ Rows no application owns are not moved unless --adopt-unclaimed-rows is passed:
 they predate system-database sharing, and claiming them is a decision rather
 than a default.
 
+--to is looked at before anything moves. A whitespace only name is refused 
+outright. A name that isn't supported with DBOS Cloud and Conductor, or one 
+that already owns rows in the schema, is reported and asked about. --force
+skips that prompt, and those two questions with it.
+
 This command reaches the database directly, so it takes a database URL rather
 than a profile.`,
 	Args: cobra.NoArgs,
@@ -53,7 +59,7 @@ func addRenameApplicationFlags(cmd *cobra.Command) {
 	f.StringP("to", "t", "", "the application that ends up owning the rows")
 	f.Bool("adopt-unclaimed-rows", false, "also take rows no application owns (application_name is null)")
 	f.Int("batch-size", migrations.DefaultRenameBatchSize, "workflows and steps re-owned per transaction")
-	f.Bool("force", false, "skip the confirmation prompt (required when non-interactive)")
+	f.Bool("force", false, "skip the confirmation prompt and the --to name checks (required when non-interactive)")
 	// Counts render as a table or as JSON, the same -o every other command that
 	// prints data honors.
 	addRequestFlags(cmd, "output")
@@ -86,6 +92,10 @@ func runRenameApplication(cmd *cobra.Command, _ []string) error {
 	if newName == "" {
 		return &exitError{code: 2, msg: "no application to re-own the rows to: pass --to"}
 	}
+	// Whitespace only --to name is refused outright.
+	if strings.TrimSpace(newName) == "" {
+		return &exitError{code: 2, msg: fmt.Sprintf("--to is only whitespace (%q): name the application that ends up owning the rows", newName)}
+	}
 	// Naming no source is the easy mistake to make, and it would otherwise be a
 	// rename that reports moving nothing rather than an error.
 	sources := renameSources(oldName, adopt)
@@ -109,21 +119,12 @@ func runRenameApplication(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	if !force {
-		if !isInteractive() {
-			return fmt.Errorf("refusing to re-own rows in %s without confirmation: re-run with --force (stdin is not a terminal)", maskPassword(dbURL))
-		}
-		prompt := fmt.Sprintf(
-			"Re-own %s in %s as %q? Stop the application being renamed before running this.",
-			strings.Join(sources, " and "), maskPassword(dbURL), newName)
-		ok, err := confirm(cmd.InOrStdin(), cmd.ErrOrStderr(), prompt)
-		if err != nil {
-			return err
-		}
-		if !ok {
-			fmt.Fprintln(cmd.ErrOrStderr(), "aborted")
-			return nil
-		}
+	proceed, err := confirmRename(cmd, force, dbURL, schema, newName, sources)
+	if err != nil {
+		return err
+	}
+	if !proceed {
+		return nil
 	}
 
 	counts, renameErr := migrations.RenameApplication(cmd.Context(), dbURL, migrations.RenameInput{
@@ -147,6 +148,69 @@ func runRenameApplication(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	return renameErr
+}
+
+// DBOS Conductor and Cloud require app names to be between 3 and 30 characters
+// long and contain only lowercase letters, numbers, dashes, and underscores.
+// A name that doesn't match the renameNamePattern regex cannot be registered
+// with either.
+//
+// DBOS Transact does not enforce the app name pattern. Because of that, this is
+// a question and not a rule: dbosctl can be pointed at a database holding a name
+// Cloud would have refused, and re-owning that history is still a real thing to
+// want.
+var renameNamePattern = regexp.MustCompile(`^[a-z0-9-_]{3,30}$`)
+
+// confirmRename asks before moving anything, unless --force was passed. It
+// reports whether to proceed; declining is not an error.
+func confirmRename(cmd *cobra.Command, force bool, dbURL, schema, newName string, sources []string) (bool, error) {
+	if force {
+		return true, nil
+	}
+	// Without a terminal to answer the prompt (a pipe, a file, CI) we refuse
+	// rather than move rows unattended: --force is how that is asked for.
+	if !isInteractive() {
+		return false, fmt.Errorf("refusing to re-own rows in %s without confirmation: re-run with --force (stdin is not a terminal)", maskPassword(dbURL))
+	}
+
+	// Check to see if the --to name is already in use. rename-app with an
+	// existing --to name effectively merges the data for the two applications.
+	// So we double check w/ the user before doing that.
+	inUse, err := migrations.ApplicationNameInUse(cmd.Context(), dbURL, schema, newName)
+	if err != nil {
+		return false, err
+	}
+	for _, concern := range renameNameConcerns(newName, schema, inUse) {
+		fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", concern)
+	}
+
+	prompt := fmt.Sprintf(
+		"Re-own %s in %s as %q? Stop the application being renamed before running this.",
+		strings.Join(sources, " and "), maskPassword(dbURL), newName)
+	ok, err := confirm(cmd.InOrStdin(), cmd.ErrOrStderr(), prompt)
+	if err != nil {
+		return false, err
+	}
+	if !ok {
+		fmt.Fprintln(cmd.ErrOrStderr(), "aborted")
+		return false, nil
+	}
+	return true, nil
+}
+
+// renameNameConcerns describes what is unusual about the name a rename is
+// moving rows to, for the prompt to carry. Empty means nothing is.
+func renameNameConcerns(newName, schema string, inUse bool) []string {
+	var concerns []string
+	if !renameNamePattern.MatchString(newName) {
+		concerns = append(concerns, fmt.Sprintf("%q is not a valid DBOS application name: Cloud and Conductor require %s",
+			newName, renameNamePattern.String()))
+	}
+	if inUse {
+		concerns = append(concerns, fmt.Sprintf("%q already owns rows in schema %s: the rows this moves join them",
+			newName, schema))
+	}
+	return concerns
 }
 
 // renameCountFields renders what a rename moved, by kind. Labelled with the

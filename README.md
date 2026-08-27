@@ -315,12 +315,30 @@ running one keeps dequeuing under its old name.
 | `-t`, `--to` | The application that ends up owning the rows (required) |
 | `--adopt-unclaimed-rows` | Also take rows no application owns (`application_name` is null) |
 | `--batch-size` | Workflows and steps re-owned per transaction (default 10000) |
-| `--force` | Skip the confirmation prompt (required when non-interactive) |
+| `--force` | Skip the confirmation prompt and the `--to` name checks (required when non-interactive) |
 | `-o`, `--output` | `table` (default) or `json` |
 
 Rows no application owns predate system-database sharing, so claiming them is a
 decision rather than a default: naming neither source is an error rather than a
 rename that reports moving nothing.
+
+`--to` is looked at before anything moves. A name that is only whitespace is
+refused outright — no application can be configured with it, so the rename would
+move a whole history somewhere nothing will look for it again. Two others are
+reported and asked about rather than refused:
+
+- a name outside `^[a-z0-9-_]{3,30}$`. DBOS Transact has no limits on application
+  name, but DBOS Conductor and Cloud do. A name that doesn't match this regular
+  expression cannot be registered or used with either DBOS Conductor or Cloud.
+- a name that already owns rows in the schema. Merging two applications is a real
+  thing to want, and it is what `--to` alone with `--adopt-unclaimed-rows` does
+  on purpose; it is also what naming the wrong existing application looks like.
+
+Each is also exactly what the corresponding mistake looks like — a stray capital
+or space, and a `--to` naming the wrong existing application — and nothing here
+can tell the two apart. So both are shown above the confirmation prompt and the
+answer decides them. `--force` skips that prompt and the two questions with it,
+including the query that asks the database whether the name is taken.
 
 Queues, schedules, versions, and in-flight workflows move in one transaction — a
 half-owned application would dequeue work whose version row it can no longer

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -40,6 +41,15 @@ func notATerminal(t *testing.T) {
 	t.Helper()
 	original := isInteractive
 	isInteractive = func() bool { return false }
+	t.Cleanup(func() { isInteractive = original })
+}
+
+// asTerminal forces the interactive path for one test, restoring the real check
+// afterwards. The commands that prompt refuse outright without it.
+func asTerminal(t *testing.T) {
+	t.Helper()
+	original := isInteractive
+	isInteractive = func() bool { return true }
 	t.Cleanup(func() { isInteractive = original })
 }
 
@@ -165,6 +175,72 @@ func TestRenameRequiresTo(t *testing.T) {
 	// RunE rather than MarkFlagRequired: cobra's own refusal exits 1.
 	cmd, _ := newRenameCmd(t, "--from", "old", "--db-url", unreachableURL)
 	wantUsageError(t, cmd.Execute(), "--to")
+}
+
+// A --to that is only whitespace is a shell variable that expanded to nothing
+// useful. No application can be configured with that name, so the rename would
+// move a whole history somewhere nothing will look for it again — and unlike
+// the two questions below, there is no reading of it that was intended.
+func TestRenameRejectsAWhitespaceOnlyTo(t *testing.T) {
+	for _, to := range []string{" ", "\t", "  \n "} {
+		t.Run(fmt.Sprintf("%q", to), func(t *testing.T) {
+			cmd, _ := newRenameCmd(t, "--from", "old", "--to", to, "--force", "--db-url", unreachableURL)
+			wantUsageError(t, cmd.Execute(), "--to is only whitespace")
+		})
+	}
+}
+
+// The pattern decides what gets asked about, not what is allowed, so what
+// matters is that it recognises the names people actually use and does not
+// recognise the ways a name gets mistyped.
+func TestRenameNamePatternRecognisesApplicationNames(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		want bool
+	}{
+		{name: "my-app", want: true},
+		{name: "my_app", want: true},
+		{name: "app2", want: true},
+		{name: "abc", want: true},
+		{name: strings.Repeat("a", 30), want: true},
+		{name: "ab", want: false},
+		{name: strings.Repeat("a", 31), want: false},
+		{name: "My-App", want: false},
+		{name: "my app", want: false},
+		{name: "my.app", want: false},
+		{name: "my-app ", want: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := renameNamePattern.MatchString(tc.name); got != tc.want {
+				t.Errorf("matched %q = %v, want %v", tc.name, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestRenameNameConcernsDescribeWhatIsUnusual(t *testing.T) {
+	if got := renameNameConcerns("new-app", "dbos", false); len(got) != 0 {
+		t.Errorf("an ordinary unused name was questioned anyway: %v", got)
+	}
+	// The pattern is quoted into the warning so that whoever reads it can see
+	// what the name was measured against rather than guess.
+	got := strings.Join(renameNameConcerns("New App", "dbos", false), "\n")
+	for _, want := range []string{`"New App"`, "is not a valid DBOS application name", renameNamePattern.String()} {
+		if !strings.Contains(got, want) {
+			t.Errorf("warning %q is missing %q", got, want)
+		}
+	}
+	got = strings.Join(renameNameConcerns("new-app", "dbos_alt", true), "\n")
+	for _, want := range []string{"already owns rows", "dbos_alt"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("warning %q is missing %q", got, want)
+		}
+	}
+	// Both are wrong with the same name, and hearing only one of them would
+	// leave the operator to discover the other by answering.
+	if n := len(renameNameConcerns("New App", "dbos", true)); n != 2 {
+		t.Errorf("a name that is both unusual and taken raised %d warning(s), want 2", n)
+	}
 }
 
 func TestRenameRefusesWithoutATerminal(t *testing.T) {

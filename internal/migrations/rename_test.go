@@ -78,3 +78,27 @@ func TestOwnershipColumnErrorDoesNotCallAHalfMigratedSchemaOld(t *testing.T) {
 		t.Errorf("half-migrated schema reported as predating the feature: %v", err)
 	}
 }
+
+// The probe order is applicationOwnedTables reordered, and reordering is the
+// kind of duplication that goes stale: a migration that gives another table an
+// application_name gets added to the list a rename re-owns and forgotten here,
+// and the name check then quietly stops looking at it.
+func TestApplicationNameProbeOrderCoversOwnedTables(t *testing.T) {
+	probed := map[string]int{}
+	for _, table := range applicationNameProbeOrder {
+		probed[table]++
+	}
+	for _, table := range applicationOwnedTables {
+		switch probed[table] {
+		case 1:
+			delete(probed, table)
+		case 0:
+			t.Errorf("%s carries application_name but is never probed for it", table)
+		default:
+			t.Errorf("%s is probed %d times", table, probed[table])
+		}
+	}
+	for table := range probed {
+		t.Errorf("%s is probed but carries no application_name", table)
+	}
+}

@@ -347,3 +347,74 @@ func renameInBatches(ctx context.Context, conn *pgx.Conn, table string, in Renam
 		lowerBound = watermark
 	}
 }
+
+// nameProbeTimeout bounds the pre-flight check for whether an application name
+// already owns rows. Nothing indexes application_name, so a name that is *not*
+// in use costs a scan of every table the check looks in; finite so that a
+// question asked to inform a prompt cannot hang in front of it.
+const nameProbeTimeout = time.Minute
+
+// applicationNameProbeOrder is the order ApplicationNameInUse looks a name up
+// in. applicationOwnedTables' contents, cheapest first rather than in that
+// list's delete-safe order: an application registers its version, queues, and
+// schedules at startup, so a name in use is almost always in use in one of the
+// small tables, and the two that grow with history are reached only for a name
+// nothing owns.
+//
+// TestApplicationNameProbeOrderCoversOwnedTables holds the two lists together,
+// so a migration that gives another table an application_name cannot add it to
+// one and not the other.
+var applicationNameProbeOrder = []string{
+	"application_versions",
+	"queues",
+	"workflow_schedules",
+	"workflow_status",
+	"operation_outputs",
+}
+
+// ApplicationNameInUse reports whether any row in schema is already owned by
+// name.
+//
+// Advisory rather than a check: it informs a confirmation prompt, so a schema
+// recording no ownership at all — one older than migration 100, or part way
+// through 100-104 — answers false rather than failing. RenameApplication is
+// what refuses those, and its message says which of the two it is; erroring
+// here first would replace it with a worse one.
+func ApplicationNameInUse(ctx context.Context, databaseURL, schema, name string) (bool, error) {
+	if schema == "" {
+		schema = DefaultSchema
+	}
+	if err := ValidateSchemaName(schema); err != nil {
+		return false, err
+	}
+
+	conn, err := pgx.Connect(ctx, databaseURL)
+	if err != nil {
+		return false, fmt.Errorf("failed to connect to the system database: %w", err)
+	}
+	defer conn.Close(context.WithoutCancel(ctx))
+
+	execCtx, cancel := context.WithTimeout(ctx, nameProbeTimeout)
+	defer cancel()
+
+	owned, err := applicationNameTables(execCtx, conn, schema)
+	if err != nil {
+		return false, err
+	}
+	for _, table := range applicationNameProbeOrder {
+		if _, ok := owned[table]; !ok {
+			continue
+		}
+		query := fmt.Sprintf("SELECT 1 FROM %s WHERE application_name = $1 LIMIT 1",
+			pgx.Identifier{schema, table}.Sanitize())
+		var found int
+		err := conn.QueryRow(execCtx, query, name).Scan(&found)
+		if err == nil {
+			return true, nil
+		}
+		if err != pgx.ErrNoRows {
+			return false, fmt.Errorf("failed to check whether %q already owns %s rows: %w", name, table, err)
+		}
+	}
+	return false, nil
+}
