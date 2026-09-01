@@ -327,9 +327,10 @@ refused outright — no application can be configured with it, so the rename wou
 move a whole history somewhere nothing will look for it again. Two others are
 reported and asked about rather than refused:
 
-- a name outside `^[a-z0-9-_]{3,30}$`. DBOS Transact has no limits on application
-  name, but DBOS Conductor and Cloud do. A name that doesn't match this regular
-  expression cannot be registered or used with either DBOS Conductor or Cloud.
+- a name outside `^[a-z0-9-_]{3,256}$`. DBOS Transact has no limits on application
+  name, but DBOS Conductor does. A name that doesn't match this regular expression
+  cannot be registered or used with DBOS Conductor. DBOS Cloud keeps a shorter
+  limit of its own, checked when an application is registered there.
 - a name that already owns rows in the schema. Merging two applications is a real
   thing to want, and it is what `--to` alone with `--adopt-unclaimed-rows` does
   on purpose; it is also what naming the wrong existing application looks like.
