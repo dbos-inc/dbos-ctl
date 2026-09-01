@@ -150,16 +150,17 @@ func runRenameApplication(cmd *cobra.Command, _ []string) error {
 	return renameErr
 }
 
-// DBOS Conductor and Cloud require app names to be between 3 and 30 characters
-// long and contain only lowercase letters, numbers, dashes, and underscores.
-// A name that doesn't match the renameNamePattern regex cannot be registered
-// with either.
+// DBOS Conductor requires app names to be between 3 and 256 characters long
+// and contain only lowercase letters, numbers, dashes, and underscores. A name
+// that doesn't match the renameNamePattern regex cannot be registered with it.
+// DBOS Cloud keeps a shorter limit of its own, checked on its own registration
+// path, because the name becomes part of a subdomain.
 //
 // DBOS Transact does not enforce the app name pattern. Because of that, this is
 // a question and not a rule: dbosctl can be pointed at a database holding a name
-// Cloud would have refused, and re-owning that history is still a real thing to
-// want.
-var renameNamePattern = regexp.MustCompile(`^[a-z0-9-_]{3,30}$`)
+// Conductor would have refused, and re-owning that history is still a real thing
+// to want.
+var renameNamePattern = regexp.MustCompile(`^[a-z0-9-_]{3,256}$`)
 
 // confirmRename asks before moving anything, unless --force was passed. It
 // reports whether to proceed; declining is not an error.
@@ -203,7 +204,7 @@ func confirmRename(cmd *cobra.Command, force bool, dbURL, schema, newName string
 func renameNameConcerns(newName, schema string, inUse bool) []string {
 	var concerns []string
 	if !renameNamePattern.MatchString(newName) {
-		concerns = append(concerns, fmt.Sprintf("%q is not a valid DBOS application name: Cloud and Conductor require %s",
+		concerns = append(concerns, fmt.Sprintf("%q is not a valid DBOS application name: Conductor requires %s",
 			newName, renameNamePattern.String()))
 	}
 	if inUse {
