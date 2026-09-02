@@ -14,7 +14,13 @@ ARG DB_COUNT=4
 # forgets --store starts an empty node instead of silently reusing this one.
 ENV DBOS_TEST_STORE=/cockroach/prebuilt
 
-COPY schema.cockroach.sql /tmp/schema.sql
+# CockroachDB has one variant, since it has no LISTEN/NOTIFY on any release to
+# turn off, so this defaults to the only script it can use. It is still an ARG
+# because the workflow passes SCHEMA_FILE for every image it builds, and a
+# Dockerfile that quietly ignored it would make the schema named in
+# supported-databases.json a lie for half the matrix.
+ARG SCHEMA_FILE=schema.cockroach.sql
+COPY ${SCHEMA_FILE} /tmp/schema.sql
 
 # --background returns once the node is serving, which is what makes this a
 # single RUN layer: starting the server in one layer and using it in the next

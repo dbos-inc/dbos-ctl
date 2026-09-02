@@ -473,8 +473,8 @@ second on PostgreSQL. The PostgreSQL images are built the same way so a suite
 can treat the two engines identically, not because they save meaningful time.
 
 `.github/workflows/test-images.yml` builds and publishes them on every push to
-`main` that touches `internal/migrations`, since that is the only thing that
-changes what is inside one. Each image carries four databases named
+`main` that touches the migrations, the Dockerfiles or the supported version
+list -- anything that changes what ends up inside an image. Each image carries four databases named
 `dbos_test_N`, already at the latest migration, and each architecture is built
 on a native runner -- baking the schema means running the database and applying
 the whole corpus, which is not something to do under emulation.

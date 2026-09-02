@@ -4,9 +4,11 @@ name: test-images
 # for the SDK suites, not something anyone deploys, which is why they go to the
 # repo's own registry rather than joining conductor and console on Docker Hub.
 #
-# Migrations are the trigger because they are the only thing that changes what
-# is inside an image. Everything else here -- base versions, database count --
-# changes only when this file does, and workflow_dispatch covers that.
+# Migrations are the trigger that matters, being the only thing that routinely
+# changes what is inside an image. The build recipe is watched alongside them --
+# the Dockerfiles, the supported version list, this file -- because a change
+# there changes the images just as surely, and it is cheap to notice: a run that
+# finds every version already published does nothing but say so.
 on:
   push:
     branches: [main]
@@ -112,7 +114,7 @@ jobs:
               echo "- \`${ref}\` already published, skipping" >> "$GITHUB_STEP_SUMMARY"
             else
               echo "- \`${ref}\` will be built" >> "$GITHUB_STEP_SUMMARY"
-              selected=$(jq -c ". + [${target}]" <<< "$selected")
+              selected=$(jq -c --argjson t "$target" '. + [$t]' <<< "$selected")
             fi
           done < <(jq -c '.[]' <<< "$targets")
           echo "targets=${selected}" >> "$GITHUB_OUTPUT"
