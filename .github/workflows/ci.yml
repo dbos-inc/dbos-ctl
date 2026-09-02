@@ -127,43 +127,40 @@ jobs:
   #
   # Versions are pinned to a minor stream (or a major, for PostgreSQL) rather
   # than :latest so a database release cannot turn a job red with no change in
-  # this repo. Retiring a version means deleting its row; adding one means
-  # adding a row. The suite reads DBOS_TEST_<ENGINE>_IMAGE, and the unset half
-  # of each pair is an empty string, which imageFor treats as absent.
+  # this repo. The list itself is supported-databases.json, because the test
+  # images are built for the same set and two copies would drift: retiring a
+  # version means deleting its row there, adding one means adding a row, and
+  # either way both this tier and the images follow. The suite reads
+  # DBOS_TEST_<ENGINE>_IMAGE, and the unset half of each pair is an empty
+  # string, which imageFor treats as absent.
   #
   # Needs no license key, so this tier still gates fork PRs, where the conductor
   # tier can only skip.
+  # A matrix cannot read a file, so the list becomes one before the tier that
+  # uses it. Cheap enough -- a checkout and a jq -- to be worth not keeping a
+  # second copy of the supported versions in this file.
+  databases:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.read.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: read
+        run: |
+          echo "matrix=$(jq -c '[ .[] | {
+            engine, version,
+            postgres_image:  (if .engine == "postgres"  then .image else "" end),
+            cockroach_image: (if .engine == "cockroach" then .image else "" end)
+          } ]' supported-databases.json)" >> "$GITHUB_OUTPUT"
+
   migrations:
     name: migrations (${{ matrix.engine }} ${{ matrix.version }})
+    needs: databases
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - engine: postgres
-            version: "14"
-            postgres_image: postgres:14
-          - engine: postgres
-            version: "15"
-            postgres_image: postgres:15
-          - engine: postgres
-            version: "16"
-            postgres_image: postgres:16
-          - engine: postgres
-            version: "17"
-            postgres_image: postgres:17
-          - engine: postgres
-            version: "18"
-            postgres_image: postgres:18
-          - engine: cockroach
-            version: "25.2"
-            cockroach_image: cockroachdb/cockroach:latest-v25.2
-          - engine: cockroach
-            version: "25.4"
-            cockroach_image: cockroachdb/cockroach:latest-v25.4
-          - engine: cockroach
-            version: "26.2"
-            cockroach_image: cockroachdb/cockroach:latest-v26.2
+        include: ${{ fromJSON(needs.databases.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7

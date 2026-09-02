@@ -13,6 +13,7 @@ on:
     paths:
       - 'internal/migrations/**'
       - 'docker/**'
+      - 'supported-databases.json'
       - '.github/workflows/test-images.yml'
   workflow_dispatch:
     inputs:
@@ -66,12 +67,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Which versions to build lives in docker/images.json rather than in a
-      # matrix here, because two jobs below need the same list and a second copy
-      # is a second thing to forget. It is the same set the `migrations` tier in
-      # ci.yml covers -- every supported version of each engine, CockroachDB
-      # starting at v25.2 since v24 is not a supported system database -- and
-      # adding a version to one without the other is the mistake to avoid.
+      # The versions come from supported-databases.json, the same file the
+      # `migrations` tier in ci.yml builds its matrix from, so the images are
+      # built for exactly the set the migrations are tested against and adding a
+      # version is one edit. PostgreSQL expands to two targets per version --
+      # with and without the pg_notify triggers -- and CockroachDB to one, since
+      # it has no LISTEN/NOTIFY on any release to vary.
       #
       # A target whose migration version is already published is dropped, which
       # is what makes a repeat run a no-op. Rebuilding would not reproduce the
@@ -91,6 +92,18 @@ jobs:
           OWNER: ${{ github.repository_owner }}
         run: |
           selected='[]'
+          targets=$(jq -c '[ .[] | if .engine == "postgres" then
+              { engine, tag: .version,
+                base: .image, schema: "schema.postgres.sql",
+                aliases: (if .latest then ["latest"] else [] end) },
+              { engine, tag: (.version + "-nolisten"),
+                base: .image, schema: "schema.postgres-nolisten.sql",
+                aliases: (if .latest then ["latest-nolisten"] else [] end) }
+            else
+              { engine, tag: .version,
+                base: .image, schema: "schema.cockroach.sql",
+                aliases: (if .latest then ["latest"] else [] end) }
+            end ]' supported-databases.json)
           while IFS= read -r target; do
             engine=$(jq -r .engine <<< "$target")
             tag=$(jq -r .tag <<< "$target")
@@ -101,7 +114,7 @@ jobs:
               echo "- \`${ref}\` will be built" >> "$GITHUB_STEP_SUMMARY"
               selected=$(jq -c ". + [${target}]" <<< "$selected")
             fi
-          done < <(jq -c '.[]' docker/images.json)
+          done < <(jq -c '.[]' <<< "$targets")
           echo "targets=${selected}" >> "$GITHUB_OUTPUT"
           count=$(jq 'length' <<< "$selected")
           echo "Building ${count} image(s) at migration ${VERSION}"

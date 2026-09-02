@@ -450,9 +450,10 @@ ghcr.io/dbos-inc/dbos-test-cockroach:{25.2,25.4,26.2}-m108
 Every version DBOS supports, which for PostgreSQL is every version upstream
 still supports. CockroachDB starts at v25.2: v24 is still in product support
 there but is not a supported DBOS system database, and the migration set does
-not apply to it. The list lives in `docker/images.json`, the same set the
-`migrations` tier in `ci.yml` covers -- adding a version to one without the
-other is the mistake to avoid.
+not apply to it. The list lives in `supported-databases.json`, which is
+also where the `migrations` tier in `ci.yml` builds its matrix from: the images
+are built for exactly the set the migrations are tested against, and adding a
+version is one edit rather than two that can drift.
 
 Each PostgreSQL version is built twice. The default carries the triggers that
 fire `pg_notify`, and the `-nolisten` images are what `--no-listen-notify`
@@ -489,9 +490,9 @@ There are three kinds of tag:
 | `16` | on every migration | a suite that wants PostgreSQL 16 and always the current schema |
 | `latest`, `latest-nolisten` | on every migration, and when the newest supported version changes | a suite that just wants a current database |
 
-`latest` names the newest supported version of that engine. Which one that is
-lives in `images.json` rather than being computed, so moving it is a deliberate
-edit rather than a side effect of adding a row.
+`latest` names the newest supported version of that engine, flagged in
+`supported-databases.json` rather than computed from sort order, so moving it is
+a deliberate edit rather than a side effect of adding a row.
 
 A `-mNNN` tag is never rebuilt: the workflow drops any target already published
 at the current migration version, so dispatching it twice is a no-op. That is
