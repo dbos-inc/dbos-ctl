@@ -1,0 +1,10 @@
+[
+  { "engine": "postgres",  "version": "14",   "image": "postgres:14" },
+  { "engine": "postgres",  "version": "15",   "image": "postgres:15" },
+  { "engine": "postgres",  "version": "16",   "image": "postgres:16" },
+  { "engine": "postgres",  "version": "17",   "image": "postgres:17" },
+  { "engine": "postgres",  "version": "18",   "image": "postgres:18",  "latest": true },
+  { "engine": "cockroach", "version": "25.2", "image": "cockroachdb/cockroach:latest-v25.2" },
+  { "engine": "cockroach", "version": "25.4", "image": "cockroachdb/cockroach:latest-v25.4" },
+  { "engine": "cockroach", "version": "26.2", "image": "cockroachdb/cockroach:latest-v26.2", "latest": true }
+]

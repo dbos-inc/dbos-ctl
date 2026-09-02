@@ -1,0 +1,244 @@
+name: test-images
+
+# Publishes the prebaked test database images to GHCR. These are test fixtures
+# for the SDK suites, not something anyone deploys, which is why they go to the
+# repo's own registry rather than joining conductor and console on Docker Hub.
+#
+# Migrations are the trigger that matters, being the only thing that routinely
+# changes what is inside an image. The build recipe is watched alongside them --
+# the Dockerfiles, the supported version list, this file -- because a change
+# there changes the images just as surely, and it is cheap to notice: a run that
+# finds every version already published does nothing but say so.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'internal/migrations/**'
+      - 'docker/**'
+      - 'supported-databases.json'
+      - '.github/workflows/test-images.yml'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Rebuild images whose migration version is already published'
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # One generation for every image, so a run cannot publish a PostgreSQL image
+  # at one migration version and a CockroachDB image at another. The version is
+  # read back from the script rather than tracked by hand: statements.go always
+  # ends it by recording the version, and that row is also what an SDK reads to
+  # decide it has nothing to migrate.
+  schema:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.generate.outputs.version }}
+      targets: ${{ steps.targets.outputs.targets }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: generate the migration scripts
+        id: generate
+        run: |
+          go run ./cmd/dbosctl sysdb migrate --print-migrations all > docker/schema.postgres.sql
+          go run ./cmd/dbosctl sysdb migrate --print-migrations all --no-listen-notify > docker/schema.postgres-nolisten.sql
+          go run ./cmd/dbosctl sysdb migrate --print-migrations all --cockroach > docker/schema.cockroach.sql
+          version=$(sed -n 's/.*SET version = \([0-9]*\).*/\1/p' docker/schema.postgres.sql | tail -1)
+          [ -n "$version" ] || { echo "could not read a migration version from the generated script"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Building images at migration $version"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The versions come from supported-databases.json, the same file the
+      # `migrations` tier in ci.yml builds its matrix from, so the images are
+      # built for exactly the set the migrations are tested against and adding a
+      # version is one edit. PostgreSQL expands to two targets per version --
+      # with and without the pg_notify triggers -- and CockroachDB to one, since
+      # it has no LISTEN/NOTIFY on any release to vary.
+      #
+      # A target whose migration version is already published is dropped, which
+      # is what makes a repeat run a no-op. Rebuilding would not reproduce the
+      # image it skips: initdb writes a fresh system identifier into the cluster
+      # and CockroachDB a fresh cluster ID, so an identical source tree still
+      # yields different bytes. Without this, dispatching twice would leave the
+      # same -mNNN tag pointing at a different digest, which is the one thing a
+      # pinned tag is supposed to rule out.
+      #
+      # `force` exists for the case this otherwise blocks: a base image picking
+      # up security fixes with no migration change. It does move the -mNNN tag.
+      - name: select the targets that need building
+        id: targets
+        env:
+          FORCE: ${{ inputs.force }}
+          VERSION: ${{ steps.generate.outputs.version }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          selected='[]'
+          targets=$(jq -c '[ .[] | if .engine == "postgres" then
+              { engine, tag: .version,
+                base: .image, schema: "schema.postgres.sql",
+                aliases: (if .latest then ["latest"] else [] end) },
+              { engine, tag: (.version + "-nolisten"),
+                base: .image, schema: "schema.postgres-nolisten.sql",
+                aliases: (if .latest then ["latest-nolisten"] else [] end) }
+            else
+              { engine, tag: .version,
+                base: .image, schema: "schema.cockroach.sql",
+                aliases: (if .latest then ["latest"] else [] end) }
+            end ]' supported-databases.json)
+          while IFS= read -r target; do
+            engine=$(jq -r .engine <<< "$target")
+            tag=$(jq -r .tag <<< "$target")
+            ref="${REGISTRY}/${OWNER}/dbos-test-${engine}:${tag}-m${VERSION}"
+            if [ "$FORCE" != "true" ] && docker buildx imagetools inspect "$ref" >/dev/null 2>&1; then
+              echo "- \`${ref}\` already published, skipping" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "- \`${ref}\` will be built" >> "$GITHUB_STEP_SUMMARY"
+              selected=$(jq -c --argjson t "$target" '. + [$t]' <<< "$selected")
+            fi
+          done < <(jq -c '.[]' <<< "$targets")
+          echo "targets=${selected}" >> "$GITHUB_OUTPUT"
+          count=$(jq 'length' <<< "$selected")
+          echo "Building ${count} image(s) at migration ${VERSION}"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: schema
+          path: docker/schema.*.sql
+          retention-days: 1
+
+  # Each architecture is built on its own native runner and pushed by digest;
+  # the manifest lists are assembled in `merge`. Emulation is not an option
+  # here the way it is for a Go binary: baking the schema means *running* the
+  # database and applying the whole corpus, which CockroachDB already prices at
+  # about a minute per database natively.
+  #
+  # The versions are the ones the SDK suites actually run against, not every
+  # version the sysdb tier covers -- an image nothing pulls is just a build.
+  build:
+    needs: schema
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+        target: ${{ fromJSON(needs.schema.outputs.targets) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: schema
+          path: docker
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: docker
+          file: docker/Dockerfile.${{ matrix.target.engine }}
+          platforms: ${{ matrix.runner == 'ubuntu-latest' && 'linux/amd64' || 'linux/arm64' }}
+          build-args: |
+            BASE_IMAGE=${{ matrix.target.base }}
+            SCHEMA_FILE=${{ matrix.target.schema }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ github.repository_owner }}/dbos-test-${{ matrix.target.engine }},push-by-digest=true,name-canonical=true,push=true
+
+      # The digest is the only thing `merge` needs, and an empty file named for
+      # it carries that across jobs without a registry lookup.
+      - name: export the digest
+        run: |
+          mkdir -p /tmp/digests
+          digest='${{ steps.build.outputs.digest }}'
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: digest-${{ matrix.target.engine }}-${{ matrix.target.tag }}-${{ matrix.runner == 'ubuntu-latest' && 'amd64' || 'arm64' }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # Tagging happens only here, so a half-built matrix leaves the previous
+  # images in place: a tag never points at an image whose other architecture
+  # failed to build.
+  merge:
+    needs: [schema, build]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.schema.outputs.targets) }}
+    steps:
+      # Named exactly, not matched by pattern: "16" is a prefix of "16-nolisten",
+      # so a glob would gather another image's digests and publish a manifest
+      # listing four architectures, two of which are the wrong schema.
+      - uses: actions/download-artifact@v7
+        with:
+          name: digest-${{ matrix.target.engine }}-${{ matrix.target.tag }}-amd64
+          path: /tmp/digests
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: digest-${{ matrix.target.engine }}-${{ matrix.target.tag }}-arm64
+          path: /tmp/digests
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Three kinds of tag. The -mNNN one is immutable and is what a suite should
+      # pin, so a migration landing here cannot change a CI run that has nothing
+      # to do with it. The bare engine version floats, for a suite that wants a
+      # given PostgreSQL or CockroachDB release and always the current schema.
+      # `latest` floats further still, naming the newest supported version, and
+      # is declared in images.json rather than computed so that moving it is a
+      # deliberate edit rather than a consequence of adding a row.
+      - name: create the manifest list
+        working-directory: /tmp/digests
+        env:
+          TARGET: ${{ toJSON(matrix.target) }}
+        run: |
+          image="${REGISTRY}/${{ github.repository_owner }}/dbos-test-${{ matrix.target.engine }}"
+          args=()
+          for tag in "${{ matrix.target.tag }}-m${{ needs.schema.outputs.version }}" \
+                     "${{ matrix.target.tag }}" \
+                     $(jq -r '.aliases // [] | .[]' <<< "$TARGET"); do
+            args+=( --tag "${image}:${tag}" )
+          done
+          # The digest expansion is meant to split: each file here is named for one
+          # architecture's digest, and they become separate arguments.
+          # shellcheck disable=SC2046
+          docker buildx imagetools create "${args[@]}" $(printf "${image}@sha256:%s " *)
+          docker buildx imagetools inspect "${image}:${{ matrix.target.tag }}-m${{ needs.schema.outputs.version }}"

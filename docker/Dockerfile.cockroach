@@ -1,0 +1,56 @@
+# A CockroachDB image whose DBOS system schema is already migrated, for the SDK
+# test suites. See Dockerfile.postgres for the shared design; this is the half
+# that pays for itself. CockroachDB runs every DDL statement as an online schema
+# change, so migrating one database costs about a minute against under a second
+# on PostgreSQL, and a suite pays that per database it creates.
+ARG BASE_IMAGE=cockroachdb/cockroach:latest-v25.2
+FROM ${BASE_IMAGE}
+
+ARG DB_COUNT=4
+
+# Unlike the postgres image, this one declares no VOLUME, so a build-time RUN can
+# write the store directly and the data survives into the layer. The path is not
+# the default cockroach-data: naming it explicitly means a `docker run` that
+# forgets --store starts an empty node instead of silently reusing this one.
+ENV DBOS_TEST_STORE=/cockroach/prebuilt
+
+# CockroachDB has one variant, since it has no LISTEN/NOTIFY on any release to
+# turn off, so this defaults to the only script it can use. It is still an ARG
+# because the workflow passes SCHEMA_FILE for every image it builds, and a
+# Dockerfile that quietly ignored it would make the schema named in
+# supported-databases.json a lie for half the matrix.
+ARG SCHEMA_FILE=schema.cockroach.sql
+COPY ${SCHEMA_FILE} /tmp/schema.sql
+
+# --background returns once the node is serving, which is what makes this a
+# single RUN layer: starting the server in one layer and using it in the next
+# cannot work, since only the filesystem crosses that boundary.
+#
+# The cleanup at the end is not housekeeping. EMERGENCY_BALLAST is a preallocated
+# file the node writes to guarantee it can recover from a full disk, and baking it
+# into the image would put its full size into every pull for no benefit -- the
+# node recreates it on start. The temp-storage records name paths from the
+# builder, which do not exist in a container started from this image.
+RUN set -eux; \
+    /cockroach/cockroach start-single-node --insecure \
+      --store=path="$DBOS_TEST_STORE" \
+      --max-disk-temp-storage=64MiB \
+      --pid-file=/tmp/crdb.pid \
+      --listening-url-file=/tmp/url \
+      --background; \
+    i=0; while [ "$i" -lt "$DB_COUNT" ]; do \
+      /cockroach/cockroach sql --insecure --execute="CREATE DATABASE dbos_test_$i"; \
+      /cockroach/cockroach sql --insecure --database="dbos_test_$i" --file=/tmp/schema.sql >/dev/null; \
+      i=$((i+1)); \
+    done; \
+    kill -TERM "$(cat /tmp/crdb.pid)"; \
+    while kill -0 "$(cat /tmp/crdb.pid)" 2>/dev/null; do sleep 1; done; \
+    rm -f "$DBOS_TEST_STORE"/auxiliary/EMERGENCY_BALLAST; \
+    rm -rf "$DBOS_TEST_STORE"/logs/* "$DBOS_TEST_STORE"/cockroach-temp* \
+           "$DBOS_TEST_STORE"/temp-dirs-record.txt \
+           /tmp/schema.sql /tmp/url /tmp/crdb.pid
+
+# The store path has to be repeated here because CMD cannot expand an ENV. A
+# consumer that overrides the command must pass --store=path=/cockroach/prebuilt
+# too, or it gets a stock empty node and none of the point of this image.
+CMD ["start-single-node", "--insecure", "--store=path=/cockroach/prebuilt"]
