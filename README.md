@@ -436,6 +436,38 @@ Integration tests are tagged `integration` and stand up real Conductor +
 Postgres in throwaway containers — see `make test-integration` and
 `.env.example` for the required license key and image/checkout settings.
 
+### Prebaked test database images
+
+`make test-images` builds two images whose DBOS system schema is already
+migrated, for the SDK test suites to run against:
+
+```sh
+make test-images                                    # postgres:16 + cockroach v25.2
+make test-images CRDB_BASE_IMAGE=cockroachdb/cockroach:latest-v26.2
+```
+
+They exist for CockroachDB, which runs every DDL statement as an online schema
+change: migrating one database costs around a minute there against under a
+second on PostgreSQL. The PostgreSQL image is built the same way so a suite can
+treat the two engines identically, not because it saves meaningful time.
+
+Each image carries `DB_COUNT` databases named `dbos_test_N`, already at the
+latest migration. The tag records both the engine version and that migration
+number — `dbos-test-cockroach:25.2-m108` — and the schema is generated from
+this tree at build time rather than committed, so an image cannot ship a
+migration set older than the source it came from.
+
+An image does not have to be current to be worth using. Every SDK gates on
+`current < latest`, so a database ahead of an SDK is left alone and one behind
+gets only the tail applied: against a stale image, catching up one migration
+measured 1.8s where the full corpus was 62.5s. Rebuilding is therefore about
+convenience rather than correctness.
+
+What an image cannot do by itself is make a suite faster. A suite that creates
+its own databases still pays the migration, and one that creates a database the
+image already has will fail outright — using these means pointing a suite at the
+baked names, not just swapping its base image.
+
 The sysdb tests are their own tier, run once per supported system database.
 They cover every `sysdb` command, since all three run real SQL the two engines
 do not always agree on. They skip unless `DBOS_TEST_ENGINE` names one, which is

@@ -17,7 +17,7 @@ ifneq ($(JUNIT),)
 GOTEST := go tool gotestsum --junitfile $(JUNIT) --format testname --
 endif
 
-.PHONY: all generate spec build snapshot test test-integration test-sysdb lint tidy
+.PHONY: all generate spec build snapshot test test-integration test-sysdb test-images lint tidy
 
 all: generate build
 
@@ -67,3 +67,35 @@ lint:
 ## tidy: sync go.mod/go.sum
 tidy:
 	go mod tidy
+
+## test-images: build the prebaked test database images (needs Docker)
+##   Images whose DBOS schema is already migrated, for the SDK suites. The win is
+##   CockroachDB's: it prices every DDL as an online schema change, so migrating
+##   one database costs ~60s there against ~0.75s on PostgreSQL. The PostgreSQL
+##   image earns its place by letting a suite treat the two engines identically,
+##   not by being faster.
+##
+##   The schema is generated from this tree, never checked in, so an image cannot
+##   ship migrations older than the source it was built from. The tag carries the
+##   migration version, read back from the generated script -- statements.go
+##   always ends it by recording the version, and that same row is what lets an
+##   SDK skip migrating.
+PG_BASE_IMAGE     ?= postgres:16
+CRDB_BASE_IMAGE   ?= cockroachdb/cockroach:latest-v25.2
+TEST_IMAGE_REPO   ?= ghcr.io/dbos-inc
+TEST_DB_COUNT     ?= 4
+
+.PHONY: test-images
+test-images:
+	go run ./cmd/dbosctl sysdb migrate --print-migrations all > docker/schema.postgres.sql
+	go run ./cmd/dbosctl sysdb migrate --print-migrations all --cockroach > docker/schema.cockroach.sql
+	@version=$$(sed -n 's/.*SET version = \([0-9]*\).*/\1/p' docker/schema.postgres.sql | tail -1); \
+	pgtag="$$(echo $(PG_BASE_IMAGE) | tr ':/' '--')"; \
+	crdbtag="$$(echo $(CRDB_BASE_IMAGE) | sed 's/.*://; s/^latest-v//')"; \
+	set -x; \
+	docker build -f docker/Dockerfile.postgres docker \
+	  --build-arg BASE_IMAGE=$(PG_BASE_IMAGE) --build-arg DB_COUNT=$(TEST_DB_COUNT) \
+	  -t $(TEST_IMAGE_REPO)/dbos-test-postgres:$${pgtag#postgres-}-m$$version; \
+	docker build -f docker/Dockerfile.cockroach docker \
+	  --build-arg BASE_IMAGE=$(CRDB_BASE_IMAGE) --build-arg DB_COUNT=$(TEST_DB_COUNT) \
+	  -t $(TEST_IMAGE_REPO)/dbos-test-cockroach:$$crdbtag-m$$version
