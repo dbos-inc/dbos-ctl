@@ -1,0 +1,171 @@
+name: test-images
+
+# Publishes the prebaked test database images to GHCR. These are test fixtures
+# for the SDK suites, not something anyone deploys, which is why they go to the
+# repo's own registry rather than joining conductor and console on Docker Hub.
+#
+# Migrations are the trigger because they are the only thing that changes what
+# is inside an image. Everything else here -- base versions, database count --
+# changes only when this file does, and workflow_dispatch covers that.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'internal/migrations/**'
+      - 'docker/**'
+      - '.github/workflows/test-images.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # One generation for every image, so a run cannot publish a PostgreSQL image
+  # at one migration version and a CockroachDB image at another. The version is
+  # read back from the script rather than tracked by hand: statements.go always
+  # ends it by recording the version, and that row is also what an SDK reads to
+  # decide it has nothing to migrate.
+  schema:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.generate.outputs.version }}
+      targets: ${{ steps.targets.outputs.targets }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: generate the migration scripts
+        id: generate
+        run: |
+          go run ./cmd/dbosctl sysdb migrate --print-migrations all > docker/schema.postgres.sql
+          go run ./cmd/dbosctl sysdb migrate --print-migrations all --cockroach > docker/schema.cockroach.sql
+          version=$(sed -n 's/.*SET version = \([0-9]*\).*/\1/p' docker/schema.postgres.sql | tail -1)
+          [ -n "$version" ] || { echo "could not read a migration version from the generated script"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Building images at migration $version"
+
+      # Which versions to build lives in docker/images.json rather than in a
+      # matrix here, because two jobs below need the same list and a second copy
+      # is a second thing to forget. It is the same set the `migrations` tier in
+      # ci.yml covers -- every supported version of each engine, CockroachDB
+      # starting at v25.2 since v24 is not a supported system database -- and
+      # adding a version to one without the other is the mistake to avoid.
+      - name: read the target list
+        id: targets
+        run: echo "targets=$(jq -c . docker/images.json)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: schema
+          path: docker/schema.*.sql
+          retention-days: 1
+
+  # Each architecture is built on its own native runner and pushed by digest;
+  # the manifest lists are assembled in `merge`. Emulation is not an option
+  # here the way it is for a Go binary: baking the schema means *running* the
+  # database and applying the whole corpus, which CockroachDB already prices at
+  # about a minute per database natively.
+  #
+  # The versions are the ones the SDK suites actually run against, not every
+  # version the sysdb tier covers -- an image nothing pulls is just a build.
+  build:
+    needs: schema
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+        target: ${{ fromJSON(needs.schema.outputs.targets) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: schema
+          path: docker
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: docker
+          file: docker/Dockerfile.${{ matrix.target.engine }}
+          platforms: ${{ matrix.runner == 'ubuntu-latest' && 'linux/amd64' || 'linux/arm64' }}
+          build-args: |
+            BASE_IMAGE=${{ matrix.target.base }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ github.repository_owner }}/dbos-test-${{ matrix.target.engine }},push-by-digest=true,name-canonical=true,push=true
+
+      # The digest is the only thing `merge` needs, and an empty file named for
+      # it carries that across jobs without a registry lookup.
+      - name: export the digest
+        run: |
+          mkdir -p /tmp/digests
+          digest='${{ steps.build.outputs.digest }}'
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: digest-${{ matrix.target.engine }}-${{ matrix.target.tag }}-${{ matrix.runner == 'ubuntu-latest' && 'amd64' || 'arm64' }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # Tagging happens only here, so a half-built matrix leaves the previous
+  # images in place: a tag never points at an image whose other architecture
+  # failed to build.
+  merge:
+    needs: [schema, build]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.schema.outputs.targets) }}
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          path: /tmp/digests
+          pattern: digest-${{ matrix.target.engine }}-${{ matrix.target.tag }}-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Two tags: one pinned to the migration version, which is what a suite
+      # should use so a migration landing here cannot change a CI run that has
+      # nothing to do with it, and one floating, for anyone who would rather
+      # track the tip than bump a pin.
+      - name: create the manifest list
+        working-directory: /tmp/digests
+        run: |
+          image="${REGISTRY}/${{ github.repository_owner }}/dbos-test-${{ matrix.target.engine }}"
+          # The digest expansion is meant to split: each file here is named for one
+          # architecture's digest, and they become separate arguments.
+          # shellcheck disable=SC2046
+          docker buildx imagetools create \
+            --tag "${image}:${{ matrix.target.tag }}-m${{ needs.schema.outputs.version }}" \
+            --tag "${image}:${{ matrix.target.tag }}" \
+            $(printf "${image}@sha256:%s " *)
+          docker buildx imagetools inspect "${image}:${{ matrix.target.tag }}-m${{ needs.schema.outputs.version }}"

@@ -438,35 +438,57 @@ Postgres in throwaway containers — see `make test-integration` and
 
 ### Prebaked test database images
 
-`make test-images` builds two images whose DBOS system schema is already
-migrated, for the SDK test suites to run against:
+The SDK test suites run against images whose DBOS system schema is already
+migrated, published to this repo's GitHub Packages registry:
 
-```sh
-make test-images                                    # postgres:16 + cockroach v25.2
-make test-images CRDB_BASE_IMAGE=cockroachdb/cockroach:latest-v26.2
 ```
+ghcr.io/dbos-inc/dbos-test-postgres:{14,15,16,17,18}-m108
+ghcr.io/dbos-inc/dbos-test-cockroach:{25.2,25.4,26.2}-m108
+```
+
+Every version DBOS supports, which for PostgreSQL is every version upstream
+still supports. CockroachDB starts at v25.2: v24 is still in product support
+there but is not a supported DBOS system database, and the migration set does
+not apply to it. The list lives in `docker/images.json`, the same set the
+`migrations` tier in `ci.yml` covers -- adding a version to one without the
+other is the mistake to avoid.
 
 They exist for CockroachDB, which runs every DDL statement as an online schema
 change: migrating one database costs around a minute there against under a
-second on PostgreSQL. The PostgreSQL image is built the same way so a suite can
-treat the two engines identically, not because it saves meaningful time.
+second on PostgreSQL. The PostgreSQL images are built the same way so a suite
+can treat the two engines identically, not because they save meaningful time.
 
-Each image carries `DB_COUNT` databases named `dbos_test_N`, already at the
-latest migration. The tag records both the engine version and that migration
-number — `dbos-test-cockroach:25.2-m108` — and the schema is generated from
-this tree at build time rather than committed, so an image cannot ship a
-migration set older than the source it came from.
+`.github/workflows/test-images.yml` builds and publishes them on every push to
+`main` that touches `internal/migrations`, since that is the only thing that
+changes what is inside one. Each image carries four databases named
+`dbos_test_N`, already at the latest migration, and each architecture is built
+on a native runner -- baking the schema means running the database and applying
+the whole corpus, which is not something to do under emulation.
+
+The schema is generated during the build rather than committed, so an image
+cannot ship a migration set older than the source it came from. The tag records
+the migration version alongside the engine version; suites should pin the
+`-mNNN` form so a migration landing here cannot change a CI run that has
+nothing to do with it. A floating `:16` tag tracks the tip for anyone who would
+rather not bump a pin.
 
 An image does not have to be current to be worth using. Every SDK gates on
 `current < latest`, so a database ahead of an SDK is left alone and one behind
-gets only the tail applied: against a stale image, catching up one migration
-measured 1.8s where the full corpus was 62.5s. Rebuilding is therefore about
-convenience rather than correctness.
+gets only the tail applied: against an image one migration stale, catching up
+measured 1.8s where the full corpus was 62.5s.
 
 What an image cannot do by itself is make a suite faster. A suite that creates
 its own databases still pays the migration, and one that creates a database the
-image already has will fail outright — using these means pointing a suite at the
-baked names, not just swapping its base image.
+image already has will fail outright -- adopting these means pointing a suite at
+the baked names, not just swapping its base image.
+
+To build one locally, generate the schema and hand it to the Dockerfile:
+
+```sh
+go run ./cmd/dbosctl sysdb migrate --print-migrations all --cockroach > docker/schema.cockroach.sql
+docker build -f docker/Dockerfile.cockroach docker \
+  --build-arg BASE_IMAGE=cockroachdb/cockroach:latest-v26.2 -t dbos-test-cockroach:local
+```
 
 The sysdb tests are their own tier, run once per supported system database.
 They cover every `sysdb` command, since all three run real SQL the two engines

@@ -1,0 +1,10 @@
+[
+  { "engine": "postgres",  "tag": "14",   "base": "postgres:14" },
+  { "engine": "postgres",  "tag": "15",   "base": "postgres:15" },
+  { "engine": "postgres",  "tag": "16",   "base": "postgres:16" },
+  { "engine": "postgres",  "tag": "17",   "base": "postgres:17" },
+  { "engine": "postgres",  "tag": "18",   "base": "postgres:18" },
+  { "engine": "cockroach", "tag": "25.2", "base": "cockroachdb/cockroach:latest-v25.2" },
+  { "engine": "cockroach", "tag": "25.4", "base": "cockroachdb/cockroach:latest-v25.4" },
+  { "engine": "cockroach", "tag": "26.2", "base": "cockroachdb/cockroach:latest-v26.2" }
+]
