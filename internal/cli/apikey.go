@@ -32,6 +32,13 @@ var apiKeyCreateCmd = &cobra.Command{
 	RunE:  runAPIKeyCreate,
 }
 
+var apiKeyRenameCmd = &cobra.Command{
+	Use:   "rename <name> <new-name>",
+	Short: "Rename an API key (its secret is unchanged)",
+	Args:  cobra.ExactArgs(2),
+	RunE:  runAPIKeyRename,
+}
+
 var apiKeyDeleteCmd = &cobra.Command{
 	Use:   "delete <name>",
 	Short: "Delete an API key",
@@ -42,13 +49,14 @@ var apiKeyDeleteCmd = &cobra.Command{
 func init() {
 	addRequestFlags(apiKeyListCmd, "profile", "url", "org", "output")
 	addRequestFlags(apiKeyCreateCmd, "profile", "url", "org", "output")
+	addRequestFlags(apiKeyRenameCmd, "profile", "url", "org")
 	addRequestFlags(apiKeyDeleteCmd, "profile", "url", "org")
 	// create's --app scopes the key to app names (repeatable), distinct from the
 	// operational -a/--app, so it's declared here rather than via addRequestFlags.
 	apiKeyCreateCmd.Flags().StringSlice("app", nil, "scope the key to these apps (repeatable; default: all apps)")
 	apiKeyCreateCmd.Flags().StringSlice("permission", nil, "grant these permissions, e.g. application.read (repeatable)")
 
-	apiKeyCmd.AddCommand(apiKeyListCmd, apiKeyCreateCmd, apiKeyDeleteCmd)
+	apiKeyCmd.AddCommand(apiKeyListCmd, apiKeyCreateCmd, apiKeyRenameCmd, apiKeyDeleteCmd)
 	rootCmd.AddCommand(apiKeyCmd)
 }
 
@@ -114,6 +122,27 @@ func runAPIKeyCreate(cmd *cobra.Command, args []string) error {
 	// captures it; the shown-once warning goes to stderr to keep stdout clean.
 	fmt.Fprintf(cmd.ErrOrStderr(), "API key %q created — store this secret now, it is not shown again:\n", resp.JSON201.TokenName)
 	fmt.Fprintln(cmd.OutOrStdout(), resp.JSON201.Token)
+	return nil
+}
+
+func runAPIKeyRename(cmd *cobra.Command, args []string) error {
+	name, newName := args[0], args[1]
+	c, s, err := clientFor(cmd)
+	if err != nil {
+		return err
+	}
+	org, err := effectiveOrg(cmd.Context(), c, s)
+	if err != nil {
+		return err
+	}
+	resp, err := c.UpdateTokenWithResponse(cmd.Context(), org, name, api.UpdateTokenJSONRequestBody{NewName: &newName})
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode() < 200 || resp.StatusCode() >= 300 {
+		return apiError(resp.StatusCode(), resp.HTTPResponse.Header, resp.ApplicationproblemJSONDefault, resp.Body)
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "renamed API key %q to %q\n", name, newName)
 	return nil
 }
 

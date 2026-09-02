@@ -133,6 +133,55 @@ func TestRunAPIKeyCreateUnscoped(t *testing.T) {
 	}
 }
 
+func TestRunAPIKeyRename(t *testing.T) {
+	isolateConfig(t)
+	var gotMethod string
+	var body map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v2/orgs/local/tokens/ci" {
+			t.Errorf("unexpected path %q", r.URL.Path)
+			http.Error(w, "unexpected path", http.StatusNotFound)
+			return
+		}
+		gotMethod = r.Method
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decoding body: %v", err)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(srv.Close)
+
+	cmd, out := appReadCmd(t, srv.URL)
+	if err := runAPIKeyRename(cmd, []string{"ci", "ci-prod"}); err != nil {
+		t.Fatal(err)
+	}
+	if gotMethod != http.MethodPatch {
+		t.Errorf("rename used %s, want PATCH", gotMethod)
+	}
+	if body["newName"] != "ci-prod" {
+		t.Errorf("rename body = %v, want newName ci-prod", body)
+	}
+	if got := out.String(); !strings.Contains(got, `renamed API key "ci" to "ci-prod"`) {
+		t.Errorf("unexpected rename output: %q", got)
+	}
+}
+
+func TestRunAPIKeyRenameError(t *testing.T) {
+	isolateConfig(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(http.StatusConflict)
+		_, _ = w.Write([]byte(`{"title":"Conflict","detail":"token already exists","status":409}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	cmd, _ := appReadCmd(t, srv.URL)
+	err := runAPIKeyRename(cmd, []string{"ci", "taken"})
+	if err == nil || !strings.Contains(err.Error(), "Conflict") {
+		t.Errorf("want a Conflict error, got %v", err)
+	}
+}
+
 func TestRunAPIKeyDelete(t *testing.T) {
 	isolateConfig(t)
 	var gotMethod string
