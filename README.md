@@ -479,11 +479,32 @@ on a native runner -- baking the schema means running the database and applying
 the whole corpus, which is not something to do under emulation.
 
 The schema is generated during the build rather than committed, so an image
-cannot ship a migration set older than the source it came from. The tag records
-the migration version alongside the engine version; suites should pin the
-`-mNNN` form so a migration landing here cannot change a CI run that has
-nothing to do with it. A floating `:16` tag tracks the tip for anyone who would
-rather not bump a pin.
+cannot ship a migration set older than the source it came from.
+
+There are three kinds of tag:
+
+| tag | moves? | for |
+|---|---|---|
+| `16-m108` | never | a suite that wants a run to mean the same thing next month |
+| `16` | on every migration | a suite that wants PostgreSQL 16 and always the current schema |
+| `latest`, `latest-nolisten` | on every migration, and when the newest supported version changes | a suite that just wants a current database |
+
+`latest` names the newest supported version of that engine. Which one that is
+lives in `images.json` rather than being computed, so moving it is a deliberate
+edit rather than a side effect of adding a row.
+
+A `-mNNN` tag is never rebuilt: the workflow drops any target already published
+at the current migration version, so dispatching it twice is a no-op. That is
+not only about build time. Rebuilding cannot reproduce the image it replaces --
+`initdb` writes a fresh system identifier into the cluster, CockroachDB a fresh
+cluster ID -- so an unchanged source tree still yields different bytes, and
+without the check a second run would leave `16-m108` pointing at a digest
+nobody asked it to move to.
+
+The `force` dispatch input exists for the case that otherwise blocks: a base
+image picking up security fixes with no migration change. It republishes the
+`-mNNN` tags, which is the whole point of it and also the reason it is not the
+default.
 
 An image does not have to be current to be worth using. Every SDK gates on
 `current < latest`, so a database ahead of an SDK is left alone and one behind

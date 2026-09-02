@@ -3,13 +3,13 @@
   { "engine": "postgres",  "tag": "15",          "base": "postgres:15",                             "schema": "schema.postgres.sql" },
   { "engine": "postgres",  "tag": "16",          "base": "postgres:16",                             "schema": "schema.postgres.sql" },
   { "engine": "postgres",  "tag": "17",          "base": "postgres:17",                             "schema": "schema.postgres.sql" },
-  { "engine": "postgres",  "tag": "18",          "base": "postgres:18",                             "schema": "schema.postgres.sql" },
+  { "engine": "postgres",  "tag": "18",          "base": "postgres:18",                             "schema": "schema.postgres.sql", "aliases": ["latest"] },
   { "engine": "postgres",  "tag": "14-nolisten", "base": "postgres:14",                             "schema": "schema.postgres-nolisten.sql" },
   { "engine": "postgres",  "tag": "15-nolisten", "base": "postgres:15",                             "schema": "schema.postgres-nolisten.sql" },
   { "engine": "postgres",  "tag": "16-nolisten", "base": "postgres:16",                             "schema": "schema.postgres-nolisten.sql" },
   { "engine": "postgres",  "tag": "17-nolisten", "base": "postgres:17",                             "schema": "schema.postgres-nolisten.sql" },
-  { "engine": "postgres",  "tag": "18-nolisten", "base": "postgres:18",                             "schema": "schema.postgres-nolisten.sql" },
+  { "engine": "postgres",  "tag": "18-nolisten", "base": "postgres:18",                             "schema": "schema.postgres-nolisten.sql", "aliases": ["latest-nolisten"] },
   { "engine": "cockroach", "tag": "25.2",        "base": "cockroachdb/cockroach:latest-v25.2",      "schema": "schema.cockroach.sql" },
   { "engine": "cockroach", "tag": "25.4",        "base": "cockroachdb/cockroach:latest-v25.4",      "schema": "schema.cockroach.sql" },
-  { "engine": "cockroach", "tag": "26.2",        "base": "cockroachdb/cockroach:latest-v26.2",      "schema": "schema.cockroach.sql" }
+  { "engine": "cockroach", "tag": "26.2",        "base": "cockroachdb/cockroach:latest-v26.2",      "schema": "schema.cockroach.sql", "aliases": ["latest"] }
 ]

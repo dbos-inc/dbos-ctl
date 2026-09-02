@@ -15,6 +15,11 @@ on:
       - 'docker/**'
       - '.github/workflows/test-images.yml'
   workflow_dispatch:
+    inputs:
+      force:
+        description: 'Rebuild images whose migration version is already published'
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}
@@ -55,15 +60,51 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Building images at migration $version"
 
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       # Which versions to build lives in docker/images.json rather than in a
       # matrix here, because two jobs below need the same list and a second copy
       # is a second thing to forget. It is the same set the `migrations` tier in
       # ci.yml covers -- every supported version of each engine, CockroachDB
       # starting at v25.2 since v24 is not a supported system database -- and
       # adding a version to one without the other is the mistake to avoid.
-      - name: read the target list
+      #
+      # A target whose migration version is already published is dropped, which
+      # is what makes a repeat run a no-op. Rebuilding would not reproduce the
+      # image it skips: initdb writes a fresh system identifier into the cluster
+      # and CockroachDB a fresh cluster ID, so an identical source tree still
+      # yields different bytes. Without this, dispatching twice would leave the
+      # same -mNNN tag pointing at a different digest, which is the one thing a
+      # pinned tag is supposed to rule out.
+      #
+      # `force` exists for the case this otherwise blocks: a base image picking
+      # up security fixes with no migration change. It does move the -mNNN tag.
+      - name: select the targets that need building
         id: targets
-        run: echo "targets=$(jq -c . docker/images.json)" >> "$GITHUB_OUTPUT"
+        env:
+          FORCE: ${{ inputs.force }}
+          VERSION: ${{ steps.generate.outputs.version }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          selected='[]'
+          while IFS= read -r target; do
+            engine=$(jq -r .engine <<< "$target")
+            tag=$(jq -r .tag <<< "$target")
+            ref="${REGISTRY}/${OWNER}/dbos-test-${engine}:${tag}-m${VERSION}"
+            if [ "$FORCE" != "true" ] && docker buildx imagetools inspect "$ref" >/dev/null 2>&1; then
+              echo "- \`${ref}\` already published, skipping" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "- \`${ref}\` will be built" >> "$GITHUB_STEP_SUMMARY"
+              selected=$(jq -c ". + [${target}]" <<< "$selected")
+            fi
+          done < <(jq -c '.[]' docker/images.json)
+          echo "targets=${selected}" >> "$GITHUB_OUTPUT"
+          count=$(jq 'length' <<< "$selected")
+          echo "Building ${count} image(s) at migration ${VERSION}"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -162,19 +203,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Two tags: one pinned to the migration version, which is what a suite
-      # should use so a migration landing here cannot change a CI run that has
-      # nothing to do with it, and one floating, for anyone who would rather
-      # track the tip than bump a pin.
+      # Three kinds of tag. The -mNNN one is immutable and is what a suite should
+      # pin, so a migration landing here cannot change a CI run that has nothing
+      # to do with it. The bare engine version floats, for a suite that wants a
+      # given PostgreSQL or CockroachDB release and always the current schema.
+      # `latest` floats further still, naming the newest supported version, and
+      # is declared in images.json rather than computed so that moving it is a
+      # deliberate edit rather than a consequence of adding a row.
       - name: create the manifest list
         working-directory: /tmp/digests
+        env:
+          TARGET: ${{ toJSON(matrix.target) }}
         run: |
           image="${REGISTRY}/${{ github.repository_owner }}/dbos-test-${{ matrix.target.engine }}"
+          args=()
+          for tag in "${{ matrix.target.tag }}-m${{ needs.schema.outputs.version }}" \
+                     "${{ matrix.target.tag }}" \
+                     $(jq -r '.aliases // [] | .[]' <<< "$TARGET"); do
+            args+=( --tag "${image}:${tag}" )
+          done
           # The digest expansion is meant to split: each file here is named for one
           # architecture's digest, and they become separate arguments.
           # shellcheck disable=SC2046
-          docker buildx imagetools create \
-            --tag "${image}:${{ matrix.target.tag }}-m${{ needs.schema.outputs.version }}" \
-            --tag "${image}:${{ matrix.target.tag }}" \
-            $(printf "${image}@sha256:%s " *)
+          docker buildx imagetools create "${args[@]}" $(printf "${image}@sha256:%s " *)
           docker buildx imagetools inspect "${image}:${{ matrix.target.tag }}-m${{ needs.schema.outputs.version }}"
