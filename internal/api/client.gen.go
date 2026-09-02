@@ -761,6 +761,11 @@ type Queue struct {
 
 // QueueAutoscale defines model for QueueAutoscale.
 type QueueAutoscale struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/QueueAutoscale.json
+	Schema *string `json:"$schema,omitempty"`
+
 	// ApplicationVersion The application version this recommendation covers.
 	ApplicationVersion string `json:"applicationVersion"`
 
@@ -776,8 +781,8 @@ type QueueAutoscale struct {
 	// QueueDepth ENQUEUED+PENDING backlog counted for this version on the policy queue.
 	QueueDepth int64 `json:"queueDepth"`
 
-	// QueueName The policy queue; absent when it is no longer usable.
-	QueueName *string `json:"queueName,omitempty"`
+	// QueueName The queue the stored autoscaling policy scales on.
+	QueueName string `json:"queueName"`
 }
 
 // RegisterUserInputBody defines model for RegisterUserInputBody.
@@ -942,6 +947,15 @@ type UpdateOrgInputBody struct {
 	Schema                *string `json:"$schema,omitempty"`
 	AuditLogRetentionDays *int32  `json:"auditLogRetentionDays,omitempty"`
 	NewName               *string `json:"newName,omitempty"`
+}
+
+// UpdateTokenInputBody defines model for UpdateTokenInputBody.
+type UpdateTokenInputBody struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/UpdateTokenInputBody.json
+	Schema  *string `json:"$schema,omitempty"`
+	NewName *string `json:"newName,omitempty"`
 }
 
 // UserProfile defines model for UserProfile.
@@ -1205,6 +1219,9 @@ type JoinOrgJSONRequestBody = JoinOrgInputBody
 // CreateRoleJSONRequestBody defines body for CreateRole for application/json ContentType.
 type CreateRoleJSONRequestBody = CreateRoleInputBody
 
+// UpdateTokenJSONRequestBody defines body for UpdateToken for application/json ContentType.
+type UpdateTokenJSONRequestBody = UpdateTokenInputBody
+
 // CreateTokenJSONRequestBody defines body for CreateToken for application/json ContentType.
 type CreateTokenJSONRequestBody = CreateTokenInputBody
 
@@ -1379,10 +1396,17 @@ type ClientInterface interface {
 
 	// GetAutoscale Get autoscaling recommendation
 	//
-	// Computes how many executors each of the application's versions needs right now, given the backlog of its stored autoscaling policy's queue. Returns one entry per version. 404 when no policy is installed. Requires a DBOS Teams subscription.
+	// Computes how many executors each of the application's versions needs right now, given the backlog of its stored autoscaling policy's queue. Returns one entry per version. 404 when no policy is installed; 400 when the policy queue is no longer scalable. Requires a DBOS Teams subscription.
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/autoscale (the `GetAutoscale` operationId).
 	GetAutoscale(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAutoscaleVersion Get one version's autoscaling recommendation
+	//
+	// Computes how many executors one application version needs right now, given the backlog of the stored autoscaling policy's queue. Made to be polled per version, e.g. by one KEDA ScaledObject per version's deployment. The latest version is always sized to at least 1; an old version reports 0 once it has no work left on that queue, signaling it can be torn down. 404 when no policy is installed or the version was never registered; 400 when the policy queue is no longer scalable. Requires a DBOS Teams subscription.
+	//
+	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/autoscale/versions/{version} (the `GetAutoscaleVersion` operationId).
+	GetAutoscaleVersion(ctx context.Context, orgName string, appName string, version string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteAutoscalingPolicy Delete autoscaling policy
 	//
@@ -1828,6 +1852,20 @@ type ClientInterface interface {
 	// Corresponds with DELETE /v2/orgs/{orgName}/tokens/{tokenName} (the `DeleteToken` operationId).
 	DeleteToken(ctx context.Context, orgName string, tokenName string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// UpdateTokenWithBody Update token
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /v2/orgs/{orgName}/tokens/{tokenName} (the `UpdateToken` operationId).
+	UpdateTokenWithBody(ctx context.Context, orgName string, tokenName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateToken Update token
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /v2/orgs/{orgName}/tokens/{tokenName} (the `UpdateToken` operationId).
+	UpdateToken(ctx context.Context, orgName string, tokenName string, body UpdateTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// CreateTokenWithBody Create token
 	//
 	// Takes any type of body and a specified content type.
@@ -2102,11 +2140,28 @@ func (c *Client) DeleteAlertingRule(ctx context.Context, orgName string, appName
 
 // GetAutoscale Get autoscaling recommendation
 //
-// Computes how many executors each of the application's versions needs right now, given the backlog of its stored autoscaling policy's queue. Returns one entry per version. 404 when no policy is installed. Requires a DBOS Teams subscription.
+// Computes how many executors each of the application's versions needs right now, given the backlog of its stored autoscaling policy's queue. Returns one entry per version. 404 when no policy is installed; 400 when the policy queue is no longer scalable. Requires a DBOS Teams subscription.
 //
 // Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/autoscale (the `GetAutoscale` operationId).
 func (c *Client) GetAutoscale(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetAutoscaleRequest(c.Server, orgName, appName)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetAutoscaleVersion Get one version's autoscaling recommendation
+//
+// Computes how many executors one application version needs right now, given the backlog of the stored autoscaling policy's queue. Made to be polled per version, e.g. by one KEDA ScaledObject per version's deployment. The latest version is always sized to at least 1; an old version reports 0 once it has no work left on that queue, signaling it can be torn down. 404 when no policy is installed or the version was never registered; 400 when the policy queue is no longer scalable. Requires a DBOS Teams subscription.
+//
+// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/autoscale/versions/{version} (the `GetAutoscaleVersion` operationId).
+func (c *Client) GetAutoscaleVersion(ctx context.Context, orgName string, appName string, version string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAutoscaleVersionRequest(c.Server, orgName, appName, version)
 	if err != nil {
 		return nil, err
 	}
@@ -3221,6 +3276,40 @@ func (c *Client) DeleteToken(ctx context.Context, orgName string, tokenName stri
 	return c.Client.Do(req)
 }
 
+// UpdateTokenWithBody Update token
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /v2/orgs/{orgName}/tokens/{tokenName} (the `UpdateToken` operationId).
+func (c *Client) UpdateTokenWithBody(ctx context.Context, orgName string, tokenName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateTokenRequestWithBody(c.Server, orgName, tokenName, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateToken Update token
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /v2/orgs/{orgName}/tokens/{tokenName} (the `UpdateToken` operationId).
+func (c *Client) UpdateToken(ctx context.Context, orgName string, tokenName string, body UpdateTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateTokenRequest(c.Server, orgName, tokenName, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // CreateTokenWithBody Create token
 //
 // Takes any type of body and a specified content type.
@@ -3782,6 +3871,54 @@ func NewGetAutoscaleRequest(server string, orgName string, appName string) (*htt
 	}
 
 	operationPath := fmt.Sprintf("/v2/orgs/%s/apps/%s/autoscale", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAutoscaleVersionRequest constructs an http.Request for the GetAutoscaleVersion method
+func NewGetAutoscaleVersionRequest(server string, orgName string, appName string, version string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "appName", appName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "version", version, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/apps/%s/autoscale/versions/%s", pathParam0, pathParam1, pathParam2)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -6463,6 +6600,60 @@ func NewDeleteTokenRequest(server string, orgName string, tokenName string) (*ht
 	return req, nil
 }
 
+// NewUpdateTokenRequest calls the generic UpdateToken builder with application/json body
+func NewUpdateTokenRequest(server string, orgName string, tokenName string, body UpdateTokenJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateTokenRequestWithBody(server, orgName, tokenName, "application/json", bodyReader)
+}
+
+// NewUpdateTokenRequestWithBody constructs an http.Request for the UpdateToken method, with any body, and a specified content type
+func NewUpdateTokenRequestWithBody(server string, orgName string, tokenName string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "tokenName", tokenName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/tokens/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewCreateTokenRequest calls the generic CreateToken builder with application/json body
 func NewCreateTokenRequest(server string, orgName string, tokenName string, body CreateTokenJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -6734,12 +6925,21 @@ type ClientWithResponsesInterface interface {
 
 	// GetAutoscaleWithResponse Get autoscaling recommendation
 	//
-	// Computes how many executors each of the application's versions needs right now, given the backlog of its stored autoscaling policy's queue. Returns one entry per version. 404 when no policy is installed. Requires a DBOS Teams subscription.
+	// Computes how many executors each of the application's versions needs right now, given the backlog of its stored autoscaling policy's queue. Returns one entry per version. 404 when no policy is installed; 400 when the policy queue is no longer scalable. Requires a DBOS Teams subscription.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/autoscale (the `GetAutoscale` operationId).
 	GetAutoscaleWithResponse(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*GetAutoscaleResponse, error)
+
+	// GetAutoscaleVersionWithResponse Get one version's autoscaling recommendation
+	//
+	// Computes how many executors one application version needs right now, given the backlog of the stored autoscaling policy's queue. Made to be polled per version, e.g. by one KEDA ScaledObject per version's deployment. The latest version is always sized to at least 1; an old version reports 0 once it has no work left on that queue, signaling it can be torn down. 404 when no policy is installed or the version was never registered; 400 when the policy queue is no longer scalable. Requires a DBOS Teams subscription.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/autoscale/versions/{version} (the `GetAutoscaleVersion` operationId).
+	GetAutoscaleVersionWithResponse(ctx context.Context, orgName string, appName string, version string, reqEditors ...RequestEditorFn) (*GetAutoscaleVersionResponse, error)
 
 	// DeleteAutoscalingPolicyWithResponse Delete autoscaling policy
 	//
@@ -7248,6 +7448,20 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with DELETE /v2/orgs/{orgName}/tokens/{tokenName} (the `DeleteToken` operationId).
 	DeleteTokenWithResponse(ctx context.Context, orgName string, tokenName string, reqEditors ...RequestEditorFn) (*DeleteTokenResponse, error)
+
+	// UpdateTokenWithBodyWithResponse Update token
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /v2/orgs/{orgName}/tokens/{tokenName} (the `UpdateToken` operationId).
+	UpdateTokenWithBodyWithResponse(ctx context.Context, orgName string, tokenName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTokenResponse, error)
+
+	// UpdateTokenWithResponse Update token
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /v2/orgs/{orgName}/tokens/{tokenName} (the `UpdateToken` operationId).
+	UpdateTokenWithResponse(ctx context.Context, orgName string, tokenName string, body UpdateTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTokenResponse, error)
 
 	// CreateTokenWithBodyWithResponse Create token
 	//
@@ -7778,6 +7992,54 @@ func (r GetAutoscaleResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetAutoscaleResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetAutoscaleVersionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *QueueAutoscale
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetAutoscaleVersionResponse) GetJSON200() *QueueAutoscale {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r GetAutoscaleVersionResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetAutoscaleVersionResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAutoscaleVersionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAutoscaleVersionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetAutoscaleVersionResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -10045,6 +10307,47 @@ func (r DeleteTokenResponse) ContentType() string {
 	return ""
 }
 
+type UpdateTokenResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r UpdateTokenResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateTokenResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateTokenResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateTokenResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateTokenResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CreateTokenResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -10379,7 +10682,7 @@ func (c *ClientWithResponses) DeleteAlertingRuleWithResponse(ctx context.Context
 
 // GetAutoscaleWithResponse Get autoscaling recommendation
 //
-// Computes how many executors each of the application's versions needs right now, given the backlog of its stored autoscaling policy's queue. Returns one entry per version. 404 when no policy is installed. Requires a DBOS Teams subscription.
+// Computes how many executors each of the application's versions needs right now, given the backlog of its stored autoscaling policy's queue. Returns one entry per version. 404 when no policy is installed; 400 when the policy queue is no longer scalable. Requires a DBOS Teams subscription.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -10390,6 +10693,21 @@ func (c *ClientWithResponses) GetAutoscaleWithResponse(ctx context.Context, orgN
 		return nil, err
 	}
 	return ParseGetAutoscaleResponse(rsp)
+}
+
+// GetAutoscaleVersionWithResponse Get one version's autoscaling recommendation
+//
+// Computes how many executors one application version needs right now, given the backlog of the stored autoscaling policy's queue. Made to be polled per version, e.g. by one KEDA ScaledObject per version's deployment. The latest version is always sized to at least 1; an old version reports 0 once it has no work left on that queue, signaling it can be torn down. 404 when no policy is installed or the version was never registered; 400 when the policy queue is no longer scalable. Requires a DBOS Teams subscription.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/autoscale/versions/{version} (the `GetAutoscaleVersion` operationId).
+func (c *ClientWithResponses) GetAutoscaleVersionWithResponse(ctx context.Context, orgName string, appName string, version string, reqEditors ...RequestEditorFn) (*GetAutoscaleVersionResponse, error) {
+	rsp, err := c.GetAutoscaleVersion(ctx, orgName, appName, version, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAutoscaleVersionResponse(rsp)
 }
 
 // DeleteAutoscalingPolicyWithResponse Delete autoscaling policy
@@ -11296,6 +11614,32 @@ func (c *ClientWithResponses) DeleteTokenWithResponse(ctx context.Context, orgNa
 	return ParseDeleteTokenResponse(rsp)
 }
 
+// UpdateTokenWithBodyWithResponse Update token
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /v2/orgs/{orgName}/tokens/{tokenName} (the `UpdateToken` operationId).
+func (c *ClientWithResponses) UpdateTokenWithBodyWithResponse(ctx context.Context, orgName string, tokenName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTokenResponse, error) {
+	rsp, err := c.UpdateTokenWithBody(ctx, orgName, tokenName, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateTokenResponse(rsp)
+}
+
+// UpdateTokenWithResponse Update token
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /v2/orgs/{orgName}/tokens/{tokenName} (the `UpdateToken` operationId).
+func (c *ClientWithResponses) UpdateTokenWithResponse(ctx context.Context, orgName string, tokenName string, body UpdateTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTokenResponse, error) {
+	rsp, err := c.UpdateToken(ctx, orgName, tokenName, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateTokenResponse(rsp)
+}
+
 // CreateTokenWithBodyWithResponse Create token
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -11693,6 +12037,39 @@ func ParseGetAutoscaleResponse(rsp *http.Response) (*GetAutoscaleResponse, error
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest []QueueAutoscale
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAutoscaleVersionResponse parses an HTTP response from a GetAutoscaleVersionWithResponse call
+func ParseGetAutoscaleVersionResponse(rsp *http.Response) (*GetAutoscaleVersionResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAutoscaleVersionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest QueueAutoscale
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -13282,6 +13659,35 @@ func ParseDeleteTokenResponse(rsp *http.Response) (*DeleteTokenResponse, error) 
 	}
 
 	response := &DeleteTokenResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateTokenResponse parses an HTTP response from a UpdateTokenWithResponse call
+func ParseUpdateTokenResponse(rsp *http.Response) (*UpdateTokenResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateTokenResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
