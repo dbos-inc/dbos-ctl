@@ -443,6 +443,7 @@ migrated, published to this repo's GitHub Packages registry:
 
 ```
 ghcr.io/dbos-inc/dbos-test-postgres:{14,15,16,17,18}-m108
+ghcr.io/dbos-inc/dbos-test-postgres:{14,15,16,17,18}-nolisten-m108
 ghcr.io/dbos-inc/dbos-test-cockroach:{25.2,25.4,26.2}-m108
 ```
 
@@ -452,6 +453,18 @@ there but is not a supported DBOS system database, and the migration set does
 not apply to it. The list lives in `docker/images.json`, the same set the
 `migrations` tier in `ci.yml` covers -- adding a version to one without the
 other is the mistake to avoid.
+
+Each PostgreSQL version is built twice. The default carries the triggers that
+fire `pg_notify`, and the `-nolisten` images are what `--no-listen-notify`
+produces: the same schema without them, which is how a deployment behind a
+connection pooler in transaction mode has to run. That configuration is
+supported, so the suites need to be able to test against it. CockroachDB has no
+LISTEN/NOTIFY on any release, so it has nothing to vary and gets one image per
+version.
+
+Both variants report the same migration version -- a migration that renders
+empty still occupies its number -- so an SDK sees a fully migrated database
+either way and skips migrating regardless of which it is handed.
 
 They exist for CockroachDB, which runs every DDL statement as an online schema
 change: migrating one database costs around a minute there against under a
@@ -488,6 +501,11 @@ To build one locally, generate the schema and hand it to the Dockerfile:
 go run ./cmd/dbosctl sysdb migrate --print-migrations all --cockroach > docker/schema.cockroach.sql
 docker build -f docker/Dockerfile.cockroach docker \
   --build-arg BASE_IMAGE=cockroachdb/cockroach:latest-v26.2 -t dbos-test-cockroach:local
+
+go run ./cmd/dbosctl sysdb migrate --print-migrations all --no-listen-notify > docker/schema.postgres-nolisten.sql
+docker build -f docker/Dockerfile.postgres docker \
+  --build-arg BASE_IMAGE=postgres:16 --build-arg SCHEMA_FILE=schema.postgres-nolisten.sql \
+  -t dbos-test-postgres:local-nolisten
 ```
 
 The sysdb tests are their own tier, run once per supported system database.

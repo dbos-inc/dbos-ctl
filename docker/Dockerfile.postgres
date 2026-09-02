@@ -27,7 +27,19 @@ ENV PGDATA=/var/lib/postgresql/prebuilt
 # between workers is a cross-test data race rather than a speedup.
 ARG DB_COUNT=4
 
-COPY schema.postgres.sql /tmp/schema.sql
+# Which of the two generated PostgreSQL scripts to bake. The system schema
+# normally carries triggers that fire pg_notify so a waiting application is woken
+# rather than left polling, but that does not work behind a connection pooler in
+# transaction mode -- the notification arrives on a session the application does
+# not keep -- and nothing can detect that, so it is a deployment the SDKs support
+# and therefore one their suites have to be able to test against. Hence two
+# PostgreSQL images per version. CockroachDB has no LISTEN/NOTIFY on any release,
+# so it has nothing to vary and gets one image.
+#
+# Both scripts end at the same migration version: a migration that renders empty
+# still occupies its number, so an SDK reads a fully migrated database either way.
+ARG SCHEMA_FILE=schema.postgres.sql
+COPY ${SCHEMA_FILE} /tmp/schema.sql
 
 # initdb refuses to run as root, so every step here goes through gosu, which the
 # base image ships for its own entrypoint. Auth is trust: this image exists to be

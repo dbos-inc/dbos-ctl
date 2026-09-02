@@ -48,6 +48,7 @@ jobs:
         id: generate
         run: |
           go run ./cmd/dbosctl sysdb migrate --print-migrations all > docker/schema.postgres.sql
+          go run ./cmd/dbosctl sysdb migrate --print-migrations all --no-listen-notify > docker/schema.postgres-nolisten.sql
           go run ./cmd/dbosctl sysdb migrate --print-migrations all --cockroach > docker/schema.cockroach.sql
           version=$(sed -n 's/.*SET version = \([0-9]*\).*/\1/p' docker/schema.postgres.sql | tail -1)
           [ -n "$version" ] || { echo "could not read a migration version from the generated script"; exit 1; }
@@ -111,6 +112,7 @@ jobs:
           platforms: ${{ matrix.runner == 'ubuntu-latest' && 'linux/amd64' || 'linux/arm64' }}
           build-args: |
             BASE_IMAGE=${{ matrix.target.base }}
+            SCHEMA_FILE=${{ matrix.target.schema }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ github.repository_owner }}/dbos-test-${{ matrix.target.engine }},push-by-digest=true,name-canonical=true,push=true
 
       # The digest is the only thing `merge` needs, and an empty file named for
@@ -139,11 +141,18 @@ jobs:
       matrix:
         target: ${{ fromJSON(needs.schema.outputs.targets) }}
     steps:
+      # Named exactly, not matched by pattern: "16" is a prefix of "16-nolisten",
+      # so a glob would gather another image's digests and publish a manifest
+      # listing four architectures, two of which are the wrong schema.
       - uses: actions/download-artifact@v7
         with:
+          name: digest-${{ matrix.target.engine }}-${{ matrix.target.tag }}-amd64
           path: /tmp/digests
-          pattern: digest-${{ matrix.target.engine }}-${{ matrix.target.tag }}-*
-          merge-multiple: true
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: digest-${{ matrix.target.engine }}-${{ matrix.target.tag }}-arm64
+          path: /tmp/digests
 
       - uses: docker/setup-buildx-action@v3
 
