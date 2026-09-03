@@ -13,14 +13,24 @@
 ARG BASE_IMAGE=postgres:16
 FROM ${BASE_IMAGE}
 
-# The official image declares a VOLUME over its default PGDATA -- which moved
-# from /var/lib/postgresql/data to /var/lib/postgresql in 18 -- and anything a
-# build-time RUN writes inside a declared volume is discarded when the layer is
-# committed. That failure is silent: the build succeeds and the image ships an
-# empty cluster that initdbs itself on first boot, exactly as if this file did
-# nothing. Relocating PGDATA out of the volume is what makes the bake persist,
-# and it sidesteps the 16/18 path difference at the same time.
-ENV PGDATA=/var/lib/postgresql/prebuilt
+# PGDATA has to live outside every path the base image declares a VOLUME over,
+# and "outside" is the whole point of the path below: 14 through 17 declare
+# /var/lib/postgresql/data, but 18 declares /var/lib/postgresql, so anywhere
+# under /var/lib/postgresql is inside the volume on 18 even though it looks
+# outside it on 17.
+#
+# Being inside one is expensive rather than broken, which is what makes it worth
+# a comment. Docker gives every container an anonymous volume for a declared
+# path and seeds it from the image, so a cluster baked inside one is copied out
+# in full on each start -- measured at 90.5MB and 1198ms against 0B and 627ms
+# for the same image with PGDATA moved out. A suite taking a container per test
+# pays that per test: a hundred gigabytes of copying across one run, which reads
+# as a hung job rather than a slow one.
+#
+# The build itself does not care. BuildKit keeps writes made under a declared
+# volume, so a wrong path here still produces a working image, and nothing fails
+# until something counts how long starting one takes.
+ENV PGDATA=/var/lib/dbos-prebuilt
 
 # How many databases to bake. One per concurrent test worker: a suite that runs
 # N ways in parallel needs N system databases, since a workflow table shared
