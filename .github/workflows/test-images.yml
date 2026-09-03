@@ -137,6 +137,11 @@ jobs:
   # version the sysdb tier covers -- an image nothing pulls is just a build.
   build:
     needs: schema
+    # A run that finds every image already published selects nothing, which is the
+    # whole point of the check above -- but a matrix that expands to no
+    # combinations is an error to Actions rather than an empty job, and would fail
+    # the run for having correctly decided there was nothing to do.
+    if: needs.schema.outputs.targets != '[]'
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -191,6 +196,7 @@ jobs:
   # failed to build.
   merge:
     needs: [schema, build]
+    if: needs.schema.outputs.targets != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
