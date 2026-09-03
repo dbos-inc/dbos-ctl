@@ -56,12 +56,22 @@ COPY ${SCHEMA_FILE} /tmp/schema.sql
 # thrown away, and trust means a suite's connection string can carry whatever
 # password it already has without this image having to agree on one.
 #
+# The pg_hba line is what lets anything reach this server over the network, and
+# it has to be written here because the entrypoint writes its own during initdb
+# -- the one step a prebaked image exists to skip. Without it initdb's default
+# file is what ships, and that trusts the loopback interface and nothing else, so
+# every client outside the container is refused with "no pg_hba.conf entry for
+# host". Note that `docker exec psql` connects over the local socket and is
+# therefore the one client that cannot detect this: checking an image this way
+# tests the only path the default file allows.
+#
 # listen_addresses='' keeps the build-time server off the network -- it is only
 # ever reached over the local socket -- so a build cannot collide with a
 # PostgreSQL already running on the builder.
 RUN set -eux; \
     install -d -o postgres -g postgres -m 0700 "$PGDATA"; \
     gosu postgres initdb -D "$PGDATA" --auth=trust --username=postgres; \
+    echo "host all all all trust" >> "$PGDATA/pg_hba.conf"; \
     gosu postgres pg_ctl -D "$PGDATA" -o "-c listen_addresses=''" -w start; \
     i=0; while [ "$i" -lt "$DB_COUNT" ]; do \
       gosu postgres createdb "dbos_test_$i"; \
