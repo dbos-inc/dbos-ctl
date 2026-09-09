@@ -32,8 +32,11 @@ func runRenameOrFail(t *testing.T, args ...string) string {
 	return out.String()
 }
 
-// seedWorkflow inserts a workflow and one step for it, owned by application
-// (empty inserts NULL, i.e. a row no application owns).
+// seedWorkflow inserts a workflow, one step for it, and its input and output
+// payloads, owned by application (empty inserts NULL, i.e. a row no application
+// owns). The payload rows carry no owner of their own: since migration 109 they
+// are keyed only by the workflow, which is the whole reason a scoped reset has
+// to reach them through workflow_status.
 func seedWorkflow(t *testing.T, conn *pgx.Conn, id, status, application string) {
 	t.Helper()
 	var owner any
@@ -44,6 +47,8 @@ func seedWorkflow(t *testing.T, conn *pgx.Conn, id, status, application string) 
 	               VALUES ($1, $2, 'test.workflow', $3)`, id, status, owner)
 	exec(t, conn, `INSERT INTO dbos.operation_outputs (workflow_uuid, function_id, function_name, application_name)
 	               VALUES ($1, 0, 'step', $2)`, id, owner)
+	exec(t, conn, `INSERT INTO dbos.workflow_input (workflow_uuid, inputs) VALUES ($1, '{}')`, id)
+	exec(t, conn, `INSERT INTO dbos.workflow_output (workflow_uuid, output) VALUES ($1, '{}')`, id)
 }
 
 func seedOwnedRows(t *testing.T, conn *pgx.Conn, suffix, application string) {
@@ -326,8 +331,8 @@ func TestRenameRefusesASchemaWithNoOwnershipColumnsIntegration(t *testing.T) {
 }
 
 // TestResetScopedToApplicationIntegration covers the shared system database:
-// one application's history goes, its neighbour's stays, and the steps of the
-// deleted workflows go with them by foreign key rather than by a second pass.
+// one application's history goes, its neighbour's stays, and everything hanging
+// off the deleted workflows goes with them.
 func TestResetScopedToApplicationIntegration(t *testing.T) {
 	e := startEngine(t)
 	dbURL := e.url("dbos_sys")
@@ -345,10 +350,25 @@ func TestResetScopedToApplicationIntegration(t *testing.T) {
 	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.workflow_status WHERE application_name = 'billing'`); n != 0 {
 		t.Errorf("billing still has %d workflow(s)", n)
 	}
-	// The cascade, not a second delete: operation_outputs rows go because their
-	// workflow_status parent went.
+	// By its own application_name, not by a cascade: migration 112 dropped the
+	// foreign key operation_outputs used to be reachable through.
 	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.operation_outputs WHERE workflow_uuid = 'billing-1'`); n != 0 {
 		t.Errorf("billing's steps survived its workflows: %d row(s)", n)
+	}
+	// The payload tables have neither an application_name nor a cascade, so a
+	// scoped reset reaches them only by naming the workflows they belong to,
+	// before workflow_status is emptied. Getting that order wrong leaves them
+	// orphaned with no owner left to identify them by.
+	for _, table := range []string{"workflow_input", "workflow_output"} {
+		if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.`+table+` WHERE workflow_uuid = 'billing-1'`); n != 0 {
+			t.Errorf("billing's %s row survived its workflows: %d row(s)", table, n)
+		}
+		if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.`+table+` WHERE workflow_uuid = 'orders-1'`); n != 1 {
+			t.Errorf("orders lost its %s row to billing's reset: %d row(s), want 1", table, n)
+		}
+		if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.`+table+` WHERE workflow_uuid = 'unclaimed-1'`); n != 1 {
+			t.Errorf("an unclaimed %s row was taken by a scoped reset: %d row(s), want 1", table, n)
+		}
 	}
 	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.workflow_status WHERE application_name = 'orders'`); n != 1 {
 		t.Errorf("orders lost workflows to billing's reset: %d row(s), want 1", n)

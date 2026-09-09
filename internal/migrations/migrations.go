@@ -193,6 +193,24 @@ var migration107SQL string
 //go:embed sql/108_add_queue_partition_limits.sql
 var migration108SQL string
 
+//go:embed sql/109_create_workflow_payload_tables.sql
+var migration109SQL string
+
+//go:embed sql/110_add_operation_outputs_retention_timestamp.sql
+var migration110SQL string
+
+//go:embed sql/111_create_operation_outputs_retention_index.sql
+var migration111SQL string
+
+//go:embed sql/112_drop_operation_outputs_foreign_key.sql
+var migration112SQL string
+
+//go:embed sql/113_update_enqueue_workflow.sql
+var migration113SQL string
+
+//go:embed sql/113_set_enqueue_workflow_search_path.sql
+var migration113SearchPathSQL string
+
 type MigrationFile struct {
 	Version int64
 	SQL     string
@@ -322,6 +340,15 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 		migration105SQLProcessed = migration105SQLProcessed + "\n" + fmt.Sprintf(migration105SearchPathSQL, sanitizedSchema)
 	}
 
+	// Migration 113 rewrites enqueue_workflow to write inputs to the
+	// workflow_input table. The signature is the one migration 105 settled, so
+	// only the body changes; the search_path hardening is Postgres-only, as it
+	// was there.
+	migration113SQLProcessed := fmt.Sprintf(migration113SQL, sanitizedSchema)
+	if !isCockroach {
+		migration113SQLProcessed = migration113SQLProcessed + "\n" + fmt.Sprintf(migration113SearchPathSQL, sanitizedSchema)
+	}
+
 	return []MigrationFile{
 		{Version: 1, SQL: migration1SQLProcessed},
 		{Version: 2, SQL: fmt.Sprintf(migration2SQL, sanitizedSchema)},
@@ -381,6 +408,11 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 		{Version: 106, SQL: fmt.Sprintf(migration106SQL, sanitizedSchema)},
 		{Version: 107, SQL: fmt.Sprintf(migration107SQL, c, sanitizedSchema), Online: !isCockroach},
 		{Version: 108, SQL: fmt.Sprintf(migration108SQL, sanitizedSchema)},
+		{Version: 109, SQL: fmt.Sprintf(migration109SQL, sanitizedSchema)},
+		{Version: 110, SQL: fmt.Sprintf(migration110SQL, sanitizedSchema)},
+		{Version: 111, SQL: fmt.Sprintf(migration111SQL, c, sanitizedSchema), Online: !isCockroach},
+		{Version: 112, SQL: fmt.Sprintf(migration112SQL, sanitizedSchema)},
+		{Version: 113, SQL: migration113SQLProcessed},
 	}
 }
 
