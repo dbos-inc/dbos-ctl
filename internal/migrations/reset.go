@@ -26,21 +26,48 @@ const dropTimeout = 2 * time.Minute
 
 // applicationOwnedTables are the tables carrying an application_name column,
 // added by migrations 100-104. An application-scoped reset deletes from these
-// and lets the foreign keys take the rest: every workflow-keyed table
-// (operation_outputs, notifications, workflow_events, workflow_events_history,
-// streams) references workflow_status ON DELETE CASCADE, so removing a
-// workflow removes its steps, messages, events, and streams with it.
+// and lets the foreign keys take most of the rest: notifications,
+// workflow_events, workflow_events_history and streams reference
+// workflow_status ON DELETE CASCADE, so removing a workflow removes its
+// messages, events, and streams with it. The two tables no cascade reaches --
+// workflow_input and workflow_output, since migration 109 created them without
+// a foreign key -- are handled by workflowPayloadTables.
 //
 // Ordered so operation_outputs goes first. Its own application_name is what
 // migration 104 added, and a step row could in principle name an application
-// its workflow does not; deleting by that column first honours the ownership
-// model rather than depending on the cascade to agree with it.
+// its workflow does not; deleting by that column is how it is emptied in any
+// case, since migration 112 dropped the cascade it used to be reachable by.
 var applicationOwnedTables = []string{
 	"operation_outputs",
 	"workflow_status",
 	"queues",
 	"workflow_schedules",
 	"application_versions",
+}
+
+// workflowPayloadTables hold one row per workflow, keyed by workflow_uuid, and
+// carry neither an application_name of their own nor a foreign key to
+// workflow_status: migration 109 created them without one, deliberately, since
+// the payload sweep reclaims them by the absence of a status row rather than by
+// a cascade.
+//
+// Both halves of that leave an application-scoped reset nothing to work from.
+// It cannot scope them by column, and deleting the workflow rows no longer
+// takes the payloads with it, so these are deleted by naming the workflows they
+// belong to — before workflow_status, which is the only thing that can still
+// say which application a payload row belongs to.
+var workflowPayloadTables = []string{
+	"workflow_input",
+	"workflow_output",
+}
+
+func isWorkflowPayloadTable(table string) bool {
+	for _, t := range workflowPayloadTables {
+		if t == table {
+			return true
+		}
+	}
+	return false
 }
 
 // SystemTables is every table the DBOS system schema holds, apart from
@@ -54,8 +81,8 @@ var applicationOwnedTables = []string{
 // operator never asked for. Leaving a row behind is recoverable; that is not.
 //
 // The order is the order a reset empties them in. workflow_status goes last
-// because every foreign key in the schema points at it and cascades on delete:
-// emptying it first would clear the tables that reference it, and each of their
+// because the foreign keys still pointing at it cascade on delete: emptying it
+// first would clear the tables that reference it, and each of their
 // own DELETEs would then report zero rows for a table it had just cleared.
 // Correctness does not depend on this — a cascade and an explicit delete reach
 // the same empty table — but the reported counts do.
@@ -149,9 +176,18 @@ func Empty(ctx context.Context, databaseURL, schema, applicationName string, pro
 		qualified := pgx.Identifier{schema, table}.Sanitize()
 		var tag pgconn.CommandTag
 		var execErr error
-		if applicationName == "" {
+		switch {
+		case applicationName == "":
 			tag, execErr = tx.Exec(execCtx, "DELETE FROM "+qualified)
-		} else {
+		case isWorkflowPayloadTable(table):
+			// No application_name here, so ownership is read off the workflow
+			// the row belongs to. This runs before workflow_status is emptied,
+			// which is what makes the subquery able to answer.
+			status := pgx.Identifier{schema, "workflow_status"}.Sanitize()
+			tag, execErr = tx.Exec(execCtx,
+				"DELETE FROM "+qualified+" WHERE workflow_uuid IN (SELECT workflow_uuid FROM "+status+" WHERE application_name = $1)",
+				applicationName)
+		default:
 			tag, execErr = tx.Exec(execCtx, "DELETE FROM "+qualified+" WHERE application_name = $1", applicationName)
 		}
 		if execErr != nil {
@@ -189,13 +225,28 @@ func resetTargets(schema, applicationName string, present, owned map[string]stru
 		known, have = applicationOwnedTables, owned
 	}
 
-	out := make([]string, 0, len(known))
+	out := make([]string, 0, len(known)+len(workflowPayloadTables))
+	// Counted apart from out, which the payload tables also join: the refusal
+	// below is about the application_name column, and they do not have one.
+	scopedByColumn := 0
 	for _, table := range known {
+		// The payload tables are scoped by their workflow rather than by a
+		// column of their own, so they go in on presence, and ahead of the
+		// workflow_status rows the delete reads ownership from. A schema below
+		// migration 109 does not have them.
+		if applicationName != "" && table == "workflow_status" {
+			for _, payload := range workflowPayloadTables {
+				if _, ok := present[payload]; ok {
+					out = append(out, payload)
+				}
+			}
+		}
 		if _, ok := have[table]; ok {
 			out = append(out, table)
+			scopedByColumn++
 		}
 	}
-	if len(out) == 0 && applicationName != "" {
+	if scopedByColumn == 0 && applicationName != "" {
 		return nil, fmt.Errorf("schema %s has no application_name columns: it predates migration 100, so it cannot be reset per application", schema)
 	}
 	return out, nil

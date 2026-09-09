@@ -2,7 +2,7 @@ package migrations
 
 import "testing"
 
-// Every foreign key in the schema points at workflow_status, so it is emptied
+// The foreign keys in the schema point at workflow_status, so it is emptied
 // last: doing it first would cascade the referencing tables away and leave
 // their own DELETE reporting zero rows for a table it had just cleared.
 func TestSystemTablesEndWithTheCascadeParent(t *testing.T) {
@@ -54,12 +54,60 @@ func TestResetTargetsScopesToTheTablesCarryingTheColumn(t *testing.T) {
 		t.Fatalf("resetTargets: %v", err)
 	}
 	for _, table := range got {
-		if _, ok := owned[table]; !ok {
-			t.Errorf("resetTargets returned %q, which has no application_name column", table)
+		if _, ok := owned[table]; ok {
+			continue
+		}
+		if isWorkflowPayloadTable(table) {
+			continue // scoped by its workflow, not by a column of its own
+		}
+		t.Errorf("resetTargets returned %q, which has no application_name column", table)
+	}
+	if len(got) != len(owned)+len(workflowPayloadTables) {
+		t.Errorf("resetTargets returned %v, want the %d owned tables plus the payload tables", got, len(owned))
+	}
+}
+
+// The payload tables carry no application_name and, since migration 112 and
+// their own creation without a foreign key, no cascade either. An
+// application-scoped reset deletes them by naming the workflows they belong to,
+// which only works while workflow_status still holds those rows.
+func TestResetTargetsPutsPayloadTablesBeforeWorkflowStatus(t *testing.T) {
+	got, err := resetTargets("dbos", "app", set(SystemTables...), set(applicationOwnedTables...))
+	if err != nil {
+		t.Fatalf("resetTargets: %v", err)
+	}
+	index := map[string]int{}
+	for i, table := range got {
+		index[table] = i
+	}
+	status, ok := index["workflow_status"]
+	if !ok {
+		t.Fatalf("resetTargets returned %v without workflow_status", got)
+	}
+	for _, payload := range workflowPayloadTables {
+		at, ok := index[payload]
+		if !ok {
+			t.Errorf("resetTargets omitted %s, so an application-scoped reset would leave its payloads behind", payload)
+			continue
+		}
+		if at > status {
+			t.Errorf("resetTargets empties %s after workflow_status, which is what tells it which rows to delete", payload)
 		}
 	}
-	if len(got) != len(owned) {
-		t.Errorf("resetTargets returned %v, want the %d owned tables", got, len(owned))
+}
+
+// A schema below migration 109 does not have the payload tables, so their
+// presence is what decides, not the version.
+func TestResetTargetsSkipsPayloadTablesBeforeMigration109(t *testing.T) {
+	present := set("operation_outputs", "workflow_status", "queues", "workflow_schedules", "application_versions")
+	got, err := resetTargets("dbos", "app", present, set(applicationOwnedTables...))
+	if err != nil {
+		t.Fatalf("resetTargets: %v", err)
+	}
+	for _, table := range got {
+		if isWorkflowPayloadTable(table) {
+			t.Errorf("resetTargets named %s in a schema that does not have it", table)
+		}
 	}
 }
 
