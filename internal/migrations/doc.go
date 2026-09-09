@@ -13,7 +13,7 @@
 //
 // The set started as a copy of dbos-transact-golang v1.2.0, where equivalent
 // code lives in the unexported package dbos/internal/sysdb, and where the
-// history below migration 100 was written. The latest migration is 108.
+// history below migration 100 was written. The latest migration is 113.
 //
 // # Adding a migration
 //
@@ -53,7 +53,7 @@
 // both are the caller's to supply.
 //
 // The dialect reaches further than the triggers do: no ALTER FUNCTION ... SET
-// search_path anywhere (migrations 20, 38, 105), a different statement for
+// search_path anywhere (migrations 20, 38, 105, 113), a different statement for
 // migrations 10 and 28, no DROP TRIGGER (43, 44), and no CONCURRENTLY.
 // Measured against CockroachDB v24.1 through v26.2, the LISTEN/NOTIFY and
 // ALTER FUNCTION gaps are permanent, while DROP TRIGGER arrived between v24.3

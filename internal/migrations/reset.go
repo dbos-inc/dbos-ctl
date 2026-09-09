@@ -72,6 +72,8 @@ var SystemTables = []string{
 	"streams",
 	"workflow_events",
 	"workflow_events_history",
+	"workflow_input",
+	"workflow_output",
 	"workflow_schedules",
 	"workflow_status",
 }
