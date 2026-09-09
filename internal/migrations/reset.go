@@ -81,11 +81,13 @@ func isWorkflowPayloadTable(table string) bool {
 // operator never asked for. Leaving a row behind is recoverable; that is not.
 //
 // The order is the order a reset empties them in. workflow_status goes last
-// because the foreign keys still pointing at it cascade on delete: emptying it
-// first would clear the tables that reference it, and each of their
-// own DELETEs would then report zero rows for a table it had just cleared.
-// Correctness does not depend on this — a cascade and an explicit delete reach
-// the same empty table — but the reported counts do.
+// because notifications, workflow_events, workflow_events_history and streams
+// still reference it ON DELETE CASCADE: emptying it first would clear those
+// four, and each of their own DELETEs would then report zero rows for a table
+// it had just cleared. Correctness does not depend on this — a cascade and an
+// explicit delete reach the same empty table — but the reported counts do.
+// operation_outputs is no longer among them, since migration 112 dropped its
+// foreign key, and the payload tables never had one.
 //
 // A migration that adds a table adds it here too. The tests fail otherwise:
 // TestSystemTablesMatchTheMigratedSchemaIntegration compares this list against
