@@ -31,7 +31,7 @@
       mkDbosctl =
         pkgs:
         # Go pinned to go.mod's directive (bump together) so gofmt matches CI's.
-        (pkgs.buildGoModule.override { go = pkgs.go_1_25; }) {
+        (pkgs.buildGoModule.override { go = pkgs.go_1_26; }) {
           pname = "dbosctl";
           # A flake build sees no git tags, so the ldflags stamp only commit and
           # date and keep the "dev" version sentinel (AGENTS.md, Versioning &
@@ -88,7 +88,7 @@
         default = pkgs.mkShell {
           packages = with pkgs; [
             # Same pin as the package build.
-            go_1_25
+            go_1_26
             goreleaser
             jq
           ];
