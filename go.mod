@@ -1,6 +1,6 @@
 module github.com/dbos-inc/dbos-ctl
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/dbos-inc/dbos-transact-golang v1.2.0
