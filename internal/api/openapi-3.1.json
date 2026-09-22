@@ -1414,6 +1414,15 @@
       "QueueAutoscale": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/QueueAutoscale.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "applicationVersion": {
             "description": "The application version this recommendation covers.",
             "type": "string"
@@ -1438,7 +1447,7 @@
             "type": "integer"
           },
           "queueName": {
-            "description": "The policy queue; absent when it is no longer usable.",
+            "description": "The queue the stored autoscaling policy scales on.",
             "type": "string"
           }
         },
@@ -1446,6 +1455,7 @@
           "applicationVersion",
           "isLatest",
           "desiredExecutors",
+          "queueName",
           "queueDepth",
           "observedAt"
         ],
@@ -1929,6 +1939,25 @@
             "maxLength": 30,
             "minLength": 3,
             "pattern": "^[a-z0-9_]+$",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateTokenInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/UpdateTokenInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "newName": {
+            "minLength": 1,
             "type": "string"
           }
         },
@@ -2773,7 +2802,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -2819,7 +2848,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -2872,7 +2901,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -2928,7 +2957,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -2985,7 +3014,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -3041,7 +3070,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -3106,7 +3135,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -3144,7 +3173,7 @@
     },
     "/v2/orgs/{orgName}/apps/{appName}/autoscale": {
       "get": {
-        "description": "Computes how many executors each of the application's versions needs right now, given the backlog of its stored autoscaling policy's queue. Returns one entry per version. 404 when no policy is installed. Requires a DBOS Teams subscription.",
+        "description": "Computes how many executors each of the application's versions needs right now, given the backlog of its stored autoscaling policy's queue. Returns one entry per version. 404 when no policy is installed; 400 when the policy queue is no longer scalable. Requires a DBOS Teams subscription.",
         "operationId": "getAutoscale",
         "parameters": [
           {
@@ -3163,7 +3192,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -3204,6 +3233,74 @@
         ]
       }
     },
+    "/v2/orgs/{orgName}/apps/{appName}/autoscale/versions/{version}": {
+      "get": {
+        "description": "Computes how many executors one application version needs right now, given the backlog of the stored autoscaling policy's queue. Made to be polled per version, e.g. by one KEDA ScaledObject per version's deployment. The latest version is always sized to at least 1; an old version reports 0 once it has no work left on that queue, signaling it can be torn down. 404 when no policy is installed or the version was never registered; 400 when the policy queue is no longer scalable. Requires a DBOS Teams subscription.",
+        "operationId": "getAutoscaleVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A registered application version, or \"latest\" for whichever version is currently latest.",
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "description": "A registered application version, or \"latest\" for whichever version is currently latest.",
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueAutoscale"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get one version's autoscaling recommendation",
+        "tags": [
+          "Queues"
+        ]
+      }
+    },
     "/v2/orgs/{orgName}/apps/{appName}/autoscaling-policy": {
       "delete": {
         "description": "Clears the stored policy. Deleting an absent policy succeeds. Requires a DBOS Teams subscription.",
@@ -3225,7 +3322,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -3272,7 +3369,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -3326,7 +3423,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -3391,7 +3488,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -3449,7 +3546,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -3527,7 +3624,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -3585,7 +3682,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -3648,7 +3745,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -3740,7 +3837,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -3803,7 +3900,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -3876,7 +3973,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -3932,7 +4029,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -3988,7 +4085,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -4058,7 +4155,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -4125,7 +4222,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -4183,7 +4280,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -4241,7 +4338,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -4357,7 +4454,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -4424,7 +4521,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -4482,7 +4579,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -4540,7 +4637,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -4605,7 +4702,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -4663,7 +4760,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -4721,7 +4818,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -4788,7 +4885,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -4850,7 +4947,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -4913,7 +5010,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -4978,7 +5075,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -5044,7 +5141,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -5115,7 +5212,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -5194,7 +5291,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -5260,7 +5357,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -5325,7 +5422,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -5409,7 +5506,7 @@
             "name": "appName",
             "required": true,
             "schema": {
-              "maxLength": 30,
+              "maxLength": 256,
               "minLength": 3,
               "pattern": "^[a-z0-9-_]+$",
               "type": "string"
@@ -6266,6 +6363,59 @@
           }
         },
         "summary": "Delete token",
+        "tags": [
+          "Tokens"
+        ]
+      },
+      "patch": {
+        "operationId": "updateToken",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "tokenName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTokenInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Update token",
         "tags": [
           "Tokens"
         ]
