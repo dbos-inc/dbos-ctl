@@ -211,6 +211,33 @@ var migration113SQL string
 //go:embed sql/113_set_enqueue_workflow_search_path.sql
 var migration113SearchPathSQL string
 
+//go:embed sql/114_drop_notifications_index.sql
+var migration114SQL string
+
+//go:embed sql/115_create_in_flight_index_v2.sql
+var migration115SQL string
+
+//go:embed sql/116_drop_in_flight_index.sql
+var migration116SQL string
+
+//go:embed sql/117_create_partition_dequeue_index_v3.sql
+var migration117SQL string
+
+//go:embed sql/118_drop_partition_dequeue_index_v2.sql
+var migration118SQL string
+
+//go:embed sql/119_create_operation_outputs_completed_at_index_v2.sql
+var migration119SQL string
+
+//go:embed sql/120_drop_operation_outputs_completed_at_index.sql
+var migration120SQL string
+
+//go:embed sql/121_add_notifications_consumed_by_function_id.sql
+var migration121SQL string
+
+//go:embed sql/122_create_deadline_index.sql
+var migration122SQL string
+
 type MigrationFile struct {
 	Version int64
 	SQL     string
@@ -413,6 +440,15 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 		{Version: 111, SQL: fmt.Sprintf(migration111SQL, c, sanitizedSchema), Online: !isCockroach},
 		{Version: 112, SQL: fmt.Sprintf(migration112SQL, sanitizedSchema)},
 		{Version: 113, SQL: migration113SQLProcessed},
+		{Version: 114, SQL: fmt.Sprintf(migration114SQL, c, sanitizedSchema), Online: !isCockroach},
+		{Version: 115, SQL: fmt.Sprintf(migration115SQL, c, sanitizedSchema), Online: !isCockroach},
+		{Version: 116, SQL: fmt.Sprintf(migration116SQL, c, sanitizedSchema), Online: !isCockroach},
+		{Version: 117, SQL: fmt.Sprintf(migration117SQL, c, sanitizedSchema), Online: !isCockroach},
+		{Version: 118, SQL: fmt.Sprintf(migration118SQL, c, sanitizedSchema), Online: !isCockroach},
+		{Version: 119, SQL: fmt.Sprintf(migration119SQL, c, sanitizedSchema), Online: !isCockroach},
+		{Version: 120, SQL: fmt.Sprintf(migration120SQL, c, sanitizedSchema), Online: !isCockroach},
+		{Version: 121, SQL: fmt.Sprintf(migration121SQL, sanitizedSchema)},
+		{Version: 122, SQL: fmt.Sprintf(migration122SQL, c, sanitizedSchema), Online: !isCockroach},
 	}
 }
 
