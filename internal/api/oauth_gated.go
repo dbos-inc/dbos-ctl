@@ -22,5 +22,6 @@ var OAuthGated = map[string]bool{
 	"releaseDomainClaim": true,
 	"removeMember":       true,
 	"requestDomainClaim": true,
+	"setOrgLimits":       true,
 	"updateOrg":          true,
 }

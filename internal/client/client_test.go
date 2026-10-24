@@ -61,7 +61,7 @@ func TestBearerInjection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := c.ListAppsWithResponse(context.Background(), "local"); err != nil {
+	if _, err := c.ListAppsWithResponse(context.Background(), "local", nil); err != nil {
 		t.Fatal(err)
 	}
 	if want := "Bearer dbos_secret"; gotAuth != want {
@@ -74,7 +74,7 @@ func TestBearerInjection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := c2.ListAppsWithResponse(context.Background(), "local"); err != nil {
+	if _, err := c2.ListAppsWithResponse(context.Background(), "local", nil); err != nil {
 		t.Fatal(err)
 	}
 	if gotAuth != "" {

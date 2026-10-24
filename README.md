@@ -140,6 +140,10 @@ Two ways to bypass the flow:
 | `dbosctl app update <name>` | Update tuning settings (e.g. `--executor-timeout-secs`, `--private-mode`) |
 | `dbosctl app set-version <name> <version>` | Set the application's latest version |
 | `dbosctl app delete <name>` | Delete an application (prompts to confirm; `--force` required when non-interactive) |
+| `dbosctl workspace list` | List the org's workspaces |
+| `dbosctl workspace create <name>` | Create an empty workspace |
+| `dbosctl workspace rename <name> <new-name>` | Rename a workspace; its applications stay in it |
+| `dbosctl workspace delete <name>` | Delete an empty workspace (move its applications out first; the org keeps at least one) |
 | `dbosctl workflow list` | List workflows, filterable (`--status`, `--name`, `--since 1h`, …); returns all matching by default, `--limit`/`--offset` to bound |
 | `dbosctl workflow get <id>` | Show a workflow's details (app-scoped, needs `--app`) |
 | `dbosctl workflow steps <id>` | List a workflow's steps |

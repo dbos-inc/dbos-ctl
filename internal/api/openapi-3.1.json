@@ -121,6 +121,14 @@
               "UNAVAILABLE"
             ],
             "type": "string"
+          },
+          "workflowMetricsEnabled": {
+            "description": "Whether conductor collects workflow metrics for the console charts from this application's database. While off, the workflow metrics endpoints report collection_disabled.",
+            "type": "boolean"
+          },
+          "workspace": {
+            "description": "Name of the workspace the application is in; empty for a DBOS Cloud application, which is in none.",
+            "type": "string"
           }
         },
         "required": [
@@ -134,7 +142,9 @@
           "globalTimeoutMs",
           "executorTimeoutSecs",
           "privateMode",
-          "dbosCloud"
+          "dbosCloud",
+          "workflowMetricsEnabled",
+          "workspace"
         ],
         "type": "object"
       },
@@ -252,7 +262,8 @@
               "workflow",
               "schedule",
               "alerting_rule",
-              "domain_claim"
+              "domain_claim",
+              "workspace"
             ],
             "type": "string"
           }
@@ -276,7 +287,7 @@
             "type": "string"
           },
           "queue": {
-            "description": "The queue whose utilization drives the desired executor count. Must exist, not be partitioned and have worker_concurrency set.",
+            "description": "The queue whose utilization drives the desired executor count. Must exist and have worker_concurrency set.",
             "type": "string"
           },
           "rollout": {
@@ -560,6 +571,16 @@
             "readOnly": true,
             "type": "string"
           },
+          "grants": {
+            "description": "Permissions to grant, each for the whole organization or one workspace. Adds to permissions.",
+            "items": {
+              "$ref": "#/components/schemas/Grant"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "name": {
             "maxLength": 30,
             "minLength": 3,
@@ -567,6 +588,7 @@
             "type": "string"
           },
           "permissions": {
+            "description": "Permissions to grant for the whole organization.",
             "items": {
               "type": "string"
             },
@@ -593,10 +615,18 @@
             "readOnly": true,
             "type": "string"
           },
+          "grants": {
+            "description": "Every grant of the role, each with its scope.",
+            "items": {
+              "$ref": "#/components/schemas/Grant"
+            },
+            "type": "array"
+          },
           "name": {
             "type": "string"
           },
           "permissions": {
+            "description": "The role's organization-scoped grants.",
             "items": {
               "type": "string"
             },
@@ -605,7 +635,8 @@
         },
         "required": [
           "name",
-          "permissions"
+          "permissions",
+          "grants"
         ],
         "type": "object"
       },
@@ -622,6 +653,7 @@
             "type": "string"
           },
           "appNames": {
+            "description": "Limits the API key to these applications. Can't be combined with workspaces.",
             "items": {
               "type": "string"
             },
@@ -639,8 +671,44 @@
               "array",
               "null"
             ]
+          },
+          "workspaces": {
+            "description": "Limits the API key to the applications in these workspaces, including ones moved in later. Must not be empty, and allows only application.read, application.write, metric.read and websocket.connect. Without appNames or workspaces, the API key covers all applications.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true
           }
         },
+        "type": "object"
+      },
+      "CreateWorkspaceInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/CreateWorkspaceInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "name": {
+            "description": "Name of the new workspace, unique in the org. Follows the application name rules.",
+            "maxLength": 256,
+            "minLength": 3,
+            "pattern": "^[a-z0-9-_]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
         "type": "object"
       },
       "DomainClaim": {
@@ -697,6 +765,50 @@
           "orgName",
           "requestedBy",
           "requestedAt"
+        ],
+        "type": "object"
+      },
+      "Entitlements": {
+        "additionalProperties": false,
+        "properties": {
+          "autoUpgrade": {
+            "description": "Whether the org may use auto-upgrade.",
+            "type": "boolean"
+          },
+          "sharding": {
+            "description": "Whether the org may use sharding.",
+            "type": "boolean"
+          },
+          "suspendWorkflows": {
+            "description": "Whether the org may suspend workflows.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sharding",
+          "autoUpgrade",
+          "suspendWorkflows"
+        ],
+        "type": "object"
+      },
+      "EntitlementsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/EntitlementsResponse.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "entitlements": {
+            "$ref": "#/components/schemas/Entitlements"
+          }
+        },
+        "required": [
+          "entitlements"
         ],
         "type": "object"
       },
@@ -966,6 +1078,22 @@
         ],
         "type": "object"
       },
+      "Grant": {
+        "additionalProperties": false,
+        "properties": {
+          "permission": {
+            "type": "string"
+          },
+          "workspace": {
+            "description": "Name of the workspace the grant is scoped to. Omitted for the whole organization.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "permission"
+        ],
+        "type": "object"
+      },
       "ImportWorkflowInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -1113,6 +1241,31 @@
         ],
         "type": "object"
       },
+      "MoveAppInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/MoveAppInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "workspace": {
+            "description": "Name of the workspace to move the application to.",
+            "maxLength": 256,
+            "minLength": 3,
+            "pattern": "^[a-z0-9-_]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace"
+        ],
+        "type": "object"
+      },
       "Notification": {
         "additionalProperties": false,
         "properties": {
@@ -1215,6 +1368,11 @@
             "format": "int32",
             "type": "integer"
           },
+          "maxWorkspaces": {
+            "description": "How many workspaces the org may have. Only DBOS-managed Conductor enforces it, and only when creating a workspace.",
+            "format": "int32",
+            "type": "integer"
+          },
           "name": {
             "type": "string"
           },
@@ -1223,7 +1381,8 @@
               "free",
               "pro",
               "past_limit",
-              "team"
+              "team",
+              "enterprise"
             ],
             "type": "string"
           }
@@ -1239,6 +1398,7 @@
           "defaultRdsInstanceClassType",
           "maxTeamMembers",
           "maxConductorApps",
+          "maxWorkspaces",
           "auditLogRetentionDays"
         ],
         "type": "object"
@@ -1272,6 +1432,10 @@
             "type": "integer"
           },
           "privateMode": {
+            "type": "boolean"
+          },
+          "workflowMetricsEnabled": {
+            "description": "Turns workflow metrics collection from this application's database on or off. Turning it back on resumes from now: the time it was off is recorded as missing, not collected.",
             "type": "boolean"
           }
         },
@@ -1333,6 +1497,13 @@
           },
           "privateMode": {
             "type": "boolean"
+          },
+          "workspace": {
+            "description": "Name of the workspace to register the application in. May be omitted while the org has only one workspace.",
+            "maxLength": 256,
+            "minLength": 3,
+            "pattern": "^[a-z0-9-_]+$",
+            "type": "string"
           }
         },
         "type": "object"
@@ -1366,8 +1537,40 @@
           "name": {
             "type": "string"
           },
+          "partitionConcurrency": {
+            "description": "Maximum workflows running concurrently within each partition. Null when no such limit is set, and for a queue using the deprecated partitionQueue option, where concurrency itself applies per partition.",
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "partitionQueue": {
             "type": "boolean"
+          },
+          "partitionRateLimitMax": {
+            "description": "Maximum workflows started per rate limit period within each partition. Null when no such limit is set, and for a queue using the deprecated partitionQueue option, where rateLimitMax itself applies per partition.",
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "partitionRateLimitPeriodSecs": {
+            "description": "Length in seconds of the per-partition rate limit period. Null whenever partitionRateLimitMax is null.",
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "partitionWorkerConcurrency": {
+            "description": "Maximum workflows running concurrently on a single executor within each partition. Null when no such limit is set, and for a queue using the deprecated partitionQueue option, where workerConcurrency itself applies per partition.",
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "pollingIntervalSecs": {
             "format": "double",
@@ -1407,7 +1610,11 @@
           "priorityEnabled",
           "partitionQueue",
           "pollingIntervalSecs",
-          "applicationName"
+          "applicationName",
+          "partitionConcurrency",
+          "partitionWorkerConcurrency",
+          "partitionRateLimitMax",
+          "partitionRateLimitPeriodSecs"
         ],
         "type": "object"
       },
@@ -1518,6 +1725,31 @@
         ],
         "type": "object"
       },
+      "RenameWorkspaceInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/RenameWorkspaceInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "name": {
+            "description": "New name of the workspace, unique in the org. Follows the application name rules.",
+            "maxLength": 256,
+            "minLength": 3,
+            "pattern": "^[a-z0-9-_]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "RequestDomainClaimInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -1563,9 +1795,46 @@
         },
         "type": "object"
       },
+      "RewindWorkflowInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/RewindWorkflowInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "appVersion": {
+            "description": "Application version to replay the workflow under. Defaults to the version it already ran on, which only an executor still on that version will dequeue.",
+            "type": "string"
+          },
+          "queueName": {
+            "type": "string"
+          },
+          "queuePartitionKey": {
+            "type": "string"
+          },
+          "startStep": {
+            "description": "Step to rewind to. Defaults to the workflow's first step, discarding its whole history.",
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "RoleOutput": {
         "additionalProperties": false,
         "properties": {
+          "grants": {
+            "description": "Every grant of the role, each with its scope.",
+            "items": {
+              "$ref": "#/components/schemas/Grant"
+            },
+            "type": "array"
+          },
           "isGlobal": {
             "type": "boolean"
           },
@@ -1573,6 +1842,7 @@
             "type": "string"
           },
           "permissions": {
+            "description": "The role's organization-scoped grants.",
             "items": {
               "type": "string"
             },
@@ -1582,7 +1852,8 @@
         "required": [
           "name",
           "isGlobal",
-          "permissions"
+          "permissions",
+          "grants"
         ],
         "type": "object"
       },
@@ -1681,6 +1952,42 @@
           "cronTimezone",
           "applicationName"
         ],
+        "type": "object"
+      },
+      "SetOrgLimitsInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/SetOrgLimitsInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "maxConductorApps": {
+            "description": "New maxConductorApps. Must not be below the current value; omit to leave unchanged.",
+            "format": "int32",
+            "maximum": 1000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxTeamMembers": {
+            "description": "New maxTeamMembers. Must not be below the current value; omit to leave unchanged.",
+            "format": "int32",
+            "maximum": 1000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxWorkspaces": {
+            "description": "New maxWorkspaces. Must not be below the current value; omit to leave unchanged.",
+            "format": "int32",
+            "maximum": 1000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
         "type": "object"
       },
       "Step": {
@@ -1861,13 +2168,21 @@
           },
           "tokenName": {
             "type": "string"
+          },
+          "workspaces": {
+            "description": "Names of the workspaces the API key is limited to; empty when it isn't.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           }
         },
         "required": [
           "tokenName",
           "createdAt",
           "permissions",
-          "appIds"
+          "appIds",
+          "workspaces"
         ],
         "type": "object"
       },
@@ -2003,7 +2318,8 @@
               "free",
               "pro",
               "past_limit",
-              "team"
+              "team",
+              "enterprise"
             ],
             "type": "string"
           }
@@ -2355,6 +2671,9 @@
           "hasParent": {
             "type": "boolean"
           },
+          "isFork": {
+            "type": "boolean"
+          },
           "parentWorkflowId": {
             "items": {
               "type": "string"
@@ -2453,6 +2772,892 @@
         },
         "type": "object"
       },
+      "WorkflowMetricBreakdown": {
+        "additionalProperties": false,
+        "properties": {
+          "buckets": {
+            "description": "Histogram bins with a count, in order; absent for categorical breakdowns and when unavailable. Bins start at the effective start time and step by the bucket width; with an unbounded lower bound they start at multiples of the width from the Unix epoch.",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowMetricBucket"
+            },
+            "type": "array"
+          },
+          "reasons": {
+            "description": "Why the breakdown is partial or unavailable: unsupported_filter, degraded_bucket, missing_collection, history_before_origin, archive_limit, live_timeout, live_limit, live_unavailable, collection_disabled when the application's workflow metrics collection is turned off, and not_requested for a live part the request did not ask for, which is not a failure.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "state": {
+            "enum": [
+              "available",
+              "partial",
+              "unavailable"
+            ],
+            "type": "string"
+          },
+          "values": {
+            "description": "Categorical counts, most frequent first; absent for the histogram and when unavailable.",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowMetricCategory"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "state",
+          "reasons"
+        ],
+        "type": "object"
+      },
+      "WorkflowMetricBreakdowns": {
+        "additionalProperties": false,
+        "properties": {
+          "appVersion": {
+            "$ref": "#/components/schemas/WorkflowMetricBreakdown"
+          },
+          "histogram": {
+            "$ref": "#/components/schemas/WorkflowMetricBreakdown"
+          },
+          "queueName": {
+            "$ref": "#/components/schemas/WorkflowMetricBreakdown"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WorkflowMetricBreakdown"
+          },
+          "workflowName": {
+            "$ref": "#/components/schemas/WorkflowMetricBreakdown"
+          }
+        },
+        "required": [
+          "status",
+          "workflowName",
+          "queueName",
+          "appVersion",
+          "histogram"
+        ],
+        "type": "object"
+      },
+      "WorkflowMetricBucket": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "start": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "statusCounts": {
+            "additionalProperties": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "description": "The count split by workflow status, omitting statuses with none; it sums to count. History and live combine by adding status by status.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "start",
+          "count"
+        ],
+        "type": "object"
+      },
+      "WorkflowMetricCategory": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "value",
+              "null",
+              "overflow"
+            ],
+            "type": "string"
+          },
+          "maxQueueWaitMs": {
+            "description": "The longest queue wait (dequeue time minus creation time) among the counted workflows, in milliseconds; absent when none was dequeued. History and live combine by taking the larger value, not by adding.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "statusCounts": {
+            "additionalProperties": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "description": "The count split by workflow status, omitting statuses with none. Present on queue breakdown values only, where it sums to count. History and live combine by adding status by status.",
+            "type": "object"
+          },
+          "trimmed": {
+            "description": "The value was cut to the length limit, so filtering the list by it is not exact.",
+            "type": "boolean"
+          },
+          "value": {
+            "description": "The observed value, cut to 1,024 characters; empty for null and overflow.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "value",
+          "trimmed",
+          "count"
+        ],
+        "type": "object"
+      },
+      "WorkflowMetricHistoryMeta": {
+        "additionalProperties": false,
+        "properties": {
+          "collectionState": {
+            "description": "lagging: two or more closed five-minute intervals are uncollected. disabled: the application's workflow metrics collection is turned off; every breakdown is unavailable with collection_disabled and the archive's fields are absent.",
+            "enum": [
+              "running",
+              "lagging",
+              "paused",
+              "no_eligible_executor",
+              "disabled"
+            ],
+            "type": "string"
+          },
+          "coveredEnd": {
+            "description": "The archive's watermark: completions before it are collected or were skipped. Absent while collection is disabled.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "effectiveEndTime": {
+            "description": "The request's upper bound snapped up to the histogram tier; absent when unbounded.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "effectiveStartTime": {
+            "description": "The request's lower bound snapped down to the histogram tier; absent when unbounded.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "generation": {
+            "description": "Absent while collection is disabled.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "histogramTier": {
+            "description": "Absent while collection is disabled.",
+            "enum": [
+              "1m",
+              "1h",
+              "1d"
+            ],
+            "type": "string"
+          },
+          "lastGapEnd": {
+            "description": "End of the most recently skipped completion interval; absent when none was skipped. A range starting before it may be missing workflows created in it, and is partial with missing_collection.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "lastReceiptAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "legacyCompletionCoverage": {
+            "description": "Workflows without a completion timestamp (pre-migration history) are never collected.",
+            "enum": [
+              "not_guaranteed"
+            ],
+            "type": "string"
+          },
+          "origin": {
+            "description": "Completions from here on are collected, minus skipped intervals; nothing before it ever is. Absent while collection is disabled.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "semantics": {
+            "description": "Counts are terminal contributions observed by the collector, attributed to creation time: deleted workflows stay counted and a resumed workflow can count twice.",
+            "enum": [
+              "observed_terminal_activity"
+            ],
+            "type": "string"
+          },
+          "statusOnlyBuckets": {
+            "description": "Buckets with collapsed detail among those the categorical breakdowns read. Absent while collection is disabled.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "timeBucketSizeMs": {
+            "description": "The effective histogram width. Absent while collection is disabled.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "unsupportedFilters": {
+            "description": "Active filters the archive could not apply.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "semantics",
+          "collectionState",
+          "unsupportedFilters",
+          "legacyCompletionCoverage"
+        ],
+        "type": "object"
+      },
+      "WorkflowMetricHistoryResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/WorkflowMetricHistoryResponse.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "breakdowns": {
+            "$ref": "#/components/schemas/WorkflowMetricBreakdowns"
+          },
+          "liveContext": {
+            "$ref": "#/components/schemas/WorkflowMetricLiveContext",
+            "description": "What a live request echoes. Absent while collection is disabled, when there is no supplement to ask for."
+          },
+          "meta": {
+            "$ref": "#/components/schemas/WorkflowMetricHistoryMeta"
+          }
+        },
+        "required": [
+          "breakdowns",
+          "meta"
+        ],
+        "type": "object"
+      },
+      "WorkflowMetricLiveAvailabilities": {
+        "additionalProperties": false,
+        "properties": {
+          "appVersion": {
+            "$ref": "#/components/schemas/WorkflowMetricLiveAvailability"
+          },
+          "histogram": {
+            "$ref": "#/components/schemas/WorkflowMetricLiveAvailability"
+          },
+          "queueName": {
+            "$ref": "#/components/schemas/WorkflowMetricLiveAvailability"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WorkflowMetricLiveAvailability"
+          },
+          "workflowName": {
+            "$ref": "#/components/schemas/WorkflowMetricLiveAvailability"
+          }
+        },
+        "required": [
+          "status",
+          "workflowName",
+          "queueName",
+          "appVersion",
+          "histogram"
+        ],
+        "type": "object"
+      },
+      "WorkflowMetricLiveAvailability": {
+        "additionalProperties": false,
+        "properties": {
+          "components": {
+            "description": "The components the chart sums over the archive. The nonterminal component is listed only when the request asked for its part of the chart: the categorical charts under breakdowns, the histogram under bins.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "state": {
+            "description": "unavailable for an archive-side reason, whatever live returned; partial when a component the chart sums failed or the live lookback leaves an uncovered completion interval (missing_collection).",
+            "enum": [
+              "available",
+              "partial",
+              "unavailable"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "reasons",
+          "components"
+        ],
+        "type": "object"
+      },
+      "WorkflowMetricLiveComponent": {
+        "additionalProperties": false,
+        "properties": {
+          "breakdowns": {
+            "$ref": "#/components/schemas/WorkflowMetricBreakdowns",
+            "description": "This component's own counts; unavailable with the outcome's reason when it failed."
+          },
+          "detail": {
+            "description": "What went wrong, for a failed outcome.",
+            "type": "string"
+          },
+          "outcome": {
+            "description": "empty_window: nothing to ask, the watermark is at the request time (terminal only). not_attempted: an unsupported filter, no source work. not_requested: the request set nonterminal to none, so no source work (nonterminal only). disabled: the application's workflow metrics collection is turned off, so no source work. timeout: the shared 20-second budget elapsed. row_limit: over 20,000 rows. no_executor: no eligible executor. failed: dispatch failed or the reply was unusable. A failed terminal component does not stop the nonterminal one; only the spent budget stops later requests.",
+            "enum": [
+              "success",
+              "empty_window",
+              "not_attempted",
+              "timeout",
+              "row_limit",
+              "no_executor",
+              "failed",
+              "not_requested",
+              "disabled"
+            ],
+            "type": "string"
+          },
+          "receivedAt": {
+            "description": "When the reply arrived; absent without one.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "rows": {
+            "description": "Rows in an accepted reply.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "startedAt": {
+            "description": "When the source request was dispatched; absent when it never was.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "windowEnd": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "windowStart": {
+            "description": "Terminal only: the completion window [windowStart, windowEnd); absent when not dispatched.",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome",
+          "rows",
+          "breakdowns"
+        ],
+        "type": "object"
+      },
+      "WorkflowMetricLiveContext": {
+        "additionalProperties": false,
+        "properties": {
+          "effectiveEndTime": {
+            "description": "Absent for an unbounded upper bound.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "effectiveStartTime": {
+            "description": "Absent for an unbounded lower bound.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "timeBucketSizeMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "watermark": {
+            "description": "The archive's watermark; the live terminal window starts here.",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "watermark",
+          "timeBucketSizeMs"
+        ],
+        "type": "object"
+      },
+      "WorkflowMetricLiveMeta": {
+        "additionalProperties": false,
+        "properties": {
+          "rowLimit": {
+            "description": "Rows accepted per component.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "statusOnlyBuckets": {
+            "description": "Buckets with collapsed detail among those the history categorical breakdowns read.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "terminalLookbackMs": {
+            "description": "How far before the request time the terminal window can reach; an older watermark leaves a hole.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "unsupportedFilters": {
+            "description": "Active filters the archive could not apply.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "unsupportedFilters",
+          "statusOnlyBuckets",
+          "terminalLookbackMs",
+          "rowLimit"
+        ],
+        "type": "object"
+      },
+      "WorkflowMetricLiveResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/WorkflowMetricLiveResponse.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "combined": {
+            "$ref": "#/components/schemas/WorkflowMetricLiveAvailabilities"
+          },
+          "liveContext": {
+            "$ref": "#/components/schemas/WorkflowMetricLiveContext",
+            "description": "The context this supplement was computed for; a late response for a superseded one can be discarded."
+          },
+          "meta": {
+            "$ref": "#/components/schemas/WorkflowMetricLiveMeta"
+          },
+          "nonterminal": {
+            "$ref": "#/components/schemas/WorkflowMetricLiveComponent",
+            "description": "PENDING, ENQUEUED and DELAYED workflows created in the effective range, regardless of age."
+          },
+          "terminal": {
+            "$ref": "#/components/schemas/WorkflowMetricLiveComponent",
+            "description": "Terminal completions since the watermark, within the lookback, created in the effective range."
+          }
+        },
+        "required": [
+          "terminal",
+          "nonterminal",
+          "combined",
+          "liveContext",
+          "meta"
+        ],
+        "type": "object"
+      },
+      "WorkflowMetricsHistoryBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/WorkflowMetricsHistoryBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "appVersion": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "attributes": {
+            "additionalProperties": {},
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "type": "object"
+          },
+          "completedAfter": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "completedBefore": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "dequeuedAfter": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "dequeuedBefore": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "endTime": {
+            "description": "Creation-time upper bound; omitted means no bound. Ignored by the live endpoint, which uses the effective range.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "executorId": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "forkedFrom": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "hasParent": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "type": "boolean"
+          },
+          "parentWorkflowId": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "queueName": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "queuesOnly": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "type": "boolean"
+          },
+          "scheduleName": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "startTime": {
+            "description": "Creation-time lower bound; omitted means all time. Ignored by the live endpoint, which uses the effective range.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "timeBucketSizeMs": {
+            "description": "Requested histogram width; the effective width is at least a whole minute and widens to keep the histogram under 1,000 bins.",
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "user": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "wasForkedFrom": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "type": "boolean"
+          },
+          "workflowIdPrefix": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "workflowIds": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "workflowName": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "workflowNameExclude": {
+            "description": "Workflow names to leave out; the name breakdown itself ignores it.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "timeBucketSizeMs"
+        ],
+        "type": "object"
+      },
+      "WorkflowMetricsLiveBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/WorkflowMetricsLiveBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "appVersion": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "attributes": {
+            "additionalProperties": {},
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "type": "object"
+          },
+          "completedAfter": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "completedBefore": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "dequeuedAfter": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "dequeuedBefore": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "effectiveEndTime": {
+            "description": "liveContext.effectiveEndTime of the history response; omitted when unbounded.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "effectiveStartTime": {
+            "description": "liveContext.effectiveStartTime of the history response; omitted when unbounded.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "endTime": {
+            "description": "Creation-time upper bound; omitted means no bound. Ignored by the live endpoint, which uses the effective range.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "executorId": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "forkedFrom": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "hasParent": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "type": "boolean"
+          },
+          "nonterminal": {
+            "default": "breakdowns",
+            "description": "The part of the nonterminal component to compute. breakdowns: the categorical breakdowns; its histogram is unavailable with not_requested. bins: the histogram, with the filter applied at the source; the categorical breakdowns are unavailable with not_requested. none: no nonterminal source work; the component is not_requested. A part not requested joins no combined chart.",
+            "enum": [
+              "breakdowns",
+              "bins",
+              "none"
+            ],
+            "type": "string"
+          },
+          "parentWorkflowId": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "queueName": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "queuesOnly": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "type": "boolean"
+          },
+          "scheduleName": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "startTime": {
+            "description": "Creation-time lower bound; omitted means all time. Ignored by the live endpoint, which uses the effective range.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "timeBucketSizeMs": {
+            "description": "liveContext.timeBucketSizeMs of the history response; whole minutes.",
+            "format": "int64",
+            "minimum": 60000,
+            "type": "integer"
+          },
+          "user": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "wasForkedFrom": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "type": "boolean"
+          },
+          "watermark": {
+            "description": "liveContext.watermark of the history response; the terminal window starts here.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "workflowIdPrefix": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "workflowIds": {
+            "description": "Unsupported by the archive; when set the breakdowns are unavailable.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "workflowName": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "workflowNameExclude": {
+            "description": "Workflow names to leave out; the name breakdown itself ignores it.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "watermark",
+          "timeBucketSizeMs"
+        ],
+        "type": "object"
+      },
       "WorkflowSearchBody": {
         "additionalProperties": false,
         "properties": {
@@ -2517,6 +3722,9 @@
             ]
           },
           "hasParent": {
+            "type": "boolean"
+          },
+          "isFork": {
             "type": "boolean"
           },
           "limit": {
@@ -2620,6 +3828,32 @@
           }
         },
         "type": "object"
+      },
+      "Workspace": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/Workspace.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "createdAt"
+        ],
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -2642,6 +3876,38 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/v2/entitlements": {
+      "get": {
+        "description": "Returns the Transact Enterprise features the calling API key's org may use; a feature reported false is not included in the org's plan. An org past its plan limit gets 403 with X-DBOS-Error: past_limit instead. Self-hosted Conductor grants every feature, and with OAuth disabled it needs no credentials. Otherwise any valid API key is accepted regardless of its permissions, and user credentials are rejected with 401.",
+        "operationId": "getEntitlements",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntitlementsResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get Transact Enterprise entitlements",
+        "tags": [
+          "Entitlements"
+        ]
+      }
+    },
     "/v2/orgs/{orgName}": {
       "get": {
         "description": "Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
@@ -2747,6 +4013,16 @@
               "maxLength": 30,
               "minLength": 3,
               "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Lists only the applications in the workspace of this name.",
+            "explode": false,
+            "in": "query",
+            "name": "workspace",
+            "schema": {
+              "description": "Lists only the applications in the workspace of this name.",
               "type": "string"
             }
           }
@@ -2939,6 +4215,7 @@
         ]
       },
       "put": {
+        "description": "Registers an application in a workspace. Without a workspace, it goes into the org's only workspace; when the org has more than one, registration fails with a workspace-required error.",
         "operationId": "registerApp",
         "parameters": [
           {
@@ -3404,7 +4681,7 @@
         ]
       },
       "put": {
-        "description": "Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — not partitioned, worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.",
+        "description": "Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.",
         "operationId": "setAutoscalingPolicy",
         "parameters": [
           {
@@ -3601,6 +4878,65 @@
         "summary": "List metrics",
         "tags": [
           "Metrics"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/move": {
+      "post": {
+        "description": "Moves a Conductor application to another workspace of the org. It keeps its name, history and connected executors; moving it to the workspace it is in changes nothing. DBOS Cloud applications can't be moved.",
+        "operationId": "moveApp",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveAppInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Move application",
+        "tags": [
+          "Applications"
         ]
       }
     },
@@ -4798,6 +6134,138 @@
         ]
       }
     },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows/metrics/history": {
+      "post": {
+        "description": "Renders the workflow filter charts from conductor's archive of observed terminal activity, without querying the application's database. 404 when the application has no archive yet.",
+        "operationId": "getWorkflowMetricsHistory",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowMetricsHistoryBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowMetricHistoryResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get archived workflow metrics",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows/metrics/live": {
+      "post": {
+        "description": "Asks one executor, under one 20-second budget, for terminal completions since the history response's watermark (at most 15 minutes back) and for the workflows still pending, both within the effective creation range. Source failures are per-component outcomes, never errors. 400 for a context outside this application's archive, 404 without an archive.",
+        "operationId": "getWorkflowMetricsLive",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowMetricsLiveBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowMetricLiveResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get the live supplement to archived workflow metrics",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
     "/v2/orgs/{orgName}/apps/{appName}/workflows/search": {
       "post": {
         "operationId": "searchWorkflows",
@@ -5402,6 +6870,71 @@
         ]
       }
     },
+    "/v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/rewind": {
+      "post": {
+        "operationId": "rewindWorkflow",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workflowId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RewindWorkflowInputBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Rewind workflow",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
     "/v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/steps": {
       "get": {
         "operationId": "listWorkflowSteps",
@@ -5853,6 +7386,62 @@
           }
         },
         "summary": "Join org",
+        "tags": [
+          "Orgs"
+        ],
+        "x-dbos-requires-oauth": true
+      }
+    },
+    "/v2/orgs/{orgName}/limits": {
+      "patch": {
+        "description": "Sets the org's maxTeamMembers, maxConductorApps and maxWorkspaces to the given values and returns the updated org. At least one value must be given; an omitted value is left unchanged. Limits can only be raised here, never lowered; setting a limit to its current value is a no-op. Requires a DBOS Teams subscription.\n\nRequires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "setOrgLimits",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetOrgLimitsInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Set org limits",
         "tags": [
           "Orgs"
         ],
@@ -6477,6 +8066,220 @@
         "summary": "Create token",
         "tags": [
           "Tokens"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/workspaces": {
+      "get": {
+        "description": "Lists every workspace of the org, ordered by name. Any member of the org, and any of its API keys, may list them regardless of permissions.",
+        "operationId": "listWorkspaces",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Workspace"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List workspaces",
+        "tags": [
+          "Workspaces"
+        ]
+      },
+      "post": {
+        "description": "Creates an empty workspace. On DBOS-managed Conductor, creation is refused once the org has as many workspaces as its maxWorkspaces limit; self-hosted Conductor has no workspace limit.",
+        "operationId": "createWorkspace",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWorkspaceInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workspace"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create workspace",
+        "tags": [
+          "Workspaces"
+        ]
+      }
+    },
+    "/v2/orgs/{orgName}/workspaces/{workspaceName}": {
+      "delete": {
+        "description": "Deletes an empty workspace, as long as the org keeps another one.",
+        "operationId": "deleteWorkspace",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workspaceName",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete workspace",
+        "tags": [
+          "Workspaces"
+        ]
+      },
+      "patch": {
+        "description": "Renames a workspace. Its applications stay in it.",
+        "operationId": "renameWorkspace",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workspaceName",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameWorkspaceInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workspace"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Rename workspace",
+        "tags": [
+          "Workspaces"
         ]
       }
     },
