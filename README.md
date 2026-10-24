@@ -157,7 +157,7 @@ Two ways to bypass the flow:
 | `dbosctl schedule trigger <name>` | Fire a schedule now (prints the started workflow ID) |
 | `dbosctl schedule backfill <name> --since --until` | Replay a schedule over a window (prints the started workflow IDs) |
 | `dbosctl api-key list` | List API keys (aliases: `token`, `apikey`) |
-| `dbosctl api-key create <name>` | Create an API key — prints the secret once; scope with `--app`/`--permission` |
+| `dbosctl api-key create <name>` | Create an API key — prints the secret once; scope with `--app` or `--workspace` (repeatable, not both) and `--permission` |
 | `dbosctl api-key rename <name> <new-name>` | Rename an API key; the secret is unchanged |
 | `dbosctl api-key delete <name>` | Delete an API key |
 | `dbosctl permission list` | List grantable permissions |
