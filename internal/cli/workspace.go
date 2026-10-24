@@ -40,6 +40,7 @@ var workspaceRenameCmd = &cobra.Command{
 // Deletion is empty-only: Conductor refuses a workspace that still holds
 // applications (or is the org's last, or scopes an API key), and its refusal
 // says what to do, so there is no option to move applications along with it.
+// The not-empty refusal also names the command that moves them.
 var workspaceDeleteCmd = &cobra.Command{
 	Use:   "delete <name>",
 	Short: "Delete an empty workspace",
@@ -137,6 +138,9 @@ func runWorkspaceDelete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if err := checkStatus(resp.StatusCode(), resp.HTTPResponse, resp.ApplicationproblemJSONDefault, resp.Body); err != nil {
+		if conductorCode(resp.ApplicationproblemJSONDefault) == codeWorkspaceNotEmpty {
+			err = withHint(err, "move them with `dbosctl app move <app> <workspace>`")
+		}
 		return err
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "deleted workspace %q\n", name)

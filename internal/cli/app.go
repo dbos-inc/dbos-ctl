@@ -37,6 +37,17 @@ var appDeleteCmd = &cobra.Command{
 	RunE:  runAppDelete,
 }
 
+var appMoveCmd = &cobra.Command{
+	Use:   "move <name> <workspace>",
+	Short: "Move an application to another workspace",
+	Long: `Move an application to another workspace in the same organization. It keeps
+its name, history, and connected executors, but the move changes who can reach
+it, so it asks for confirmation first (--force skips the prompt, and is required
+when non-interactive).`,
+	Args: cobra.ExactArgs(2),
+	RunE: runAppMove,
+}
+
 var appGetCmd = &cobra.Command{
 	Use:   "get <name>",
 	Short: "Show an application's details",
@@ -83,10 +94,15 @@ func init() {
 	// app list is org-scoped (it lists every app in the org), so it honors
 	// --org but not --app. The per-app reads name the app positionally.
 	addRequestFlags(appListCmd, "profile", "url", "org", "output")
-	addRequestFlags(appRegisterCmd, "profile", "url", "org")
+	// A filter, not the request flag: $DBOS_WORKSPACE and the profile say where
+	// to register, and applying them as a filter would hide the rest of the org.
+	appListCmd.Flags().StringP("workspace", "w", "", "list only the applications in this workspace")
+	addRequestFlags(appRegisterCmd, "profile", "url", "org", "workspace")
 	appRegisterCmd.Flags().Bool("private-mode", false, "prevent sending workflow payload data (e.g., inputs, outputs, events) to Conductor")
 	addRequestFlags(appDeleteCmd, "profile", "url", "org")
 	appDeleteCmd.Flags().Bool("force", false, "skip the confirmation prompt (required when non-interactive)")
+	addRequestFlags(appMoveCmd, "profile", "url", "org")
+	appMoveCmd.Flags().Bool("force", false, "acknowledge the warning without a prompt (required when non-interactive)")
 	addRequestFlags(appGetCmd, "profile", "url", "org", "output")
 	addRequestFlags(appVersionsCmd, "profile", "url", "org", "output")
 	addRequestFlags(appExecutorsCmd, "profile", "url", "org", "output")
@@ -103,7 +119,7 @@ func init() {
 	appUpdateCmd.Flags().Bool("private-mode", false, "prevent sending workflow payload data (e.g., inputs, outputs, events) to Conductor")
 	addRequestFlags(appSetVersionCmd, "profile", "url", "org")
 
-	appCmd.AddCommand(appListCmd, appRegisterCmd, appDeleteCmd,
+	appCmd.AddCommand(appListCmd, appRegisterCmd, appDeleteCmd, appMoveCmd,
 		appGetCmd, appVersionsCmd, appExecutorsCmd, appMetricsCmd,
 		appUpdateCmd, appSetVersionCmd)
 	rootCmd.AddCommand(appCmd)
@@ -123,7 +139,11 @@ func runAppList(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	resp, err := c.ListAppsWithResponse(cmd.Context(), org, nil)
+	var params api.ListAppsParams
+	if ws, _ := cmd.Flags().GetString("workspace"); ws != "" {
+		params.Workspace = &ws
+	}
+	resp, err := c.ListAppsWithResponse(cmd.Context(), org, &params)
 	if err != nil {
 		return err
 	}
@@ -148,12 +168,21 @@ func runAppRegister(cmd *cobra.Command, args []string) error {
 	// deploy); the remaining tuning fields land with D3 `app update`.
 	var body api.RegisterAppJSONRequestBody
 	patchBool(cmd, "private-mode", &body.PrivateMode, nil)
+	// Left out, Conductor registers into the org's only workspace, or refuses
+	// if it has several.
+	if s.Workspace != "" {
+		body.Workspace = &s.Workspace
+	}
 	resp, err := c.RegisterAppWithResponse(cmd.Context(), org, name, body)
 	if err != nil {
 		return err
 	}
 	if resp.StatusCode() < 200 || resp.StatusCode() >= 300 {
-		return apiError(resp.StatusCode(), resp.HTTPResponse.Header, resp.ApplicationproblemJSONDefault, resp.Body)
+		err := apiError(resp.StatusCode(), resp.HTTPResponse.Header, resp.ApplicationproblemJSONDefault, resp.Body)
+		if conductorCode(resp.ApplicationproblemJSONDefault) == codeWorkspaceRequired {
+			err = withHint(err, "pass -w/--workspace, set $DBOS_WORKSPACE, or add a workspace to the profile")
+		}
+		return err
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "registered app %q\n", name)
 	return nil
@@ -162,21 +191,12 @@ func runAppRegister(cmd *cobra.Command, args []string) error {
 func runAppDelete(cmd *cobra.Command, args []string) error {
 	name := args[0]
 	force, _ := cmd.Flags().GetBool("force")
-	// A destructive delete needs confirmation. Interactively that's the prompt;
-	// without a terminal to answer it (a pipe, a file, CI) we refuse rather than
-	// delete unattended — --force is required to proceed there.
+	// A destructive delete needs confirmation, and --force when non-interactive.
 	if !force {
-		if !isInteractive() {
-			return fmt.Errorf("refusing to delete app %q without confirmation: re-run with --force (stdin is not a terminal)", name)
-		}
-		ok, err := confirm(cmd.InOrStdin(), cmd.ErrOrStderr(),
+		ok, err := confirmOrRefuse(cmd, fmt.Sprintf("delete app %q", name),
 			fmt.Sprintf("Delete app %q? This cannot be undone.", name))
-		if err != nil {
+		if err != nil || !ok {
 			return err
-		}
-		if !ok {
-			fmt.Fprintln(cmd.ErrOrStderr(), "aborted")
-			return nil
 		}
 	}
 
@@ -196,6 +216,50 @@ func runAppDelete(cmd *cobra.Command, args []string) error {
 		return apiError(resp.StatusCode(), resp.HTTPResponse.Header, resp.ApplicationproblemJSONDefault, resp.Body)
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "deleted app %q\n", name)
+	return nil
+}
+
+// moveWarning is the general caution a move must be acknowledged against.
+// Conductor reports no per-executor or per-key impact, so it says what can
+// happen, not what will.
+func moveWarning(app, workspace string) string {
+	return fmt.Sprintf(`Moving app %q to workspace %q changes who can reach it:
+  - API keys scoped to its current workspace stop covering it, so executors using them may fail to reconnect.
+  - API keys scoped to this application keep their access, even if their creator's role no longer covers it.
+  - The access of workspace %q applies to all of the app's existing history, not only to new workflows.
+`, app, workspace, workspace)
+}
+
+func runAppMove(cmd *cobra.Command, args []string) error {
+	name, workspace := args[0], args[1]
+	force, _ := cmd.Flags().GetBool("force")
+	// The warning goes to stderr, keeping stdout for the result. --force
+	// acknowledges it, and is required when non-interactive.
+	fmt.Fprint(cmd.ErrOrStderr(), moveWarning(name, workspace))
+	if !force {
+		ok, err := confirmOrRefuse(cmd, fmt.Sprintf("move app %q", name),
+			fmt.Sprintf("Move app %q to workspace %q?", name, workspace))
+		if err != nil || !ok {
+			return err
+		}
+	}
+
+	c, s, err := clientFor(cmd)
+	if err != nil {
+		return err
+	}
+	org, err := effectiveOrg(cmd.Context(), c, s)
+	if err != nil {
+		return err
+	}
+	resp, err := c.MoveAppWithResponse(cmd.Context(), org, name, api.MoveAppJSONRequestBody{Workspace: workspace})
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode() < 200 || resp.StatusCode() >= 300 {
+		return apiError(resp.StatusCode(), resp.HTTPResponse.Header, resp.ApplicationproblemJSONDefault, resp.Body)
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "moved app %q to workspace %q\n", name, workspace)
 	return nil
 }
 
@@ -383,6 +447,7 @@ func appDetailFields() []output.Field[api.Application] {
 	return []output.Field[api.Application]{
 		{Label: "name", Value: func(a api.Application) string { return a.Name }},
 		{Label: "id", Value: func(a api.Application) string { return a.Id }},
+		{Label: "workspace", Value: func(a api.Application) string { return a.Workspace }},
 		{Label: "status", Value: func(a api.Application) string { return string(a.Status) }},
 		{Label: "language", Value: func(a api.Application) string { return deref(a.Language) }},
 		{Label: "orgId", Value: func(a api.Application) string { return a.OrgId }},
@@ -474,6 +539,7 @@ func derefFloat(p *float64) string {
 func appColumns() []output.Column[api.Application] {
 	return []output.Column[api.Application]{
 		{Header: "NAME", Value: func(a api.Application) string { return a.Name }},
+		{Header: "WORKSPACE", Value: func(a api.Application) string { return a.Workspace }},
 		{Header: "STATUS", Value: func(a api.Application) string { return string(a.Status) }},
 		{Header: "LANGUAGE", Value: func(a api.Application) string { return deref(a.Language) }},
 	}

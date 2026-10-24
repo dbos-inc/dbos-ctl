@@ -131,15 +131,16 @@ Two ways to bypass the flow:
 |---|---|
 | `dbosctl login` / `dbosctl logout` | Acquire / discard credentials for the current profile |
 | `dbosctl whoami` | Show the logged-in identity (`local` on a no-auth target) |
-| `dbosctl app list` | List applications in the org |
+| `dbosctl app list` | List applications in the org, with their workspace (`-w`/`--workspace` to list one workspace) |
 | `dbosctl app get <name>` | Show one application's details |
 | `dbosctl app versions <name>` | List an application's versions |
 | `dbosctl app executors <name>` | List an application's connected executors |
 | `dbosctl app metrics <name>` | List an application's metrics (`--since`, default 24h) |
-| `dbosctl app register <name>` | Register an application (optionally `--private-mode`) |
+| `dbosctl app register <name>` | Register an application into a workspace (`-w`/`--workspace`; required when the org has more than one; optionally `--private-mode`) |
 | `dbosctl app update <name>` | Update tuning settings (e.g. `--executor-timeout-secs`, `--private-mode`) |
 | `dbosctl app set-version <name> <version>` | Set the application's latest version |
 | `dbosctl app delete <name>` | Delete an application (prompts to confirm; `--force` required when non-interactive) |
+| `dbosctl app move <name> <workspace>` | Move an application to another workspace (warns about access changes and prompts; `--force` required when non-interactive) |
 | `dbosctl workspace list` | List the org's workspaces |
 | `dbosctl workspace create <name>` | Create an empty workspace |
 | `dbosctl workspace rename <name> <new-name>` | Rename a workspace; its applications stay in it |
@@ -378,6 +379,7 @@ wins and the profile is the fallback:
 | Conductor URL | `--url` | `DBOS_URL` |
 | Organization | `--org` | `DBOS_ORG` |
 | Application | `-a`, `--app` | `DBOS_APP` |
+| Workspace (`app register`) | `-w`, `--workspace` | `DBOS_WORKSPACE` |
 | Bearer token | — | `DBOS_TOKEN` |
 | System database (`sysdb`) | `-D`, `--db-url` | `DBOS_SYSTEM_DATABASE_URL` |
 | Output format | `-o`, `--output` | — |

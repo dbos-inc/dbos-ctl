@@ -204,6 +204,9 @@ func TestRunWorkspaceDeleteRefusals(t *testing.T) {
 			if !strings.Contains(err.Error(), detail) {
 				t.Errorf("error lost Conductor's explanation: %v", err)
 			}
+			if hint := "dbosctl app move"; (name == "not empty") != strings.Contains(err.Error(), hint) {
+				t.Errorf("only the not-empty refusal should point at %q: %v", hint, err)
+			}
 			if code := exitCodeFor(err); code != 1 {
 				t.Errorf("exit code = %d, want 1", code)
 			}
