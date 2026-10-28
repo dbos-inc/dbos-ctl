@@ -27,8 +27,9 @@ import (
 // is what says every one of them was rendered for the engine that is actually
 // there.
 func TestMigrateCreatesSystemDatabaseIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
+	dbURL := e.url(database(t))
 
 	out := runMigrateOrFail(t, "--db-url", dbURL)
 
@@ -73,8 +74,9 @@ func TestMigrateCreatesSystemDatabaseIntegration(t *testing.T) {
 // installs; CockroachDB gets nothing, because it has no LISTEN/NOTIFY on any
 // version. Either way the triggers migrations 43 and 44 drop must be gone.
 func TestMigrateNotificationTriggersIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
+	dbURL := e.url(database(t))
 
 	runMigrateOrFail(t, "--db-url", dbURL)
 	conn := connect(t, dbURL)
@@ -111,8 +113,9 @@ func TestMigrateNotificationTriggersIntegration(t *testing.T) {
 // redundant — that is what the engine gets anyway — and asking for it must not
 // change anything else.
 func TestMigrateWithoutListenNotifyIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
+	dbURL := e.url(database(t))
 
 	runMigrateOrFail(t, "--db-url", dbURL, "--no-listen-notify")
 
@@ -142,9 +145,10 @@ func TestMigrateWithoutListenNotifyIntegration(t *testing.T) {
 // command corrects rather than an instruction it follows — the migrations that
 // install those triggers cannot be applied there at all.
 func TestMigrateCockroachIgnoresListenNotifyRequestIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
 	e.onlyOn(t, engineCockroach)
-	dbURL := e.url("dbos_sys")
+	dbURL := e.url(database(t))
 
 	// No --no-listen-notify: the default asks for the triggers.
 	out := runMigrateOrFail(t, "--db-url", dbURL)
@@ -160,8 +164,9 @@ func TestMigrateCockroachIgnoresListenNotifyRequestIntegration(t *testing.T) {
 // just in the printed SQL: a second schema in the same database migrates
 // independently of the default one.
 func TestMigrateCustomSchemaIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
+	dbURL := e.url(database(t))
 
 	runMigrateOrFail(t, "--db-url", dbURL, "--schema", "tenant_a")
 
@@ -178,8 +183,9 @@ func TestMigrateCustomSchemaIntegration(t *testing.T) {
 // that can actually use the system tables — the point of the flag is that the
 // application need not own the database or hold DDL rights.
 func TestMigrateGrantsApplicationRoleIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
+	dbURL := e.url(database(t))
 
 	// No password: nothing here logs in as the role, and CockroachDB's insecure
 	// mode — which is how the test container runs — refuses to set one.
@@ -208,8 +214,9 @@ func TestMigrateGrantsApplicationRoleIntegration(t *testing.T) {
 // fight over a database — the SDK finds nothing pending and does not touch the
 // version row.
 func TestMigratedDatabaseIsUsableBySDKIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
+	dbURL := e.url(database(t))
 
 	runMigrateOrFail(t, "--db-url", dbURL)
 	conn := connect(t, dbURL)
@@ -249,8 +256,9 @@ const legacyNotificationsPKClause = " PRIMARY KEY, -- Built-in function"
 // actually exercised and the whole history above it is proven to apply to a
 // database that did not start today.
 func TestMigrateBackfillsLegacyNotificationsPrimaryKeyIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_legacy")
+	dbURL := e.url(database(t))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()

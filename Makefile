@@ -54,9 +54,11 @@ test-integration:
 ##   The name pattern has to match every sysdb test: one that names neither a
 ##   command nor Sysdb would be skipped here and never run anywhere.
 ##   One engine per run because a process migrates one database; CI matrixes over both.
+##   -parallel is set past the CPU count because the tests spend their time waiting
+##   on CockroachDB's schema-change jobs, which overlap almost perfectly.
 ENGINE ?= postgres
 test-sysdb:
-	DBOS_TEST_ENGINE=$(ENGINE) $(GOTEST) -tags integration -timeout 20m -run 'Migrate|Reset|Rename|Sysdb' ./internal/cli/
+	DBOS_TEST_ENGINE=$(ENGINE) $(GOTEST) -tags integration -timeout 20m -parallel 16 -run 'Migrate|Reset|Rename|Sysdb' ./internal/cli/
 
 ## lint: go vet + gofmt check
 lint:
