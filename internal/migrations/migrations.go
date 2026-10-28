@@ -241,6 +241,12 @@ var migration122SQL string
 //go:embed sql/123_add_workflow_status_creator_xid.sql
 var migration123SQL string
 
+//go:embed sql/124_create_application_versions_timestamp_index.sql
+var migration124SQL string
+
+//go:embed sql/125_create_application_versions_owner_timestamp_index.sql
+var migration125SQL string
+
 type MigrationFile struct {
 	Version int64
 	SQL     string
@@ -453,6 +459,8 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 		{Version: 121, SQL: fmt.Sprintf(migration121SQL, sanitizedSchema)},
 		{Version: 122, SQL: fmt.Sprintf(migration122SQL, c, sanitizedSchema), Online: !isCockroach},
 		{Version: 123, SQL: fmt.Sprintf(migration123SQL, sanitizedSchema)},
+		{Version: 124, SQL: fmt.Sprintf(migration124SQL, c, sanitizedSchema), Online: !isCockroach},
+		{Version: 125, SQL: fmt.Sprintf(migration125SQL, c, sanitizedSchema), Online: !isCockroach},
 	}
 }
 
