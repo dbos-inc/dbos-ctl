@@ -82,9 +82,9 @@ func countRows(t *testing.T, conn *pgx.Conn, table string) int64 {
 // default: after a reset the database is empty *and still migrated*, so an
 // application can start against it without anyone running migrate again.
 func TestResetEmptiesWithoutUnmigratingIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
-	runMigrateOrFail(t, "--db-url", dbURL)
+	dbURL := e.url(e.migratedDatabase(t))
 
 	conn := connect(t, dbURL)
 	seedWorkflow(t, conn, "wf-1", "SUCCESS", "app")
@@ -113,9 +113,9 @@ func TestResetEmptiesWithoutUnmigratingIntegration(t *testing.T) {
 // for a table it had just emptied. The counts are the only thing that notices,
 // which is exactly why it needs a test rather than a comment.
 func TestResetReportsWhatEachTableLostIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
-	runMigrateOrFail(t, "--db-url", dbURL)
+	dbURL := e.url(e.migratedDatabase(t))
 
 	conn := connect(t, dbURL)
 	seedWorkflow(t, conn, "wf-1", "SUCCESS", "app")
@@ -157,8 +157,9 @@ func TestResetReportsWhatEachTableLostIntegration(t *testing.T) {
 // command reported success. Compare the list against a real migrated schema so
 // that adding a migration without adding its table fails here.
 func TestSystemTablesMatchTheMigratedSchemaIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
+	dbURL := e.url(database(t))
 	runMigrateOrFail(t, "--db-url", dbURL)
 
 	conn := connect(t, dbURL)
@@ -202,9 +203,9 @@ func TestSystemTablesMatchTheMigratedSchemaIntegration(t *testing.T) {
 // A second reset must be as safe as the first: nothing to delete is not an
 // error, which is what makes this usable between test runs.
 func TestResetIsRepeatableIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
-	runMigrateOrFail(t, "--db-url", dbURL)
+	dbURL := e.url(e.migratedDatabase(t))
 
 	runResetOrFail(t, "--db-url", dbURL)
 	runResetOrFail(t, "--db-url", dbURL)
@@ -216,9 +217,9 @@ func TestResetIsRepeatableIntegration(t *testing.T) {
 // report success, which is the half-renamed application the whole design avoids.
 // Both must refuse, and refuse before doing anything.
 func TestSysdbCommandsRefuseASchemaAheadOfTheBinaryIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
-	runMigrateOrFail(t, "--db-url", dbURL)
+	dbURL := e.url(e.migratedDatabase(t))
 
 	conn := connect(t, dbURL)
 	seedWorkflow(t, conn, "wf-1", "SUCCESS", "old-app")
@@ -260,9 +261,9 @@ func TestSysdbCommandsRefuseASchemaAheadOfTheBinaryIntegration(t *testing.T) {
 // not others. That is a migration to finish rather than a shape to work around:
 // the rename must refuse, say which tables are short, and move nothing.
 func TestRenameRefusesAHalfMigratedSchemaIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
-	runMigrateOrFail(t, "--db-url", dbURL)
+	dbURL := e.url(e.migratedDatabase(t))
 
 	conn := connect(t, dbURL)
 	seedWorkflow(t, conn, "wf-1", "SUCCESS", "old-app")
@@ -299,9 +300,9 @@ func TestRenameRefusesAHalfMigratedSchemaIntegration(t *testing.T) {
 // has nothing it could move. Say that, rather than report a successful rename of
 // nothing.
 func TestRenameRefusesASchemaWithNoOwnershipColumnsIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
-	runMigrateOrFail(t, "--db-url", dbURL)
+	dbURL := e.url(e.migratedDatabase(t))
 
 	conn := connect(t, dbURL)
 
@@ -334,9 +335,9 @@ func TestRenameRefusesASchemaWithNoOwnershipColumnsIntegration(t *testing.T) {
 // one application's history goes, its neighbour's stays, and everything hanging
 // off the deleted workflows goes with them.
 func TestResetScopedToApplicationIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
-	runMigrateOrFail(t, "--db-url", dbURL)
+	dbURL := e.url(e.migratedDatabase(t))
 
 	conn := connect(t, dbURL)
 	seedWorkflow(t, conn, "billing-1", "SUCCESS", "billing")
@@ -387,14 +388,15 @@ func TestResetScopedToApplicationIntegration(t *testing.T) {
 }
 
 func TestResetDropDatabaseIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_drop_me")
-	runMigrateOrFail(t, "--db-url", dbURL)
+	name := e.migratedDatabase(t)
+	dbURL := e.url(name)
 
 	runResetOrFail(t, "--db-url", dbURL, "--drop-database")
 
 	admin := connect(t, e.url("postgres"))
-	if scalar[bool](t, admin, `SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = 'dbos_drop_me')`) {
+	if scalar[bool](t, admin, `SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)`, name) {
 		t.Error("the database still exists after --drop-database")
 	}
 }
@@ -402,9 +404,9 @@ func TestResetDropDatabaseIntegration(t *testing.T) {
 // TestRenameMovesEveryOwnedKindIntegration checks the five row kinds the counts
 // report, and that a rename leaves nothing behind under the old name.
 func TestRenameMovesEveryOwnedKindIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
-	runMigrateOrFail(t, "--db-url", dbURL)
+	dbURL := e.url(e.migratedDatabase(t))
 
 	conn := connect(t, dbURL)
 	seedWorkflow(t, conn, "wf-terminal", "SUCCESS", "old-app")
@@ -453,9 +455,9 @@ func TestRenameMovesEveryOwnedKindIntegration(t *testing.T) {
 // but the rollback takes them back, and a count of rows that did not move is
 // worse than no count at all.
 func TestRenameReportsNothingWhenTheFirstTransactionRollsBackIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
-	runMigrateOrFail(t, "--db-url", dbURL)
+	dbURL := e.url(e.migratedDatabase(t))
 
 	conn := connect(t, dbURL)
 	seedWorkflow(t, conn, "wf-1", "SUCCESS", "old-app")
@@ -498,9 +500,9 @@ func TestRenameReportsNothingWhenTheFirstTransactionRollsBackIntegration(t *test
 // Unclaimed rows are never implied. They move only when asked for, because
 // claiming rows that predate system-database sharing is a decision.
 func TestRenameAdoptsUnclaimedRowsOnlyWhenAskedIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
-	runMigrateOrFail(t, "--db-url", dbURL)
+	dbURL := e.url(e.migratedDatabase(t))
 
 	conn := connect(t, dbURL)
 	seedWorkflow(t, conn, "wf-owned", "SUCCESS", "old-app")
@@ -524,9 +526,9 @@ func TestRenameAdoptsUnclaimedRowsOnlyWhenAskedIntegration(t *testing.T) {
 // passes. If ranges were mis-bounded this either loops forever or leaves rows,
 // and both show up here.
 func TestRenameBatchesTerminalWorkflowsIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
-	runMigrateOrFail(t, "--db-url", dbURL)
+	dbURL := e.url(e.migratedDatabase(t))
 
 	conn := connect(t, dbURL)
 	const total = 7
@@ -552,9 +554,9 @@ func TestRenameBatchesTerminalWorkflowsIntegration(t *testing.T) {
 // which it only reaches for a name the small ones do not carry — and that it
 // stays quiet rather than failing when the schema records no ownership at all.
 func TestRenameApplicationNameInUseIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
-	runMigrateOrFail(t, "--db-url", dbURL)
+	dbURL := e.url(e.migratedDatabase(t))
 
 	conn := connect(t, dbURL)
 	// Registered but with no history, which is what a freshly started
@@ -594,9 +596,9 @@ func TestRenameApplicationNameInUseIntegration(t *testing.T) {
 // End to end at the prompt: the two questions are asked in front of the
 // confirmation, and answering it still renames.
 func TestRenameWarnsAboutTheNewNameBeforeConfirmingIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
-	runMigrateOrFail(t, "--db-url", dbURL)
+	dbURL := e.url(e.migratedDatabase(t))
 
 	conn := connect(t, dbURL)
 	seedWorkflow(t, conn, "wf-old", "SUCCESS", "old-app")
@@ -621,9 +623,9 @@ func TestRenameWarnsAboutTheNewNameBeforeConfirmingIntegration(t *testing.T) {
 // Declining leaves the rows where they were, which is the whole point of
 // putting the warnings in front of the question.
 func TestRenameDecliningTheWarningMovesNothingIntegration(t *testing.T) {
+	t.Parallel()
 	e := startEngine(t)
-	dbURL := e.url("dbos_sys")
-	runMigrateOrFail(t, "--db-url", dbURL)
+	dbURL := e.url(e.migratedDatabase(t))
 
 	conn := connect(t, dbURL)
 	seedWorkflow(t, conn, "wf-old", "SUCCESS", "old-app")

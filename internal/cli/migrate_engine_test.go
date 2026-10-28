@@ -4,14 +4,19 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
+	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/cockroachdb"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
@@ -49,26 +54,139 @@ func (e engine) url(database string) string {
 	return fmt.Sprintf(e.urlFor, database)
 }
 
-// startEngine brings up the engine named by DBOS_TEST_ENGINE. Unset is a skip
-// rather than a default: these tests pull a database image and take minutes, so
-// running them is a choice, and `make test-sysdb` is how it is made.
+// shared is the one engine every test in the binary uses, started by the first
+// test that asks for it and stopped by TestMain. A CockroachDB container takes
+// around ten seconds to start, and each test gets a database of its own on the
+// shared one instead, which is also what lets the tests run side by side.
+var shared struct {
+	once sync.Once
+	e    engine
+	stop func()
+	err  error
+}
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if shared.stop != nil {
+		shared.stop()
+	}
+	os.Exit(code)
+}
+
+// startEngine brings up the engine named by DBOS_TEST_ENGINE, or returns the one
+// already up. Unset is a skip rather than a default: these tests pull a database
+// image and take minutes, so running them is a choice, and `make test-sysdb` is
+// how it is made.
 func startEngine(t *testing.T) engine {
 	t.Helper()
 	// Tests run in the package directory, two levels below the module root.
 	_ = godotenv.Load("../../.env")
 
-	switch os.Getenv(engineEnv) {
-	case enginePostgres:
-		return engine{urlFor: startPostgres(t), name: enginePostgres, listenNotify: true}
-	case engineCockroach:
-		return engine{urlFor: startCockroach(t), cockroach: true, name: engineCockroach}
+	name := os.Getenv(engineEnv)
+	switch name {
+	case enginePostgres, engineCockroach:
 	case "":
 		t.Skipf("integration: %s not set (try `make test-sysdb ENGINE=postgres`)", engineEnv)
-		return engine{}
 	default:
-		t.Fatalf("%s=%q: want %q or %q", engineEnv, os.Getenv(engineEnv), enginePostgres, engineCockroach)
-		return engine{}
+		t.Fatalf("%s=%q: want %q or %q", engineEnv, name, enginePostgres, engineCockroach)
 	}
+
+	shared.once.Do(func() {
+		if name == enginePostgres {
+			shared.e = engine{name: enginePostgres, listenNotify: true}
+			shared.e.urlFor, shared.stop, shared.err = startPostgres()
+		} else {
+			shared.e = engine{name: engineCockroach, cockroach: true}
+			shared.e.urlFor, shared.stop, shared.err = startCockroach()
+		}
+	})
+	if shared.err != nil {
+		t.Fatalf("start %s: %v", name, shared.err)
+	}
+	return shared.e
+}
+
+var (
+	databaseSeq atomic.Int64
+	notIdent    = regexp.MustCompile(`[^a-z0-9]+`)
+)
+
+// database names a database for the calling test alone, which nothing has
+// created yet. Nothing drops it either: the container goes when the binary
+// exits. The name carries the test's, so a database found while debugging says
+// which test made it.
+func database(t *testing.T) string {
+	t.Helper()
+	slug := strings.TrimSuffix(strings.TrimPrefix(t.Name(), "Test"), "Integration")
+	slug = notIdent.ReplaceAllString(strings.ToLower(slug), "_")
+	if len(slug) > 48 {
+		slug = slug[:48]
+	}
+	return fmt.Sprintf("t%d_%s", databaseSeq.Add(1), slug)
+}
+
+// The fixture is a database migrated once, on first use, and copied for every
+// test that needs a migrated database without being about migrating one. A copy
+// takes about a second on either engine; migrating takes about a minute on
+// CockroachDB, where every DDL statement is an online schema change.
+const (
+	fixtureDatabase = "dbos_fixture"
+	fixtureBackup   = "nodelocal://1/" + fixtureDatabase
+)
+
+var fixture struct {
+	once sync.Once
+	err  error
+}
+
+// migratedDatabase creates a database for the calling test alone, at the latest
+// migration, and returns its name.
+//
+// PostgreSQL copies the fixture as a template. CockroachDB has no templates, so
+// the fixture is backed up once, to the node's own disk, and restored under each
+// new name.
+func (e engine) migratedDatabase(t *testing.T) string {
+	t.Helper()
+	fixture.once.Do(func() {
+		// Set first, so a build that ends in runtime.Goexit -- a t.Fatal on the
+		// way -- still leaves every later caller an error rather than a spent
+		// Once and nothing to copy.
+		fixture.err = errors.New("the fixture build did not finish")
+		fixture.err = e.buildFixture(t)
+	})
+	if fixture.err != nil {
+		t.Fatalf("build the migrated fixture: %v", fixture.err)
+	}
+
+	// Names from database are [a-z0-9_] only, so they need no quoting.
+	name := database(t)
+	admin := connect(t, e.url("postgres"))
+	if e.cockroach {
+		exec(t, admin, fmt.Sprintf(`RESTORE DATABASE %s FROM LATEST IN '%s' WITH new_db_name = '%s'`,
+			fixtureDatabase, fixtureBackup, name))
+	} else {
+		exec(t, admin, fmt.Sprintf(`CREATE DATABASE %s TEMPLATE %s`, name, fixtureDatabase))
+	}
+	return name
+}
+
+func (e engine) buildFixture(t *testing.T) error {
+	cmd, out := newMigrateCmd(t, "--db-url", e.url(fixtureDatabase))
+	if err := cmd.Execute(); err != nil {
+		return fmt.Errorf("dbosctl migrate: %w\n%s", err, out)
+	}
+	if !e.cockroach {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	conn, err := pgx.Connect(ctx, e.url(fixtureDatabase))
+	if err != nil {
+		return err
+	}
+	defer conn.Close(context.Background())
+	_, err = conn.Exec(ctx, fmt.Sprintf(`BACKUP DATABASE %s INTO '%s'`, fixtureDatabase, fixtureBackup))
+	return err
 }
 
 // onlyOn skips a test whose subject exists on one engine and not the other.
@@ -79,8 +197,7 @@ func (e engine) onlyOn(t *testing.T, name string) {
 	}
 }
 
-func startPostgres(t *testing.T) string {
-	t.Helper()
+func startPostgres() (urlFor string, stop func(), err error) {
 	ctx := context.Background()
 
 	pg, err := postgres.Run(ctx, imageFor("POSTGRES", pgImage),
@@ -89,44 +206,55 @@ func startPostgres(t *testing.T) string {
 		postgres.WithPassword("dbos"),
 		postgres.BasicWaitStrategies(),
 	)
-	if err != nil {
-		t.Fatalf("start postgres: %v", err)
+	// Run hands back the container even when it fails to come up, and it still
+	// has to go.
+	if pg != nil {
+		stop = func() { _ = pg.Terminate(ctx) }
 	}
-	t.Cleanup(func() { _ = pg.Terminate(ctx) })
+	if err != nil {
+		return "", stop, err
+	}
 
 	host, err := pg.Host(ctx)
 	if err != nil {
-		t.Fatalf("postgres host: %v", err)
+		return "", stop, fmt.Errorf("host: %w", err)
 	}
 	port, err := pg.MappedPort(ctx, "5432/tcp")
 	if err != nil {
-		t.Fatalf("postgres port: %v", err)
+		return "", stop, fmt.Errorf("port: %w", err)
 	}
-	return fmt.Sprintf("postgres://postgres:dbos@%s:%s/%%s?sslmode=disable", host, port.Port())
+	return fmt.Sprintf("postgres://postgres:dbos@%s:%s/%%s?sslmode=disable", host, port.Port()), stop, nil
 }
 
-func startCockroach(t *testing.T) string {
-	t.Helper()
+func startCockroach() (urlFor string, stop func(), err error) {
 	ctx := context.Background()
 
 	// Insecure: the container's secure mode issues client certificates, and the
 	// module hands those back as a registered driver name rather than a URL,
 	// which is not something the command under test can be given.
-	crdb, err := cockroachdb.Run(ctx, imageFor("COCKROACH", crdbImage), cockroachdb.WithInsecure())
-	if err != nil {
-		t.Fatalf("start cockroachdb: %v", err)
+	//
+	// The module runs an in-memory store, which leaves the node no directory for
+	// nodelocal:// files, and the fixture's backup needs one.
+	crdb, err := cockroachdb.Run(ctx, imageFor("COCKROACH", crdbImage),
+		cockroachdb.WithInsecure(),
+		testcontainers.WithCmdArgs("--external-io-dir=/cockroach/extern"),
+	)
+	if crdb != nil {
+		stop = func() { _ = crdb.Terminate(ctx) }
 	}
-	t.Cleanup(func() { _ = crdb.Terminate(ctx) })
+	if err != nil {
+		return "", stop, err
+	}
 
 	host, err := crdb.Host(ctx)
 	if err != nil {
-		t.Fatalf("cockroachdb host: %v", err)
+		return "", stop, fmt.Errorf("host: %w", err)
 	}
 	port, err := crdb.MappedPort(ctx, "26257/tcp")
 	if err != nil {
-		t.Fatalf("cockroachdb port: %v", err)
+		return "", stop, fmt.Errorf("port: %w", err)
 	}
-	return fmt.Sprintf("postgres://root@%s:%s/%%s?sslmode=disable", host, port.Port())
+	return fmt.Sprintf("postgres://root@%s:%s/%%s?sslmode=disable", host, port.Port()), stop, nil
 }
 
 func imageFor(engineName, fallback string) string {
