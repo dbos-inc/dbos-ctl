@@ -188,21 +188,24 @@ func TestMigrateGrantsApplicationRoleIntegration(t *testing.T) {
 	dbURL := e.url(database(t))
 
 	// No password: nothing here logs in as the role, and CockroachDB's insecure
-	// mode — which is how the test container runs — refuses to set one.
+	// mode — which is how the test container runs — refuses to set one. A role
+	// belongs to the whole cluster, which every test shares, so it takes a name
+	// as unique as the test's database.
+	role := database(t) + "_role"
 	admin := connect(t, e.url("postgres"))
-	if _, err := admin.Exec(context.Background(), `CREATE ROLE app_role`); err != nil {
+	if _, err := admin.Exec(context.Background(), `CREATE ROLE `+role); err != nil {
 		t.Fatalf("create role: %v", err)
 	}
 
-	runMigrateOrFail(t, "--db-url", dbURL, "--app-role", "app_role")
+	runMigrateOrFail(t, "--db-url", dbURL, "--app-role", role)
 
 	conn := connect(t, dbURL)
-	if !scalar[bool](t, conn, `SELECT has_schema_privilege('app_role', 'dbos', 'USAGE')`) {
-		t.Error("app_role cannot use the dbos schema")
+	if !scalar[bool](t, conn, `SELECT has_schema_privilege($1, 'dbos', 'USAGE')`, role) {
+		t.Errorf("%s cannot use the dbos schema", role)
 	}
 	for _, priv := range []string{"SELECT", "INSERT", "UPDATE", "DELETE"} {
-		if !scalar[bool](t, conn, `SELECT has_table_privilege('app_role', 'dbos.workflow_status', $1)`, priv) {
-			t.Errorf("app_role lacks %s on workflow_status", priv)
+		if !scalar[bool](t, conn, `SELECT has_table_privilege($1, 'dbos.workflow_status', $2)`, role, priv) {
+			t.Errorf("%s lacks %s on workflow_status", role, priv)
 		}
 	}
 }

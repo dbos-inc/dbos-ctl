@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -46,11 +47,20 @@ func notATerminal(t *testing.T) {
 
 // asTerminal forces the interactive path for one test, restoring the real check
 // afterwards. The commands that prompt refuse outright without it.
+// interactiveMu is held by a test while it has swapped isInteractive, so tests
+// that swap it can still run in parallel with everything else. Nothing else
+// needs it: the commands read isInteractive only when --force is absent.
+var interactiveMu sync.Mutex
+
 func asTerminal(t *testing.T) {
 	t.Helper()
+	interactiveMu.Lock()
 	original := isInteractive
 	isInteractive = func() bool { return true }
-	t.Cleanup(func() { isInteractive = original })
+	t.Cleanup(func() {
+		isInteractive = original
+		interactiveMu.Unlock()
+	})
 }
 
 // wantUsageError asserts the error is a usage error (exit 2) mentioning want.

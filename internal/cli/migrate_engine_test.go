@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -111,8 +112,9 @@ var (
 )
 
 // database names a database for the calling test alone, which nothing has
-// created yet. The name carries the test's, so a database left behind by a
-// failure says where it came from.
+// created yet. Nothing drops it either: the container goes when the binary
+// exits. The name carries the test's, so a database found while debugging says
+// which test made it.
 func database(t *testing.T) string {
 	t.Helper()
 	slug := strings.TrimSuffix(strings.TrimPrefix(t.Name(), "Test"), "Integration")
@@ -145,7 +147,13 @@ var fixture struct {
 // new name.
 func (e engine) migratedDatabase(t *testing.T) string {
 	t.Helper()
-	fixture.once.Do(func() { fixture.err = e.buildFixture(t) })
+	fixture.once.Do(func() {
+		// Set first, so a build that ends in runtime.Goexit -- a t.Fatal on the
+		// way -- still leaves every later caller an error rather than a spent
+		// Once and nothing to copy.
+		fixture.err = errors.New("the fixture build did not finish")
+		fixture.err = e.buildFixture(t)
+	})
 	if fixture.err != nil {
 		t.Fatalf("build the migrated fixture: %v", fixture.err)
 	}
@@ -198,10 +206,14 @@ func startPostgres() (urlFor string, stop func(), err error) {
 		postgres.WithPassword("dbos"),
 		postgres.BasicWaitStrategies(),
 	)
-	if err != nil {
-		return "", nil, err
+	// Run hands back the container even when it fails to come up, and it still
+	// has to go.
+	if pg != nil {
+		stop = func() { _ = pg.Terminate(ctx) }
 	}
-	stop = func() { _ = pg.Terminate(ctx) }
+	if err != nil {
+		return "", stop, err
+	}
 
 	host, err := pg.Host(ctx)
 	if err != nil {
@@ -227,10 +239,12 @@ func startCockroach() (urlFor string, stop func(), err error) {
 		cockroachdb.WithInsecure(),
 		testcontainers.WithCmdArgs("--external-io-dir=/cockroach/extern"),
 	)
-	if err != nil {
-		return "", nil, err
+	if crdb != nil {
+		stop = func() { _ = crdb.Terminate(ctx) }
 	}
-	stop = func() { _ = crdb.Terminate(ctx) }
+	if err != nil {
+		return "", stop, err
+	}
 
 	host, err := crdb.Host(ctx)
 	if err != nil {

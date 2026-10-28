@@ -596,7 +596,7 @@ func TestRenameApplicationNameInUseIntegration(t *testing.T) {
 // End to end at the prompt: the two questions are asked in front of the
 // confirmation, and answering it still renames.
 func TestRenameWarnsAboutTheNewNameBeforeConfirmingIntegration(t *testing.T) {
-	// Not parallel: asTerminal swaps a package-level function.
+	t.Parallel()
 	e := startEngine(t)
 	dbURL := e.url(e.migratedDatabase(t))
 
@@ -623,7 +623,7 @@ func TestRenameWarnsAboutTheNewNameBeforeConfirmingIntegration(t *testing.T) {
 // Declining leaves the rows where they were, which is the whole point of
 // putting the warnings in front of the question.
 func TestRenameDecliningTheWarningMovesNothingIntegration(t *testing.T) {
-	// Not parallel: asTerminal swaps a package-level function.
+	t.Parallel()
 	e := startEngine(t)
 	dbURL := e.url(e.migratedDatabase(t))
 
