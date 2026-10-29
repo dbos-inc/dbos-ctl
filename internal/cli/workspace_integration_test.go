@@ -92,7 +92,8 @@ func TestWorkspaceCommandsIntegration(t *testing.T) {
 		t.Errorf("not-empty refusal does not say to move the applications out: %s", msg)
 	}
 
-	// A workspace an API key is scoped to is refused, naming the key.
+	// An empty workspace deletes even when an API key is scoped to it: the
+	// key's binding there cascades.
 	scope, perms := []string{"stage"}, []string{"websocket.connect"}
 	tok, err := seed.CreateTokenWithResponse(ctx, "local", "stage-key",
 		api.CreateTokenJSONRequestBody{Workspaces: &scope, Permissions: &perms})
@@ -101,18 +102,6 @@ func TestWorkspaceCommandsIntegration(t *testing.T) {
 	}
 	if tok.JSON201 == nil {
 		t.Fatalf("create workspace-scoped key: HTTP %d: %s", tok.StatusCode(), tok.Body)
-	}
-	if msg := refused("stage"); !strings.Contains(msg, "referenced by API keys") || !strings.Contains(msg, "stage-key") {
-		t.Errorf("referenced-by-keys refusal does not name the key: %s", msg)
-	}
-
-	// Once nothing references it, the empty workspace deletes.
-	del, err := seed.DeleteTokenWithResponse(ctx, "local", "stage-key")
-	if err != nil {
-		t.Fatalf("delete key: %v", err)
-	}
-	if del.StatusCode() >= 300 {
-		t.Fatalf("delete key: HTTP %d: %s", del.StatusCode(), del.Body)
 	}
 	cmd, out := wsCmd()
 	if err := runWorkspaceDelete(cmd, []string{"stage"}); err != nil {

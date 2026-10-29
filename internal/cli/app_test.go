@@ -394,7 +394,7 @@ func TestRunAppRegisterWorkspace(t *testing.T) {
 // names none; the error keeps its explanation and says how to name one.
 func TestRunAppRegisterWorkspaceRequired(t *testing.T) {
 	isolateConfig(t)
-	const detail = "[2025] workspace required: this organization has more than one workspace; specify which workspace to register the application in"
+	const detail = "[2026] workspace required: this organization has more than one workspace; specify which workspace to register the application in"
 	srv := problemServer(t, http.StatusBadRequest, "Bad Request", detail)
 
 	cmd, out := appReadCmd(t, srv.URL)

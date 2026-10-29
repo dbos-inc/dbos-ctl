@@ -157,7 +157,7 @@ func TestRunAppMoveError(t *testing.T) {
 	isolateConfig(t)
 	setInteractive(t, false)
 	srv, _, _ := moveServer(t, http.StatusConflict, "application/problem+json",
-		`{"title":"Conflict","detail":"[2026] DBOS Cloud application cannot be moved","status":409}`)
+		`{"title":"Conflict","detail":"[2027] DBOS Cloud application cannot be moved","status":409}`)
 
 	cmd := newMoveCmd(t, srv.URL, "")
 	_ = cmd.Flags().Set("force", "true")

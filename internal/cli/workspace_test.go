@@ -135,7 +135,7 @@ func problemServer(t *testing.T, status int, title, detail string) *httptest.Ser
 func TestRunWorkspaceCreateLimitReached(t *testing.T) {
 	isolateConfig(t)
 	srv := problemServer(t, http.StatusConflict, "Conflict",
-		"[2024] workspace limit reached: the organization may have at most 2 workspaces; upgrade to DBOS Teams or Enterprise for more")
+		"[2025] workspace limit reached: the organization may have at most 2 workspaces; upgrade to DBOS Teams or Enterprise for more")
 
 	cmd, out := appReadCmd(t, srv.URL)
 	err := runWorkspaceCreate(cmd, []string{"third"})
@@ -188,9 +188,8 @@ func TestRunWorkspaceDelete(t *testing.T) {
 // Each delete refusal surfaces Conductor's explanation, which says what to do.
 func TestRunWorkspaceDeleteRefusals(t *testing.T) {
 	for name, detail := range map[string]string{
-		"not empty":          `[2028] workspace not empty: "staging" holds applications; move each to another workspace before deleting it`,
-		"last workspace":     `[2029] last workspace: "staging" is the organization's only workspace; create another before deleting it`,
-		"referenced by keys": `[2031] workspace referenced by API keys: "staging" is the scope of API key(s) ci; delete those keys before deleting it`,
+		"not empty":      `[2029] workspace not empty: "staging" holds applications; move each to another workspace before deleting it`,
+		"last workspace": `[2030] last workspace: "staging" is the organization's only workspace; create another before deleting it`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			isolateConfig(t)

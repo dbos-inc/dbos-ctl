@@ -64,11 +64,11 @@ func apiError(status int, header http.Header, problem *api.ErrorModel, body []by
 }
 
 // Conductor error codes the CLI adds a hint to. Conductor has no structured
-// code field; the code leads its problem detail, as in "[2025] workspace
+// code field; the code leads its problem detail, as in "[2026] workspace
 // required: ...".
 const (
-	codeWorkspaceRequired = "2025"
-	codeWorkspaceNotEmpty = "2028"
+	codeWorkspaceRequired = "2026"
+	codeWorkspaceNotEmpty = "2029"
 )
 
 // conductorCode returns the code a Conductor problem detail starts with, or ""
