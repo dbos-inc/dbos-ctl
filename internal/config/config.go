@@ -42,7 +42,9 @@ type Profile struct {
 	Domain string `yaml:"domain,omitempty"`
 	Org    string `yaml:"org,omitempty"`
 	App    string `yaml:"app,omitempty"`
-	OIDC   *OIDC  `yaml:"oidc,omitempty"`
+	// Workspace is the workspace `app register` uses when none is given.
+	Workspace string `yaml:"workspace,omitempty"`
+	OIDC      *OIDC  `yaml:"oidc,omitempty"`
 }
 
 // File is the on-disk config: named profiles plus a pointer to the active one.

@@ -58,16 +58,16 @@ func (e ApplicationStatus) Valid() bool {
 
 // Defines values for AuditLogEntryStatus.
 const (
-	Failure AuditLogEntryStatus = "failure"
-	Success AuditLogEntryStatus = "success"
+	AuditLogEntryStatusFailure AuditLogEntryStatus = "failure"
+	AuditLogEntryStatusSuccess AuditLogEntryStatus = "success"
 )
 
 // Valid indicates whether the value is a known member of the AuditLogEntryStatus enum.
 func (e AuditLogEntryStatus) Valid() bool {
 	switch e {
-	case Failure:
+	case AuditLogEntryStatusFailure:
 		return true
-	case Success:
+	case AuditLogEntryStatusSuccess:
 		return true
 	default:
 		return false
@@ -103,6 +103,7 @@ const (
 	AuditTargetTypeToken        AuditTargetType = "token"
 	AuditTargetTypeUser         AuditTargetType = "user"
 	AuditTargetTypeWorkflow     AuditTargetType = "workflow"
+	AuditTargetTypeWorkspace    AuditTargetType = "workspace"
 )
 
 // Valid indicates whether the value is a known member of the AuditTargetType enum.
@@ -125,6 +126,8 @@ func (e AuditTargetType) Valid() bool {
 	case AuditTargetTypeUser:
 		return true
 	case AuditTargetTypeWorkflow:
+		return true
+	case AuditTargetTypeWorkspace:
 		return true
 	default:
 		return false
@@ -196,15 +199,18 @@ func (e ExecutorStatus) Valid() bool {
 
 // Defines values for OrganizationSubscriptionPlan.
 const (
-	OrganizationSubscriptionPlanFree      OrganizationSubscriptionPlan = "free"
-	OrganizationSubscriptionPlanPastLimit OrganizationSubscriptionPlan = "past_limit"
-	OrganizationSubscriptionPlanPro       OrganizationSubscriptionPlan = "pro"
-	OrganizationSubscriptionPlanTeam      OrganizationSubscriptionPlan = "team"
+	OrganizationSubscriptionPlanEnterprise OrganizationSubscriptionPlan = "enterprise"
+	OrganizationSubscriptionPlanFree       OrganizationSubscriptionPlan = "free"
+	OrganizationSubscriptionPlanPastLimit  OrganizationSubscriptionPlan = "past_limit"
+	OrganizationSubscriptionPlanPro        OrganizationSubscriptionPlan = "pro"
+	OrganizationSubscriptionPlanTeam       OrganizationSubscriptionPlan = "team"
 )
 
 // Valid indicates whether the value is a known member of the OrganizationSubscriptionPlan enum.
 func (e OrganizationSubscriptionPlan) Valid() bool {
 	switch e {
+	case OrganizationSubscriptionPlanEnterprise:
+		return true
 	case OrganizationSubscriptionPlanFree:
 		return true
 	case OrganizationSubscriptionPlanPastLimit:
@@ -220,15 +226,18 @@ func (e OrganizationSubscriptionPlan) Valid() bool {
 
 // Defines values for UserProfileSubscriptionPlan.
 const (
-	UserProfileSubscriptionPlanFree      UserProfileSubscriptionPlan = "free"
-	UserProfileSubscriptionPlanPastLimit UserProfileSubscriptionPlan = "past_limit"
-	UserProfileSubscriptionPlanPro       UserProfileSubscriptionPlan = "pro"
-	UserProfileSubscriptionPlanTeam      UserProfileSubscriptionPlan = "team"
+	UserProfileSubscriptionPlanEnterprise UserProfileSubscriptionPlan = "enterprise"
+	UserProfileSubscriptionPlanFree       UserProfileSubscriptionPlan = "free"
+	UserProfileSubscriptionPlanPastLimit  UserProfileSubscriptionPlan = "past_limit"
+	UserProfileSubscriptionPlanPro        UserProfileSubscriptionPlan = "pro"
+	UserProfileSubscriptionPlanTeam       UserProfileSubscriptionPlan = "team"
 )
 
 // Valid indicates whether the value is a known member of the UserProfileSubscriptionPlan enum.
 func (e UserProfileSubscriptionPlan) Valid() bool {
 	switch e {
+	case UserProfileSubscriptionPlanEnterprise:
+		return true
 	case UserProfileSubscriptionPlanFree:
 		return true
 	case UserProfileSubscriptionPlanPastLimit:
@@ -236,6 +245,207 @@ func (e UserProfileSubscriptionPlan) Valid() bool {
 	case UserProfileSubscriptionPlanPro:
 		return true
 	case UserProfileSubscriptionPlanTeam:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkflowMetricBreakdownState.
+const (
+	WorkflowMetricBreakdownStateAvailable   WorkflowMetricBreakdownState = "available"
+	WorkflowMetricBreakdownStatePartial     WorkflowMetricBreakdownState = "partial"
+	WorkflowMetricBreakdownStateUnavailable WorkflowMetricBreakdownState = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the WorkflowMetricBreakdownState enum.
+func (e WorkflowMetricBreakdownState) Valid() bool {
+	switch e {
+	case WorkflowMetricBreakdownStateAvailable:
+		return true
+	case WorkflowMetricBreakdownStatePartial:
+		return true
+	case WorkflowMetricBreakdownStateUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkflowMetricCategoryKind.
+const (
+	Null     WorkflowMetricCategoryKind = "null"
+	Overflow WorkflowMetricCategoryKind = "overflow"
+	Value    WorkflowMetricCategoryKind = "value"
+)
+
+// Valid indicates whether the value is a known member of the WorkflowMetricCategoryKind enum.
+func (e WorkflowMetricCategoryKind) Valid() bool {
+	switch e {
+	case Null:
+		return true
+	case Overflow:
+		return true
+	case Value:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkflowMetricHistoryMetaCollectionState.
+const (
+	WorkflowMetricHistoryMetaCollectionStateDisabled           WorkflowMetricHistoryMetaCollectionState = "disabled"
+	WorkflowMetricHistoryMetaCollectionStateLagging            WorkflowMetricHistoryMetaCollectionState = "lagging"
+	WorkflowMetricHistoryMetaCollectionStateNoEligibleExecutor WorkflowMetricHistoryMetaCollectionState = "no_eligible_executor"
+	WorkflowMetricHistoryMetaCollectionStatePaused             WorkflowMetricHistoryMetaCollectionState = "paused"
+	WorkflowMetricHistoryMetaCollectionStateRunning            WorkflowMetricHistoryMetaCollectionState = "running"
+)
+
+// Valid indicates whether the value is a known member of the WorkflowMetricHistoryMetaCollectionState enum.
+func (e WorkflowMetricHistoryMetaCollectionState) Valid() bool {
+	switch e {
+	case WorkflowMetricHistoryMetaCollectionStateDisabled:
+		return true
+	case WorkflowMetricHistoryMetaCollectionStateLagging:
+		return true
+	case WorkflowMetricHistoryMetaCollectionStateNoEligibleExecutor:
+		return true
+	case WorkflowMetricHistoryMetaCollectionStatePaused:
+		return true
+	case WorkflowMetricHistoryMetaCollectionStateRunning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkflowMetricHistoryMetaHistogramTier.
+const (
+	N1d WorkflowMetricHistoryMetaHistogramTier = "1d"
+	N1h WorkflowMetricHistoryMetaHistogramTier = "1h"
+	N1m WorkflowMetricHistoryMetaHistogramTier = "1m"
+)
+
+// Valid indicates whether the value is a known member of the WorkflowMetricHistoryMetaHistogramTier enum.
+func (e WorkflowMetricHistoryMetaHistogramTier) Valid() bool {
+	switch e {
+	case N1d:
+		return true
+	case N1h:
+		return true
+	case N1m:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkflowMetricHistoryMetaLegacyCompletionCoverage.
+const (
+	NotGuaranteed WorkflowMetricHistoryMetaLegacyCompletionCoverage = "not_guaranteed"
+)
+
+// Valid indicates whether the value is a known member of the WorkflowMetricHistoryMetaLegacyCompletionCoverage enum.
+func (e WorkflowMetricHistoryMetaLegacyCompletionCoverage) Valid() bool {
+	switch e {
+	case NotGuaranteed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkflowMetricHistoryMetaSemantics.
+const (
+	ObservedTerminalActivity WorkflowMetricHistoryMetaSemantics = "observed_terminal_activity"
+)
+
+// Valid indicates whether the value is a known member of the WorkflowMetricHistoryMetaSemantics enum.
+func (e WorkflowMetricHistoryMetaSemantics) Valid() bool {
+	switch e {
+	case ObservedTerminalActivity:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkflowMetricLiveAvailabilityState.
+const (
+	WorkflowMetricLiveAvailabilityStateAvailable   WorkflowMetricLiveAvailabilityState = "available"
+	WorkflowMetricLiveAvailabilityStatePartial     WorkflowMetricLiveAvailabilityState = "partial"
+	WorkflowMetricLiveAvailabilityStateUnavailable WorkflowMetricLiveAvailabilityState = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the WorkflowMetricLiveAvailabilityState enum.
+func (e WorkflowMetricLiveAvailabilityState) Valid() bool {
+	switch e {
+	case WorkflowMetricLiveAvailabilityStateAvailable:
+		return true
+	case WorkflowMetricLiveAvailabilityStatePartial:
+		return true
+	case WorkflowMetricLiveAvailabilityStateUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkflowMetricLiveComponentOutcome.
+const (
+	WorkflowMetricLiveComponentOutcomeDisabled     WorkflowMetricLiveComponentOutcome = "disabled"
+	WorkflowMetricLiveComponentOutcomeEmptyWindow  WorkflowMetricLiveComponentOutcome = "empty_window"
+	WorkflowMetricLiveComponentOutcomeFailed       WorkflowMetricLiveComponentOutcome = "failed"
+	WorkflowMetricLiveComponentOutcomeNoExecutor   WorkflowMetricLiveComponentOutcome = "no_executor"
+	WorkflowMetricLiveComponentOutcomeNotAttempted WorkflowMetricLiveComponentOutcome = "not_attempted"
+	WorkflowMetricLiveComponentOutcomeNotRequested WorkflowMetricLiveComponentOutcome = "not_requested"
+	WorkflowMetricLiveComponentOutcomeRowLimit     WorkflowMetricLiveComponentOutcome = "row_limit"
+	WorkflowMetricLiveComponentOutcomeSuccess      WorkflowMetricLiveComponentOutcome = "success"
+	WorkflowMetricLiveComponentOutcomeTimeout      WorkflowMetricLiveComponentOutcome = "timeout"
+)
+
+// Valid indicates whether the value is a known member of the WorkflowMetricLiveComponentOutcome enum.
+func (e WorkflowMetricLiveComponentOutcome) Valid() bool {
+	switch e {
+	case WorkflowMetricLiveComponentOutcomeDisabled:
+		return true
+	case WorkflowMetricLiveComponentOutcomeEmptyWindow:
+		return true
+	case WorkflowMetricLiveComponentOutcomeFailed:
+		return true
+	case WorkflowMetricLiveComponentOutcomeNoExecutor:
+		return true
+	case WorkflowMetricLiveComponentOutcomeNotAttempted:
+		return true
+	case WorkflowMetricLiveComponentOutcomeNotRequested:
+		return true
+	case WorkflowMetricLiveComponentOutcomeRowLimit:
+		return true
+	case WorkflowMetricLiveComponentOutcomeSuccess:
+		return true
+	case WorkflowMetricLiveComponentOutcomeTimeout:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkflowMetricsLiveBodyNonterminal.
+const (
+	Bins       WorkflowMetricsLiveBodyNonterminal = "bins"
+	Breakdowns WorkflowMetricsLiveBodyNonterminal = "breakdowns"
+	None       WorkflowMetricsLiveBodyNonterminal = "none"
+)
+
+// Valid indicates whether the value is a known member of the WorkflowMetricsLiveBodyNonterminal enum.
+func (e WorkflowMetricsLiveBodyNonterminal) Valid() bool {
+	switch e {
+	case Bins:
+		return true
+	case Breakdowns:
+		return true
+	case None:
 		return true
 	default:
 		return false
@@ -277,6 +487,12 @@ type Application struct {
 	OrgId               string            `json:"orgId"`
 	PrivateMode         bool              `json:"privateMode"`
 	Status              ApplicationStatus `json:"status"`
+
+	// WorkflowMetricsEnabled Whether conductor collects workflow metrics for the console charts from this application's database. While off, the workflow metrics endpoints report collection_disabled.
+	WorkflowMetricsEnabled bool `json:"workflowMetricsEnabled"`
+
+	// Workspace Name of the workspace the application is in; empty for a DBOS Cloud application, which is in none.
+	Workspace string `json:"workspace"`
 }
 
 // ApplicationStatus defines model for Application.Status.
@@ -331,7 +547,7 @@ type AutoscalePolicy struct {
 	// Examples: //schemas/AutoscalePolicy.json
 	Schema *string `json:"$schema,omitempty"`
 
-	// Queue The queue whose utilization drives the desired executor count. Must exist, not be partitioned and have worker_concurrency set.
+	// Queue The queue whose utilization drives the desired executor count. Must exist and have worker_concurrency set.
 	Queue string `json:"queue"`
 
 	// Rollout Rollout preferences for non-latest application versions. Omitted means old versions are sized to their own backlog.
@@ -449,8 +665,13 @@ type CreateRoleInputBody struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: //schemas/CreateRoleInputBody.json
-	Schema      *string   `json:"$schema,omitempty"`
-	Name        string    `json:"name"`
+	Schema *string `json:"$schema,omitempty"`
+
+	// Grants Permissions to grant, each for the whole organization or one workspace. Adds to permissions.
+	Grants *[]Grant `json:"grants,omitempty"`
+	Name   string   `json:"name"`
+
+	// Permissions Permissions to grant for the whole organization.
 	Permissions *[]string `json:"permissions,omitempty"`
 }
 
@@ -459,8 +680,13 @@ type CreateRoleOutputBody struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: //schemas/CreateRoleOutputBody.json
-	Schema      *string  `json:"$schema,omitempty"`
-	Name        string   `json:"name"`
+	Schema *string `json:"$schema,omitempty"`
+
+	// Grants Every grant of the role, each with its scope.
+	Grants []Grant `json:"grants"`
+	Name   string  `json:"name"`
+
+	// Permissions The role's organization-scoped grants.
 	Permissions []string `json:"permissions"`
 }
 
@@ -469,9 +695,25 @@ type CreateTokenInputBody struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: //schemas/CreateTokenInputBody.json
-	Schema      *string   `json:"$schema,omitempty"`
+	Schema *string `json:"$schema,omitempty"`
+
+	// AppNames Limits the API key to these applications. Can't be combined with workspaces.
 	AppNames    *[]string `json:"appNames,omitempty"`
 	Permissions *[]string `json:"permissions,omitempty"`
+
+	// Workspaces Limits the API key to the applications in these workspaces, including ones moved in later. Must not be empty, and allows only application.read, application.write, metric.read and websocket.connect. Without appNames or workspaces, the API key covers all applications.
+	Workspaces *[]string `json:"workspaces,omitempty"`
+}
+
+// CreateWorkspaceInputBody defines model for CreateWorkspaceInputBody.
+type CreateWorkspaceInputBody struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/CreateWorkspaceInputBody.json
+	Schema *string `json:"$schema,omitempty"`
+
+	// Name Name of the new workspace, unique in the org. Follows the application name rules.
+	Name string `json:"name"`
 }
 
 // DomainClaim defines model for DomainClaim.
@@ -493,6 +735,27 @@ type DomainClaim struct {
 
 // DomainClaimStatus defines model for DomainClaim.Status.
 type DomainClaimStatus string
+
+// Entitlements defines model for Entitlements.
+type Entitlements struct {
+	// AutoUpgrade Whether the org may use auto-upgrade.
+	AutoUpgrade bool `json:"autoUpgrade"`
+
+	// Sharding Whether the org may use sharding.
+	Sharding bool `json:"sharding"`
+
+	// SuspendWorkflows Whether the org may suspend workflows.
+	SuspendWorkflows bool `json:"suspendWorkflows"`
+}
+
+// EntitlementsResponse defines model for EntitlementsResponse.
+type EntitlementsResponse struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/EntitlementsResponse.json
+	Schema       *string      `json:"$schema,omitempty"`
+	Entitlements Entitlements `json:"entitlements"`
+}
 
 // ErrorDetail defines model for ErrorDetail.
 type ErrorDetail struct {
@@ -606,6 +869,14 @@ type GenerateSecretOutputBody struct {
 	Secret string  `json:"secret"`
 }
 
+// Grant defines model for Grant.
+type Grant struct {
+	Permission string `json:"permission"`
+
+	// Workspace Name of the workspace the grant is scoped to. Omitted for the whole organization.
+	Workspace *string `json:"workspace,omitempty"`
+}
+
 // ImportWorkflowInputBody defines model for ImportWorkflowInputBody.
 type ImportWorkflowInputBody struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -660,6 +931,17 @@ type Metric struct {
 	Value      int64     `json:"value"`
 }
 
+// MoveAppInputBody defines model for MoveAppInputBody.
+type MoveAppInputBody struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/MoveAppInputBody.json
+	Schema *string `json:"$schema,omitempty"`
+
+	// Workspace Name of the workspace to move the application to.
+	Workspace string `json:"workspace"`
+}
+
 // Notification defines model for Notification.
 type Notification struct {
 	Consumed  bool      `json:"consumed"`
@@ -683,18 +965,21 @@ type Organization struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: //schemas/Organization.json
-	Schema                      *string                      `json:"$schema,omitempty"`
-	AuditLogRetentionDays       int32                        `json:"auditLogRetentionDays"`
-	CreatedAt                   time.Time                    `json:"createdAt"`
-	DefaultRdsInstanceClassType string                       `json:"defaultRdsInstanceClassType"`
-	Id                          string                       `json:"id"`
-	MaxApps                     int32                        `json:"maxApps"`
-	MaxConductorApps            int32                        `json:"maxConductorApps"`
-	MaxDatabaseInstances        int32                        `json:"maxDatabaseInstances"`
-	MaxTeamMembers              int32                        `json:"maxTeamMembers"`
-	MaxVms                      int32                        `json:"maxVms"`
-	Name                        string                       `json:"name"`
-	SubscriptionPlan            OrganizationSubscriptionPlan `json:"subscriptionPlan"`
+	Schema                      *string   `json:"$schema,omitempty"`
+	AuditLogRetentionDays       int32     `json:"auditLogRetentionDays"`
+	CreatedAt                   time.Time `json:"createdAt"`
+	DefaultRdsInstanceClassType string    `json:"defaultRdsInstanceClassType"`
+	Id                          string    `json:"id"`
+	MaxApps                     int32     `json:"maxApps"`
+	MaxConductorApps            int32     `json:"maxConductorApps"`
+	MaxDatabaseInstances        int32     `json:"maxDatabaseInstances"`
+	MaxTeamMembers              int32     `json:"maxTeamMembers"`
+	MaxVms                      int32     `json:"maxVms"`
+
+	// MaxWorkspaces How many workspaces the org may have. Only DBOS-managed Conductor enforces it, and only when creating a workspace.
+	MaxWorkspaces    int32                        `json:"maxWorkspaces"`
+	Name             string                       `json:"name"`
+	SubscriptionPlan OrganizationSubscriptionPlan `json:"subscriptionPlan"`
 }
 
 // OrganizationSubscriptionPlan defines model for Organization.SubscriptionPlan.
@@ -711,6 +996,9 @@ type PatchAppInputBody struct {
 	GcTimeThresholdMs   *int64  `json:"gcTimeThresholdMs,omitempty"`
 	GlobalTimeoutMs     *int64  `json:"globalTimeoutMs,omitempty"`
 	PrivateMode         *bool   `json:"privateMode,omitempty"`
+
+	// WorkflowMetricsEnabled Turns workflow metrics collection from this application's database on or off. Turning it back on resumes from now: the time it was off is recorded as missing, not collected.
+	WorkflowMetricsEnabled *bool `json:"workflowMetricsEnabled,omitempty"`
 }
 
 // PatchLatestVersionInputBody defines model for PatchLatestVersionInputBody.
@@ -738,6 +1026,9 @@ type PutAppInputBody struct {
 	// Examples: //schemas/PutAppInputBody.json
 	Schema      *string `json:"$schema,omitempty"`
 	PrivateMode *bool   `json:"privateMode,omitempty"`
+
+	// Workspace Name of the workspace to register the application in. May be omitted while the org has only one workspace.
+	Workspace *string `json:"workspace,omitempty"`
 }
 
 // Queue defines model for Queue.
@@ -748,15 +1039,27 @@ type Queue struct {
 	Schema *string `json:"$schema,omitempty"`
 
 	// ApplicationName The application that owns this queue, when several applications share a system database. Null for in-memory queues and for queues recorded before DBOS Transact tracked application names.
-	ApplicationName     *string  `json:"applicationName"`
-	Concurrency         *int32   `json:"concurrency"`
-	Name                string   `json:"name"`
-	PartitionQueue      bool     `json:"partitionQueue"`
-	PollingIntervalSecs float64  `json:"pollingIntervalSecs"`
-	PriorityEnabled     bool     `json:"priorityEnabled"`
-	RateLimitMax        *int32   `json:"rateLimitMax"`
-	RateLimitPeriodSecs *float64 `json:"rateLimitPeriodSecs"`
-	WorkerConcurrency   *int32   `json:"workerConcurrency"`
+	ApplicationName *string `json:"applicationName"`
+	Concurrency     *int32  `json:"concurrency"`
+	Name            string  `json:"name"`
+
+	// PartitionConcurrency Maximum workflows running concurrently within each partition. Null when no such limit is set, and for a queue using the deprecated partitionQueue option, where concurrency itself applies per partition.
+	PartitionConcurrency *int32 `json:"partitionConcurrency"`
+	PartitionQueue       bool   `json:"partitionQueue"`
+
+	// PartitionRateLimitMax Maximum workflows started per rate limit period within each partition. Null when no such limit is set, and for a queue using the deprecated partitionQueue option, where rateLimitMax itself applies per partition.
+	PartitionRateLimitMax *int32 `json:"partitionRateLimitMax"`
+
+	// PartitionRateLimitPeriodSecs Length in seconds of the per-partition rate limit period. Null whenever partitionRateLimitMax is null.
+	PartitionRateLimitPeriodSecs *float64 `json:"partitionRateLimitPeriodSecs"`
+
+	// PartitionWorkerConcurrency Maximum workflows running concurrently on a single executor within each partition. Null when no such limit is set, and for a queue using the deprecated partitionQueue option, where workerConcurrency itself applies per partition.
+	PartitionWorkerConcurrency *int32   `json:"partitionWorkerConcurrency"`
+	PollingIntervalSecs        float64  `json:"pollingIntervalSecs"`
+	PriorityEnabled            bool     `json:"priorityEnabled"`
+	RateLimitMax               *int32   `json:"rateLimitMax"`
+	RateLimitPeriodSecs        *float64 `json:"rateLimitPeriodSecs"`
+	WorkerConcurrency          *int32   `json:"workerConcurrency"`
 }
 
 // QueueAutoscale defines model for QueueAutoscale.
@@ -807,6 +1110,17 @@ type RegisterUserOutputBody struct {
 	Id     string  `json:"id"`
 }
 
+// RenameWorkspaceInputBody defines model for RenameWorkspaceInputBody.
+type RenameWorkspaceInputBody struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/RenameWorkspaceInputBody.json
+	Schema *string `json:"$schema,omitempty"`
+
+	// Name New name of the workspace, unique in the org. Follows the application name rules.
+	Name string `json:"name"`
+}
+
 // RequestDomainClaimInputBody defines model for RequestDomainClaimInputBody.
 type RequestDomainClaimInputBody struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -829,10 +1143,30 @@ type ResumeWorkflowInputBody struct {
 	QueueName *string `json:"queueName,omitempty"`
 }
 
+// RewindWorkflowInputBody defines model for RewindWorkflowInputBody.
+type RewindWorkflowInputBody struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/RewindWorkflowInputBody.json
+	Schema *string `json:"$schema,omitempty"`
+
+	// AppVersion Application version to replay the workflow under. Defaults to the version it already ran on, which only an executor still on that version will dequeue.
+	AppVersion        *string `json:"appVersion,omitempty"`
+	QueueName         *string `json:"queueName,omitempty"`
+	QueuePartitionKey *string `json:"queuePartitionKey,omitempty"`
+
+	// StartStep Step to rewind to. Defaults to the workflow's first step, discarding its whole history.
+	StartStep *int32 `json:"startStep,omitempty"`
+}
+
 // RoleOutput defines model for RoleOutput.
 type RoleOutput struct {
-	IsGlobal    bool     `json:"isGlobal"`
-	Name        string   `json:"name"`
+	// Grants Every grant of the role, each with its scope.
+	Grants   []Grant `json:"grants"`
+	IsGlobal bool    `json:"isGlobal"`
+	Name     string  `json:"name"`
+
+	// Permissions The role's organization-scoped grants.
 	Permissions []string `json:"permissions"`
 }
 
@@ -866,6 +1200,23 @@ type Schedule struct {
 	Status        string  `json:"status"`
 	WorkflowClass *string `json:"workflowClass"`
 	WorkflowName  string  `json:"workflowName"`
+}
+
+// SetOrgLimitsInputBody defines model for SetOrgLimitsInputBody.
+type SetOrgLimitsInputBody struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/SetOrgLimitsInputBody.json
+	Schema *string `json:"$schema,omitempty"`
+
+	// MaxConductorApps New maxConductorApps. Must not be below the current value; omit to leave unchanged.
+	MaxConductorApps *int32 `json:"maxConductorApps,omitempty"`
+
+	// MaxTeamMembers New maxTeamMembers. Must not be below the current value; omit to leave unchanged.
+	MaxTeamMembers *int32 `json:"maxTeamMembers,omitempty"`
+
+	// MaxWorkspaces New maxWorkspaces. Must not be below the current value; omit to leave unchanged.
+	MaxWorkspaces *int32 `json:"maxWorkspaces,omitempty"`
 }
 
 // Step defines model for Step.
@@ -918,6 +1269,9 @@ type Token struct {
 	CreatedAt   time.Time `json:"createdAt"`
 	Permissions []string  `json:"permissions"`
 	TokenName   string    `json:"tokenName"`
+
+	// Workspaces Names of the workspaces the API key is limited to; empty when it isn't.
+	Workspaces []string `json:"workspaces"`
 }
 
 // TokenCreated defines model for TokenCreated.
@@ -1052,6 +1406,7 @@ type WorkflowAggregatesBody struct {
 	GroupByStatus           *bool                   `json:"groupByStatus,omitempty"`
 	GroupByWorkflowName     *bool                   `json:"groupByWorkflowName,omitempty"`
 	HasParent               *bool                   `json:"hasParent,omitempty"`
+	IsFork                  *bool                   `json:"isFork,omitempty"`
 	ParentWorkflowId        *[]string               `json:"parentWorkflowId,omitempty"`
 	QueueName               *[]string               `json:"queueName,omitempty"`
 	ScheduleName            *[]string               `json:"scheduleName,omitempty"`
@@ -1069,6 +1424,379 @@ type WorkflowAggregatesBody struct {
 	WorkflowName            *[]string               `json:"workflowName,omitempty"`
 }
 
+// WorkflowMetricBreakdown defines model for WorkflowMetricBreakdown.
+type WorkflowMetricBreakdown struct {
+	// Buckets Histogram bins with a count, in order; absent for categorical breakdowns and when unavailable. Bins start at the effective start time and step by the bucket width; with an unbounded lower bound they start at multiples of the width from the Unix epoch.
+	Buckets *[]WorkflowMetricBucket `json:"buckets,omitempty"`
+
+	// Reasons Why the breakdown is partial or unavailable: unsupported_filter, degraded_bucket, missing_collection, history_before_origin, archive_limit, live_timeout, live_limit, live_unavailable, collection_disabled when the application's workflow metrics collection is turned off, and not_requested for a live part the request did not ask for, which is not a failure.
+	Reasons []string                     `json:"reasons"`
+	State   WorkflowMetricBreakdownState `json:"state"`
+
+	// Values Categorical counts, most frequent first; absent for the histogram and when unavailable.
+	Values *[]WorkflowMetricCategory `json:"values,omitempty"`
+}
+
+// WorkflowMetricBreakdownState defines model for WorkflowMetricBreakdown.State.
+type WorkflowMetricBreakdownState string
+
+// WorkflowMetricBreakdowns defines model for WorkflowMetricBreakdowns.
+type WorkflowMetricBreakdowns struct {
+	AppVersion   WorkflowMetricBreakdown `json:"appVersion"`
+	Histogram    WorkflowMetricBreakdown `json:"histogram"`
+	QueueName    WorkflowMetricBreakdown `json:"queueName"`
+	Status       WorkflowMetricBreakdown `json:"status"`
+	WorkflowName WorkflowMetricBreakdown `json:"workflowName"`
+}
+
+// WorkflowMetricBucket defines model for WorkflowMetricBucket.
+type WorkflowMetricBucket struct {
+	Count int64     `json:"count"`
+	Start time.Time `json:"start"`
+
+	// StatusCounts The count split by workflow status, omitting statuses with none; it sums to count. History and live combine by adding status by status.
+	StatusCounts *map[string]int64 `json:"statusCounts,omitempty"`
+}
+
+// WorkflowMetricCategory defines model for WorkflowMetricCategory.
+type WorkflowMetricCategory struct {
+	Count int64                      `json:"count"`
+	Kind  WorkflowMetricCategoryKind `json:"kind"`
+
+	// MaxQueueWaitMs The longest queue wait (dequeue time minus creation time) among the counted workflows, in milliseconds; absent when none was dequeued. History and live combine by taking the larger value, not by adding.
+	MaxQueueWaitMs *int64 `json:"maxQueueWaitMs,omitempty"`
+
+	// StatusCounts The count split by workflow status, omitting statuses with none. Present on queue breakdown values only, where it sums to count. History and live combine by adding status by status.
+	StatusCounts *map[string]int64 `json:"statusCounts,omitempty"`
+
+	// Trimmed The value was cut to the length limit, so filtering the list by it is not exact.
+	Trimmed bool `json:"trimmed"`
+
+	// Value The observed value, cut to 1,024 characters; empty for null and overflow.
+	Value string `json:"value"`
+}
+
+// WorkflowMetricCategoryKind defines model for WorkflowMetricCategory.Kind.
+type WorkflowMetricCategoryKind string
+
+// WorkflowMetricHistoryMeta defines model for WorkflowMetricHistoryMeta.
+type WorkflowMetricHistoryMeta struct {
+	// CollectionState lagging: two or more closed five-minute intervals are uncollected. disabled: the application's workflow metrics collection is turned off; every breakdown is unavailable with collection_disabled and the archive's fields are absent.
+	CollectionState WorkflowMetricHistoryMetaCollectionState `json:"collectionState"`
+
+	// CoveredEnd The archive's watermark: completions before it are collected or were skipped. Absent while collection is disabled.
+	CoveredEnd *time.Time `json:"coveredEnd,omitempty"`
+
+	// EffectiveEndTime The request's upper bound snapped up to the histogram tier; absent when unbounded.
+	EffectiveEndTime *time.Time `json:"effectiveEndTime,omitempty"`
+
+	// EffectiveStartTime The request's lower bound snapped down to the histogram tier; absent when unbounded.
+	EffectiveStartTime *time.Time `json:"effectiveStartTime,omitempty"`
+
+	// Generation Absent while collection is disabled.
+	Generation *int64 `json:"generation,omitempty"`
+
+	// HistogramTier Absent while collection is disabled.
+	HistogramTier *WorkflowMetricHistoryMetaHistogramTier `json:"histogramTier,omitempty"`
+
+	// LastGapEnd End of the most recently skipped completion interval; absent when none was skipped. A range starting before it may be missing workflows created in it, and is partial with missing_collection.
+	LastGapEnd    *time.Time `json:"lastGapEnd,omitempty"`
+	LastReceiptAt *time.Time `json:"lastReceiptAt,omitempty"`
+
+	// LegacyCompletionCoverage Workflows without a completion timestamp (pre-migration history) are never collected.
+	LegacyCompletionCoverage WorkflowMetricHistoryMetaLegacyCompletionCoverage `json:"legacyCompletionCoverage"`
+
+	// Origin Completions from here on are collected, minus skipped intervals; nothing before it ever is. Absent while collection is disabled.
+	Origin *time.Time `json:"origin,omitempty"`
+
+	// Semantics Counts are terminal contributions observed by the collector, attributed to creation time: deleted workflows stay counted and a resumed workflow can count twice.
+	Semantics WorkflowMetricHistoryMetaSemantics `json:"semantics"`
+
+	// StatusOnlyBuckets Buckets with collapsed detail among those the categorical breakdowns read. Absent while collection is disabled.
+	StatusOnlyBuckets *int64 `json:"statusOnlyBuckets,omitempty"`
+
+	// TimeBucketSizeMs The effective histogram width. Absent while collection is disabled.
+	TimeBucketSizeMs *int64 `json:"timeBucketSizeMs,omitempty"`
+
+	// UnsupportedFilters Active filters the archive could not apply.
+	UnsupportedFilters []string `json:"unsupportedFilters"`
+}
+
+// WorkflowMetricHistoryMetaCollectionState lagging: two or more closed five-minute intervals are uncollected. disabled: the application's workflow metrics collection is turned off; every breakdown is unavailable with collection_disabled and the archive's fields are absent.
+type WorkflowMetricHistoryMetaCollectionState string
+
+// WorkflowMetricHistoryMetaHistogramTier Absent while collection is disabled.
+type WorkflowMetricHistoryMetaHistogramTier string
+
+// WorkflowMetricHistoryMetaLegacyCompletionCoverage Workflows without a completion timestamp (pre-migration history) are never collected.
+type WorkflowMetricHistoryMetaLegacyCompletionCoverage string
+
+// WorkflowMetricHistoryMetaSemantics Counts are terminal contributions observed by the collector, attributed to creation time: deleted workflows stay counted and a resumed workflow can count twice.
+type WorkflowMetricHistoryMetaSemantics string
+
+// WorkflowMetricHistoryResponse defines model for WorkflowMetricHistoryResponse.
+type WorkflowMetricHistoryResponse struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/WorkflowMetricHistoryResponse.json
+	Schema     *string                  `json:"$schema,omitempty"`
+	Breakdowns WorkflowMetricBreakdowns `json:"breakdowns"`
+
+	// LiveContext What a live request echoes. Absent while collection is disabled, when there is no supplement to ask for.
+	LiveContext *WorkflowMetricLiveContext `json:"liveContext,omitempty"`
+	Meta        WorkflowMetricHistoryMeta  `json:"meta"`
+}
+
+// WorkflowMetricLiveAvailabilities defines model for WorkflowMetricLiveAvailabilities.
+type WorkflowMetricLiveAvailabilities struct {
+	AppVersion   WorkflowMetricLiveAvailability `json:"appVersion"`
+	Histogram    WorkflowMetricLiveAvailability `json:"histogram"`
+	QueueName    WorkflowMetricLiveAvailability `json:"queueName"`
+	Status       WorkflowMetricLiveAvailability `json:"status"`
+	WorkflowName WorkflowMetricLiveAvailability `json:"workflowName"`
+}
+
+// WorkflowMetricLiveAvailability defines model for WorkflowMetricLiveAvailability.
+type WorkflowMetricLiveAvailability struct {
+	// Components The components the chart sums over the archive. The nonterminal component is listed only when the request asked for its part of the chart: the categorical charts under breakdowns, the histogram under bins.
+	Components []string `json:"components"`
+	Reasons    []string `json:"reasons"`
+
+	// State unavailable for an archive-side reason, whatever live returned; partial when a component the chart sums failed or the live lookback leaves an uncovered completion interval (missing_collection).
+	State WorkflowMetricLiveAvailabilityState `json:"state"`
+}
+
+// WorkflowMetricLiveAvailabilityState unavailable for an archive-side reason, whatever live returned; partial when a component the chart sums failed or the live lookback leaves an uncovered completion interval (missing_collection).
+type WorkflowMetricLiveAvailabilityState string
+
+// WorkflowMetricLiveComponent defines model for WorkflowMetricLiveComponent.
+type WorkflowMetricLiveComponent struct {
+	// Breakdowns This component's own counts; unavailable with the outcome's reason when it failed.
+	Breakdowns WorkflowMetricBreakdowns `json:"breakdowns"`
+
+	// Detail What went wrong, for a failed outcome.
+	Detail *string `json:"detail,omitempty"`
+
+	// Outcome empty_window: nothing to ask, the watermark is at the request time (terminal only). not_attempted: an unsupported filter, no source work. not_requested: the request set nonterminal to none, so no source work (nonterminal only). disabled: the application's workflow metrics collection is turned off, so no source work. timeout: the shared 20-second budget elapsed. row_limit: over 20,000 rows. no_executor: no eligible executor. failed: dispatch failed or the reply was unusable. A failed terminal component does not stop the nonterminal one; only the spent budget stops later requests.
+	Outcome WorkflowMetricLiveComponentOutcome `json:"outcome"`
+
+	// ReceivedAt When the reply arrived; absent without one.
+	ReceivedAt *time.Time `json:"receivedAt,omitempty"`
+
+	// Rows Rows in an accepted reply.
+	Rows int64 `json:"rows"`
+
+	// StartedAt When the source request was dispatched; absent when it never was.
+	StartedAt *time.Time `json:"startedAt,omitempty"`
+	WindowEnd *time.Time `json:"windowEnd,omitempty"`
+
+	// WindowStart Terminal only: the completion window [windowStart, windowEnd); absent when not dispatched.
+	WindowStart *time.Time `json:"windowStart,omitempty"`
+}
+
+// WorkflowMetricLiveComponentOutcome empty_window: nothing to ask, the watermark is at the request time (terminal only). not_attempted: an unsupported filter, no source work. not_requested: the request set nonterminal to none, so no source work (nonterminal only). disabled: the application's workflow metrics collection is turned off, so no source work. timeout: the shared 20-second budget elapsed. row_limit: over 20,000 rows. no_executor: no eligible executor. failed: dispatch failed or the reply was unusable. A failed terminal component does not stop the nonterminal one; only the spent budget stops later requests.
+type WorkflowMetricLiveComponentOutcome string
+
+// WorkflowMetricLiveContext defines model for WorkflowMetricLiveContext.
+type WorkflowMetricLiveContext struct {
+	// EffectiveEndTime Absent for an unbounded upper bound.
+	EffectiveEndTime *time.Time `json:"effectiveEndTime,omitempty"`
+
+	// EffectiveStartTime Absent for an unbounded lower bound.
+	EffectiveStartTime *time.Time `json:"effectiveStartTime,omitempty"`
+	TimeBucketSizeMs   int64      `json:"timeBucketSizeMs"`
+
+	// Watermark The archive's watermark; the live terminal window starts here.
+	Watermark time.Time `json:"watermark"`
+}
+
+// WorkflowMetricLiveMeta defines model for WorkflowMetricLiveMeta.
+type WorkflowMetricLiveMeta struct {
+	// RowLimit Rows accepted per component.
+	RowLimit int64 `json:"rowLimit"`
+
+	// StatusOnlyBuckets Buckets with collapsed detail among those the history categorical breakdowns read.
+	StatusOnlyBuckets int64 `json:"statusOnlyBuckets"`
+
+	// TerminalLookbackMs How far before the request time the terminal window can reach; an older watermark leaves a hole.
+	TerminalLookbackMs int64 `json:"terminalLookbackMs"`
+
+	// UnsupportedFilters Active filters the archive could not apply.
+	UnsupportedFilters []string `json:"unsupportedFilters"`
+}
+
+// WorkflowMetricLiveResponse defines model for WorkflowMetricLiveResponse.
+type WorkflowMetricLiveResponse struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/WorkflowMetricLiveResponse.json
+	Schema   *string                          `json:"$schema,omitempty"`
+	Combined WorkflowMetricLiveAvailabilities `json:"combined"`
+
+	// LiveContext The context this supplement was computed for; a late response for a superseded one can be discarded.
+	LiveContext WorkflowMetricLiveContext `json:"liveContext"`
+	Meta        WorkflowMetricLiveMeta    `json:"meta"`
+
+	// Nonterminal PENDING, ENQUEUED and DELAYED workflows created in the effective range, regardless of age.
+	Nonterminal WorkflowMetricLiveComponent `json:"nonterminal"`
+
+	// Terminal Terminal completions since the watermark, within the lookback, created in the effective range.
+	Terminal WorkflowMetricLiveComponent `json:"terminal"`
+}
+
+// WorkflowMetricsHistoryBody defines model for WorkflowMetricsHistoryBody.
+type WorkflowMetricsHistoryBody struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/WorkflowMetricsHistoryBody.json
+	Schema     *string   `json:"$schema,omitempty"`
+	AppVersion *[]string `json:"appVersion,omitempty"`
+
+	// Attributes Unsupported by the archive; when set the breakdowns are unavailable.
+	Attributes *map[string]interface{} `json:"attributes,omitempty"`
+
+	// CompletedAfter Unsupported by the archive; when set the breakdowns are unavailable.
+	CompletedAfter *time.Time `json:"completedAfter,omitempty"`
+
+	// CompletedBefore Unsupported by the archive; when set the breakdowns are unavailable.
+	CompletedBefore *time.Time `json:"completedBefore,omitempty"`
+
+	// DequeuedAfter Unsupported by the archive; when set the breakdowns are unavailable.
+	DequeuedAfter *time.Time `json:"dequeuedAfter,omitempty"`
+
+	// DequeuedBefore Unsupported by the archive; when set the breakdowns are unavailable.
+	DequeuedBefore *time.Time `json:"dequeuedBefore,omitempty"`
+
+	// EndTime Creation-time upper bound; omitted means no bound. Ignored by the live endpoint, which uses the effective range.
+	EndTime *time.Time `json:"endTime,omitempty"`
+
+	// ExecutorId Unsupported by the archive; when set the breakdowns are unavailable.
+	ExecutorId *[]string `json:"executorId,omitempty"`
+
+	// ForkedFrom Unsupported by the archive; when set the breakdowns are unavailable.
+	ForkedFrom *[]string `json:"forkedFrom,omitempty"`
+
+	// HasParent Unsupported by the archive; when set the breakdowns are unavailable.
+	HasParent *bool `json:"hasParent,omitempty"`
+
+	// ParentWorkflowId Unsupported by the archive; when set the breakdowns are unavailable.
+	ParentWorkflowId *[]string `json:"parentWorkflowId,omitempty"`
+	QueueName        *[]string `json:"queueName,omitempty"`
+
+	// QueuesOnly Unsupported by the archive; when set the breakdowns are unavailable.
+	QueuesOnly *bool `json:"queuesOnly,omitempty"`
+
+	// ScheduleName Unsupported by the archive; when set the breakdowns are unavailable.
+	ScheduleName *[]string `json:"scheduleName,omitempty"`
+
+	// StartTime Creation-time lower bound; omitted means all time. Ignored by the live endpoint, which uses the effective range.
+	StartTime *time.Time `json:"startTime,omitempty"`
+	Status    *[]string  `json:"status,omitempty"`
+
+	// TimeBucketSizeMs Requested histogram width; the effective width is at least a whole minute and widens to keep the histogram under 1,000 bins.
+	TimeBucketSizeMs int64 `json:"timeBucketSizeMs"`
+
+	// User Unsupported by the archive; when set the breakdowns are unavailable.
+	User *[]string `json:"user,omitempty"`
+
+	// WasForkedFrom Unsupported by the archive; when set the breakdowns are unavailable.
+	WasForkedFrom *bool `json:"wasForkedFrom,omitempty"`
+
+	// WorkflowIdPrefix Unsupported by the archive; when set the breakdowns are unavailable.
+	WorkflowIdPrefix *[]string `json:"workflowIdPrefix,omitempty"`
+
+	// WorkflowIds Unsupported by the archive; when set the breakdowns are unavailable.
+	WorkflowIds  *[]string `json:"workflowIds,omitempty"`
+	WorkflowName *[]string `json:"workflowName,omitempty"`
+
+	// WorkflowNameExclude Workflow names to leave out; the name breakdown itself ignores it.
+	WorkflowNameExclude *[]string `json:"workflowNameExclude,omitempty"`
+}
+
+// WorkflowMetricsLiveBody defines model for WorkflowMetricsLiveBody.
+type WorkflowMetricsLiveBody struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/WorkflowMetricsLiveBody.json
+	Schema     *string   `json:"$schema,omitempty"`
+	AppVersion *[]string `json:"appVersion,omitempty"`
+
+	// Attributes Unsupported by the archive; when set the breakdowns are unavailable.
+	Attributes *map[string]interface{} `json:"attributes,omitempty"`
+
+	// CompletedAfter Unsupported by the archive; when set the breakdowns are unavailable.
+	CompletedAfter *time.Time `json:"completedAfter,omitempty"`
+
+	// CompletedBefore Unsupported by the archive; when set the breakdowns are unavailable.
+	CompletedBefore *time.Time `json:"completedBefore,omitempty"`
+
+	// DequeuedAfter Unsupported by the archive; when set the breakdowns are unavailable.
+	DequeuedAfter *time.Time `json:"dequeuedAfter,omitempty"`
+
+	// DequeuedBefore Unsupported by the archive; when set the breakdowns are unavailable.
+	DequeuedBefore *time.Time `json:"dequeuedBefore,omitempty"`
+
+	// EffectiveEndTime liveContext.effectiveEndTime of the history response; omitted when unbounded.
+	EffectiveEndTime *time.Time `json:"effectiveEndTime,omitempty"`
+
+	// EffectiveStartTime liveContext.effectiveStartTime of the history response; omitted when unbounded.
+	EffectiveStartTime *time.Time `json:"effectiveStartTime,omitempty"`
+
+	// EndTime Creation-time upper bound; omitted means no bound. Ignored by the live endpoint, which uses the effective range.
+	EndTime *time.Time `json:"endTime,omitempty"`
+
+	// ExecutorId Unsupported by the archive; when set the breakdowns are unavailable.
+	ExecutorId *[]string `json:"executorId,omitempty"`
+
+	// ForkedFrom Unsupported by the archive; when set the breakdowns are unavailable.
+	ForkedFrom *[]string `json:"forkedFrom,omitempty"`
+
+	// HasParent Unsupported by the archive; when set the breakdowns are unavailable.
+	HasParent *bool `json:"hasParent,omitempty"`
+
+	// Nonterminal The part of the nonterminal component to compute. breakdowns: the categorical breakdowns; its histogram is unavailable with not_requested. bins: the histogram, with the filter applied at the source; the categorical breakdowns are unavailable with not_requested. none: no nonterminal source work; the component is not_requested. A part not requested joins no combined chart.
+	Nonterminal *WorkflowMetricsLiveBodyNonterminal `json:"nonterminal,omitempty"`
+
+	// ParentWorkflowId Unsupported by the archive; when set the breakdowns are unavailable.
+	ParentWorkflowId *[]string `json:"parentWorkflowId,omitempty"`
+	QueueName        *[]string `json:"queueName,omitempty"`
+
+	// QueuesOnly Unsupported by the archive; when set the breakdowns are unavailable.
+	QueuesOnly *bool `json:"queuesOnly,omitempty"`
+
+	// ScheduleName Unsupported by the archive; when set the breakdowns are unavailable.
+	ScheduleName *[]string `json:"scheduleName,omitempty"`
+
+	// StartTime Creation-time lower bound; omitted means all time. Ignored by the live endpoint, which uses the effective range.
+	StartTime *time.Time `json:"startTime,omitempty"`
+	Status    *[]string  `json:"status,omitempty"`
+
+	// TimeBucketSizeMs liveContext.timeBucketSizeMs of the history response; whole minutes.
+	TimeBucketSizeMs int64 `json:"timeBucketSizeMs"`
+
+	// User Unsupported by the archive; when set the breakdowns are unavailable.
+	User *[]string `json:"user,omitempty"`
+
+	// WasForkedFrom Unsupported by the archive; when set the breakdowns are unavailable.
+	WasForkedFrom *bool `json:"wasForkedFrom,omitempty"`
+
+	// Watermark liveContext.watermark of the history response; the terminal window starts here.
+	Watermark time.Time `json:"watermark"`
+
+	// WorkflowIdPrefix Unsupported by the archive; when set the breakdowns are unavailable.
+	WorkflowIdPrefix *[]string `json:"workflowIdPrefix,omitempty"`
+
+	// WorkflowIds Unsupported by the archive; when set the breakdowns are unavailable.
+	WorkflowIds  *[]string `json:"workflowIds,omitempty"`
+	WorkflowName *[]string `json:"workflowName,omitempty"`
+
+	// WorkflowNameExclude Workflow names to leave out; the name breakdown itself ignores it.
+	WorkflowNameExclude *[]string `json:"workflowNameExclude,omitempty"`
+}
+
+// WorkflowMetricsLiveBodyNonterminal The part of the nonterminal component to compute. breakdowns: the categorical breakdowns; its histogram is unavailable with not_requested. bins: the histogram, with the filter applied at the source; the categorical breakdowns are unavailable with not_requested. none: no nonterminal source work; the component is not_requested. A part not requested joins no combined chart.
+type WorkflowMetricsLiveBodyNonterminal string
+
 // WorkflowSearchBody defines model for WorkflowSearchBody.
 type WorkflowSearchBody struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -1085,6 +1813,7 @@ type WorkflowSearchBody struct {
 	ExecutorId       *[]string               `json:"executorId,omitempty"`
 	ForkedFrom       *[]string               `json:"forkedFrom,omitempty"`
 	HasParent        *bool                   `json:"hasParent,omitempty"`
+	IsFork           *bool                   `json:"isFork,omitempty"`
 	Limit            *int64                  `json:"limit,omitempty"`
 	LoadInput        *bool                   `json:"loadInput,omitempty"`
 	LoadOutput       *bool                   `json:"loadOutput,omitempty"`
@@ -1101,6 +1830,22 @@ type WorkflowSearchBody struct {
 	WorkflowIdPrefix *[]string               `json:"workflowIdPrefix,omitempty"`
 	WorkflowIds      *[]string               `json:"workflowIds,omitempty"`
 	WorkflowName     *[]string               `json:"workflowName,omitempty"`
+}
+
+// Workspace defines model for Workspace.
+type Workspace struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/Workspace.json
+	Schema    *string   `json:"$schema,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
+	Name      string    `json:"name"`
+}
+
+// ListAppsParams defines parameters for ListApps.
+type ListAppsParams struct {
+	// Workspace Lists only the applications in the workspace of this name.
+	Workspace *string `form:"workspace,omitempty" json:"workspace,omitempty"`
 }
 
 // ListMetricsParams defines parameters for ListMetrics.
@@ -1171,6 +1916,9 @@ type CreateAlertingRuleJSONRequestBody = CreateAlertInputBody
 // SetAutoscalingPolicyJSONRequestBody defines body for SetAutoscalingPolicy for application/json ContentType.
 type SetAutoscalingPolicyJSONRequestBody = AutoscalePolicy
 
+// MoveAppJSONRequestBody defines body for MoveApp for application/json ContentType.
+type MoveAppJSONRequestBody = MoveAppInputBody
+
 // BackfillScheduleJSONRequestBody defines body for BackfillSchedule for application/json ContentType.
 type BackfillScheduleJSONRequestBody = BackfillInputBody
 
@@ -1198,6 +1946,12 @@ type BulkResumeWorkflowsJSONRequestBody = BulkResumeInputBody
 // ImportWorkflowJSONRequestBody defines body for ImportWorkflow for application/json ContentType.
 type ImportWorkflowJSONRequestBody = ImportWorkflowInputBody
 
+// GetWorkflowMetricsHistoryJSONRequestBody defines body for GetWorkflowMetricsHistory for application/json ContentType.
+type GetWorkflowMetricsHistoryJSONRequestBody = WorkflowMetricsHistoryBody
+
+// GetWorkflowMetricsLiveJSONRequestBody defines body for GetWorkflowMetricsLive for application/json ContentType.
+type GetWorkflowMetricsLiveJSONRequestBody = WorkflowMetricsLiveBody
+
 // SearchWorkflowsJSONRequestBody defines body for SearchWorkflows for application/json ContentType.
 type SearchWorkflowsJSONRequestBody = WorkflowSearchBody
 
@@ -1210,11 +1964,17 @@ type ForkWorkflowJSONRequestBody = ForkWorkflowInputBody
 // ResumeWorkflowJSONRequestBody defines body for ResumeWorkflow for application/json ContentType.
 type ResumeWorkflowJSONRequestBody = ResumeWorkflowInputBody
 
+// RewindWorkflowJSONRequestBody defines body for RewindWorkflow for application/json ContentType.
+type RewindWorkflowJSONRequestBody = RewindWorkflowInputBody
+
 // RequestDomainClaimJSONRequestBody defines body for RequestDomainClaim for application/json ContentType.
 type RequestDomainClaimJSONRequestBody = RequestDomainClaimInputBody
 
 // JoinOrgJSONRequestBody defines body for JoinOrg for application/json ContentType.
 type JoinOrgJSONRequestBody = JoinOrgInputBody
+
+// SetOrgLimitsJSONRequestBody defines body for SetOrgLimits for application/json ContentType.
+type SetOrgLimitsJSONRequestBody = SetOrgLimitsInputBody
 
 // CreateRoleJSONRequestBody defines body for CreateRole for application/json ContentType.
 type CreateRoleJSONRequestBody = CreateRoleInputBody
@@ -1224,6 +1984,12 @@ type UpdateTokenJSONRequestBody = UpdateTokenInputBody
 
 // CreateTokenJSONRequestBody defines body for CreateToken for application/json ContentType.
 type CreateTokenJSONRequestBody = CreateTokenInputBody
+
+// CreateWorkspaceJSONRequestBody defines body for CreateWorkspace for application/json ContentType.
+type CreateWorkspaceJSONRequestBody = CreateWorkspaceInputBody
+
+// RenameWorkspaceJSONRequestBody defines body for RenameWorkspace for application/json ContentType.
+type RenameWorkspaceJSONRequestBody = RenameWorkspaceInputBody
 
 // RegisterUserJSONRequestBody defines body for RegisterUser for application/json ContentType.
 type RegisterUserJSONRequestBody = RegisterUserInputBody
@@ -1302,6 +2068,13 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 // The interface specification for the client above.
 type ClientInterface interface {
 
+	// GetEntitlements Get Transact Enterprise entitlements
+	//
+	// Returns the Transact Enterprise features the calling API key's org may use; a feature reported false is not included in the org's plan. An org past its plan limit gets 403 with X-DBOS-Error: past_limit instead. Self-hosted Conductor grants every feature, and with OAuth disabled it needs no credentials. Otherwise any valid API key is accepted regardless of its permissions, and user credentials are rejected with 401.
+	//
+	// Corresponds with GET /v2/entitlements (the `GetEntitlements` operationId).
+	GetEntitlements(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetOrg Get org
 	//
 	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
@@ -1330,7 +2103,7 @@ type ClientInterface interface {
 	// ListApps List applications
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps (the `ListApps` operationId).
-	ListApps(ctx context.Context, orgName string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ListApps(ctx context.Context, orgName string, params *ListAppsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteApp Delete application
 	//
@@ -1358,12 +2131,16 @@ type ClientInterface interface {
 
 	// RegisterAppWithBody Register application
 	//
+	// Registers an application in a workspace. Without a workspace, it goes into the org's only workspace; when the org has more than one, registration fails with a workspace-required error.
+	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with PUT /v2/orgs/{orgName}/apps/{appName} (the `RegisterApp` operationId).
 	RegisterAppWithBody(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RegisterApp Register application
+	//
+	// Registers an application in a workspace. Without a workspace, it goes into the org's only workspace; when the org has more than one, registration fails with a workspace-required error.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -1424,7 +2201,7 @@ type ClientInterface interface {
 
 	// SetAutoscalingPolicyWithBody Set autoscaling policy
 	//
-	// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — not partitioned, worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
+	// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -1433,7 +2210,7 @@ type ClientInterface interface {
 
 	// SetAutoscalingPolicy Set autoscaling policy
 	//
-	// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — not partitioned, worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
+	// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -1449,6 +2226,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/metrics (the `ListMetrics` operationId).
 	ListMetrics(ctx context.Context, orgName string, appName string, params *ListMetricsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MoveAppWithBody Move application
+	//
+	// Moves a Conductor application to another workspace of the org. It keeps its name, history and connected executors; moving it to the workspace it is in changes nothing. DBOS Cloud applications can't be moved.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/move (the `MoveApp` operationId).
+	MoveAppWithBody(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MoveApp Move application
+	//
+	// Moves a Conductor application to another workspace of the org. It keeps its name, history and connected executors; moving it to the workspace it is in changes nothing. DBOS Cloud applications can't be moved.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/move (the `MoveApp` operationId).
+	MoveApp(ctx context.Context, orgName string, appName string, body MoveAppJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListQueues List queues
 	//
@@ -1621,6 +2416,42 @@ type ClientInterface interface {
 	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/import (the `ImportWorkflow` operationId).
 	ImportWorkflow(ctx context.Context, orgName string, appName string, body ImportWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetWorkflowMetricsHistoryWithBody Get archived workflow metrics
+	//
+	// Renders the workflow filter charts from conductor's archive of observed terminal activity, without querying the application's database. 404 when the application has no archive yet.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/metrics/history (the `GetWorkflowMetricsHistory` operationId).
+	GetWorkflowMetricsHistoryWithBody(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetWorkflowMetricsHistory Get archived workflow metrics
+	//
+	// Renders the workflow filter charts from conductor's archive of observed terminal activity, without querying the application's database. 404 when the application has no archive yet.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/metrics/history (the `GetWorkflowMetricsHistory` operationId).
+	GetWorkflowMetricsHistory(ctx context.Context, orgName string, appName string, body GetWorkflowMetricsHistoryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetWorkflowMetricsLiveWithBody Get the live supplement to archived workflow metrics
+	//
+	// Asks one executor, under one 20-second budget, for terminal completions since the history response's watermark (at most 15 minutes back) and for the workflows still pending, both within the effective creation range. Source failures are per-component outcomes, never errors. 400 for a context outside this application's archive, 404 without an archive.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/metrics/live (the `GetWorkflowMetricsLive` operationId).
+	GetWorkflowMetricsLiveWithBody(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetWorkflowMetricsLive Get the live supplement to archived workflow metrics
+	//
+	// Asks one executor, under one 20-second budget, for terminal completions since the history response's watermark (at most 15 minutes back) and for the workflows still pending, both within the effective creation range. Source failures are per-component outcomes, never errors. 400 for a context outside this application's archive, 404 without an archive.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/metrics/live (the `GetWorkflowMetricsLive` operationId).
+	GetWorkflowMetricsLive(ctx context.Context, orgName string, appName string, body GetWorkflowMetricsLiveJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// SearchWorkflowsWithBody Search workflows
 	//
 	// Takes any type of body and a specified content type.
@@ -1702,6 +2533,20 @@ type ClientInterface interface {
 	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/resume (the `ResumeWorkflow` operationId).
 	ResumeWorkflow(ctx context.Context, orgName string, appName string, workflowId string, body ResumeWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// RewindWorkflowWithBody Rewind workflow
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/rewind (the `RewindWorkflow` operationId).
+	RewindWorkflowWithBody(ctx context.Context, orgName string, appName string, workflowId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RewindWorkflow Rewind workflow
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/rewind (the `RewindWorkflow` operationId).
+	RewindWorkflow(ctx context.Context, orgName string, appName string, workflowId string, body RewindWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListWorkflowSteps List workflow steps
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/steps (the `ListWorkflowSteps` operationId).
@@ -1776,6 +2621,28 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /v2/orgs/{orgName}/join (the `JoinOrg` operationId).
 	JoinOrg(ctx context.Context, orgName string, body JoinOrgJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetOrgLimitsWithBody Set org limits
+	//
+	// Sets the org's maxTeamMembers, maxConductorApps and maxWorkspaces to the given values and returns the updated org. At least one value must be given; an omitted value is left unchanged. Limits can only be raised here, never lowered; setting a limit to its current value is a no-op. Requires a DBOS Teams subscription.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /v2/orgs/{orgName}/limits (the `SetOrgLimits` operationId).
+	SetOrgLimitsWithBody(ctx context.Context, orgName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetOrgLimits Set org limits
+	//
+	// Sets the org's maxTeamMembers, maxConductorApps and maxWorkspaces to the given values and returns the updated org. At least one value must be given; an omitted value is left unchanged. Limits can only be raised here, never lowered; setting a limit to its current value is a no-op. Requires a DBOS Teams subscription.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /v2/orgs/{orgName}/limits (the `SetOrgLimits` operationId).
+	SetOrgLimits(ctx context.Context, orgName string, body SetOrgLimitsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListMembers List members
 	//
@@ -1880,6 +2747,56 @@ type ClientInterface interface {
 	// Corresponds with POST /v2/orgs/{orgName}/tokens/{tokenName} (the `CreateToken` operationId).
 	CreateToken(ctx context.Context, orgName string, tokenName string, body CreateTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListWorkspaces List workspaces
+	//
+	// Lists every workspace of the org, ordered by name. Any member of the org, and any of its API keys, may list them regardless of permissions.
+	//
+	// Corresponds with GET /v2/orgs/{orgName}/workspaces (the `ListWorkspaces` operationId).
+	ListWorkspaces(ctx context.Context, orgName string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateWorkspaceWithBody Create workspace
+	//
+	// Creates an empty workspace. On DBOS-managed Conductor, creation is refused once the org has as many workspaces as its maxWorkspaces limit; self-hosted Conductor has no workspace limit.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/workspaces (the `CreateWorkspace` operationId).
+	CreateWorkspaceWithBody(ctx context.Context, orgName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateWorkspace Create workspace
+	//
+	// Creates an empty workspace. On DBOS-managed Conductor, creation is refused once the org has as many workspaces as its maxWorkspaces limit; self-hosted Conductor has no workspace limit.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/workspaces (the `CreateWorkspace` operationId).
+	CreateWorkspace(ctx context.Context, orgName string, body CreateWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteWorkspace Delete workspace
+	//
+	// Deletes an empty workspace, as long as the org keeps another one.
+	//
+	// Corresponds with DELETE /v2/orgs/{orgName}/workspaces/{workspaceName} (the `DeleteWorkspace` operationId).
+	DeleteWorkspace(ctx context.Context, orgName string, workspaceName string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RenameWorkspaceWithBody Rename workspace
+	//
+	// Renames a workspace. Its applications stay in it.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /v2/orgs/{orgName}/workspaces/{workspaceName} (the `RenameWorkspace` operationId).
+	RenameWorkspaceWithBody(ctx context.Context, orgName string, workspaceName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RenameWorkspace Rename workspace
+	//
+	// Renames a workspace. Its applications stay in it.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /v2/orgs/{orgName}/workspaces/{workspaceName} (the `RenameWorkspace` operationId).
+	RenameWorkspace(ctx context.Context, orgName string, workspaceName string, body RenameWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RegisterUserWithBody Register user
 	//
 	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
@@ -1904,6 +2821,23 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /v2/users/me (the `GetCurrentUser` operationId).
 	GetCurrentUser(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+// GetEntitlements Get Transact Enterprise entitlements
+//
+// Returns the Transact Enterprise features the calling API key's org may use; a feature reported false is not included in the org's plan. An org past its plan limit gets 403 with X-DBOS-Error: past_limit instead. Self-hosted Conductor grants every feature, and with OAuth disabled it needs no credentials. Otherwise any valid API key is accepted regardless of its permissions, and user credentials are rejected with 401.
+//
+// Corresponds with GET /v2/entitlements (the `GetEntitlements` operationId).
+func (c *Client) GetEntitlements(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetEntitlementsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 // GetOrg Get org
@@ -1964,8 +2898,8 @@ func (c *Client) UpdateOrg(ctx context.Context, orgName string, body UpdateOrgJS
 // ListApps List applications
 //
 // Corresponds with GET /v2/orgs/{orgName}/apps (the `ListApps` operationId).
-func (c *Client) ListApps(ctx context.Context, orgName string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListAppsRequest(c.Server, orgName)
+func (c *Client) ListApps(ctx context.Context, orgName string, params *ListAppsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAppsRequest(c.Server, orgName, params)
 	if err != nil {
 		return nil, err
 	}
@@ -2042,6 +2976,8 @@ func (c *Client) UpdateApp(ctx context.Context, orgName string, appName string, 
 
 // RegisterAppWithBody Register application
 //
+// Registers an application in a workspace. Without a workspace, it goes into the org's only workspace; when the org has more than one, registration fails with a workspace-required error.
+//
 // Takes any type of body and a specified content type.
 //
 // Corresponds with PUT /v2/orgs/{orgName}/apps/{appName} (the `RegisterApp` operationId).
@@ -2058,6 +2994,8 @@ func (c *Client) RegisterAppWithBody(ctx context.Context, orgName string, appNam
 }
 
 // RegisterApp Register application
+//
+// Registers an application in a workspace. Without a workspace, it goes into the org's only workspace; when the org has more than one, registration fails with a workspace-required error.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -2208,7 +3146,7 @@ func (c *Client) GetAutoscalingPolicy(ctx context.Context, orgName string, appNa
 
 // SetAutoscalingPolicyWithBody Set autoscaling policy
 //
-// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — not partitioned, worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
+// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
 //
 // Takes any type of body and a specified content type.
 //
@@ -2227,7 +3165,7 @@ func (c *Client) SetAutoscalingPolicyWithBody(ctx context.Context, orgName strin
 
 // SetAutoscalingPolicy Set autoscaling policy
 //
-// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — not partitioned, worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
+// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -2264,6 +3202,44 @@ func (c *Client) ListExecutors(ctx context.Context, orgName string, appName stri
 // Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/metrics (the `ListMetrics` operationId).
 func (c *Client) ListMetrics(ctx context.Context, orgName string, appName string, params *ListMetricsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListMetricsRequest(c.Server, orgName, appName, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MoveAppWithBody Move application
+//
+// Moves a Conductor application to another workspace of the org. It keeps its name, history and connected executors; moving it to the workspace it is in changes nothing. DBOS Cloud applications can't be moved.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/move (the `MoveApp` operationId).
+func (c *Client) MoveAppWithBody(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMoveAppRequestWithBody(c.Server, orgName, appName, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MoveApp Move application
+//
+// Moves a Conductor application to another workspace of the org. It keeps its name, history and connected executors; moving it to the workspace it is in changes nothing. DBOS Cloud applications can't be moved.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/move (the `MoveApp` operationId).
+func (c *Client) MoveApp(ctx context.Context, orgName string, appName string, body MoveAppJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMoveAppRequest(c.Server, orgName, appName, body)
 	if err != nil {
 		return nil, err
 	}
@@ -2715,6 +3691,82 @@ func (c *Client) ImportWorkflow(ctx context.Context, orgName string, appName str
 	return c.Client.Do(req)
 }
 
+// GetWorkflowMetricsHistoryWithBody Get archived workflow metrics
+//
+// Renders the workflow filter charts from conductor's archive of observed terminal activity, without querying the application's database. 404 when the application has no archive yet.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/metrics/history (the `GetWorkflowMetricsHistory` operationId).
+func (c *Client) GetWorkflowMetricsHistoryWithBody(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetWorkflowMetricsHistoryRequestWithBody(c.Server, orgName, appName, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetWorkflowMetricsHistory Get archived workflow metrics
+//
+// Renders the workflow filter charts from conductor's archive of observed terminal activity, without querying the application's database. 404 when the application has no archive yet.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/metrics/history (the `GetWorkflowMetricsHistory` operationId).
+func (c *Client) GetWorkflowMetricsHistory(ctx context.Context, orgName string, appName string, body GetWorkflowMetricsHistoryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetWorkflowMetricsHistoryRequest(c.Server, orgName, appName, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetWorkflowMetricsLiveWithBody Get the live supplement to archived workflow metrics
+//
+// Asks one executor, under one 20-second budget, for terminal completions since the history response's watermark (at most 15 minutes back) and for the workflows still pending, both within the effective creation range. Source failures are per-component outcomes, never errors. 400 for a context outside this application's archive, 404 without an archive.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/metrics/live (the `GetWorkflowMetricsLive` operationId).
+func (c *Client) GetWorkflowMetricsLiveWithBody(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetWorkflowMetricsLiveRequestWithBody(c.Server, orgName, appName, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetWorkflowMetricsLive Get the live supplement to archived workflow metrics
+//
+// Asks one executor, under one 20-second budget, for terminal completions since the history response's watermark (at most 15 minutes back) and for the workflows still pending, both within the effective creation range. Source failures are per-component outcomes, never errors. 400 for a context outside this application's archive, 404 without an archive.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/metrics/live (the `GetWorkflowMetricsLive` operationId).
+func (c *Client) GetWorkflowMetricsLive(ctx context.Context, orgName string, appName string, body GetWorkflowMetricsLiveJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetWorkflowMetricsLiveRequest(c.Server, orgName, appName, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // SearchWorkflowsWithBody Search workflows
 //
 // Takes any type of body and a specified content type.
@@ -2926,6 +3978,40 @@ func (c *Client) ResumeWorkflow(ctx context.Context, orgName string, appName str
 	return c.Client.Do(req)
 }
 
+// RewindWorkflowWithBody Rewind workflow
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/rewind (the `RewindWorkflow` operationId).
+func (c *Client) RewindWorkflowWithBody(ctx context.Context, orgName string, appName string, workflowId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRewindWorkflowRequestWithBody(c.Server, orgName, appName, workflowId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RewindWorkflow Rewind workflow
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/rewind (the `RewindWorkflow` operationId).
+func (c *Client) RewindWorkflow(ctx context.Context, orgName string, appName string, workflowId string, body RewindWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRewindWorkflowRequest(c.Server, orgName, appName, workflowId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListWorkflowSteps List workflow steps
 //
 // Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/steps (the `ListWorkflowSteps` operationId).
@@ -3081,6 +4167,48 @@ func (c *Client) JoinOrgWithBody(ctx context.Context, orgName string, contentTyp
 // Corresponds with POST /v2/orgs/{orgName}/join (the `JoinOrg` operationId).
 func (c *Client) JoinOrg(ctx context.Context, orgName string, body JoinOrgJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewJoinOrgRequest(c.Server, orgName, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetOrgLimitsWithBody Set org limits
+//
+// Sets the org's maxTeamMembers, maxConductorApps and maxWorkspaces to the given values and returns the updated org. At least one value must be given; an omitted value is left unchanged. Limits can only be raised here, never lowered; setting a limit to its current value is a no-op. Requires a DBOS Teams subscription.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /v2/orgs/{orgName}/limits (the `SetOrgLimits` operationId).
+func (c *Client) SetOrgLimitsWithBody(ctx context.Context, orgName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetOrgLimitsRequestWithBody(c.Server, orgName, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetOrgLimits Set org limits
+//
+// Sets the org's maxTeamMembers, maxConductorApps and maxWorkspaces to the given values and returns the updated org. At least one value must be given; an omitted value is left unchanged. Limits can only be raised here, never lowered; setting a limit to its current value is a no-op. Requires a DBOS Teams subscription.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /v2/orgs/{orgName}/limits (the `SetOrgLimits` operationId).
+func (c *Client) SetOrgLimits(ctx context.Context, orgName string, body SetOrgLimitsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetOrgLimitsRequest(c.Server, orgName, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3344,6 +4472,116 @@ func (c *Client) CreateToken(ctx context.Context, orgName string, tokenName stri
 	return c.Client.Do(req)
 }
 
+// ListWorkspaces List workspaces
+//
+// Lists every workspace of the org, ordered by name. Any member of the org, and any of its API keys, may list them regardless of permissions.
+//
+// Corresponds with GET /v2/orgs/{orgName}/workspaces (the `ListWorkspaces` operationId).
+func (c *Client) ListWorkspaces(ctx context.Context, orgName string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListWorkspacesRequest(c.Server, orgName)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateWorkspaceWithBody Create workspace
+//
+// Creates an empty workspace. On DBOS-managed Conductor, creation is refused once the org has as many workspaces as its maxWorkspaces limit; self-hosted Conductor has no workspace limit.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /v2/orgs/{orgName}/workspaces (the `CreateWorkspace` operationId).
+func (c *Client) CreateWorkspaceWithBody(ctx context.Context, orgName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateWorkspaceRequestWithBody(c.Server, orgName, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateWorkspace Create workspace
+//
+// Creates an empty workspace. On DBOS-managed Conductor, creation is refused once the org has as many workspaces as its maxWorkspaces limit; self-hosted Conductor has no workspace limit.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /v2/orgs/{orgName}/workspaces (the `CreateWorkspace` operationId).
+func (c *Client) CreateWorkspace(ctx context.Context, orgName string, body CreateWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateWorkspaceRequest(c.Server, orgName, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteWorkspace Delete workspace
+//
+// Deletes an empty workspace, as long as the org keeps another one.
+//
+// Corresponds with DELETE /v2/orgs/{orgName}/workspaces/{workspaceName} (the `DeleteWorkspace` operationId).
+func (c *Client) DeleteWorkspace(ctx context.Context, orgName string, workspaceName string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteWorkspaceRequest(c.Server, orgName, workspaceName)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RenameWorkspaceWithBody Rename workspace
+//
+// Renames a workspace. Its applications stay in it.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /v2/orgs/{orgName}/workspaces/{workspaceName} (the `RenameWorkspace` operationId).
+func (c *Client) RenameWorkspaceWithBody(ctx context.Context, orgName string, workspaceName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRenameWorkspaceRequestWithBody(c.Server, orgName, workspaceName, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RenameWorkspace Rename workspace
+//
+// Renames a workspace. Its applications stay in it.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /v2/orgs/{orgName}/workspaces/{workspaceName} (the `RenameWorkspace` operationId).
+func (c *Client) RenameWorkspace(ctx context.Context, orgName string, workspaceName string, body RenameWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRenameWorkspaceRequest(c.Server, orgName, workspaceName, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // RegisterUserWithBody Register user
 //
 // Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
@@ -3397,6 +4635,33 @@ func (c *Client) GetCurrentUser(ctx context.Context, reqEditors ...RequestEditor
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewGetEntitlementsRequest constructs an http.Request for the GetEntitlements method
+func NewGetEntitlementsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/entitlements")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewGetOrgRequest constructs an http.Request for the GetOrg method
@@ -3481,7 +4746,7 @@ func NewUpdateOrgRequestWithBody(server string, orgName string, contentType stri
 }
 
 // NewListAppsRequest constructs an http.Request for the ListApps method
-func NewListAppsRequest(server string, orgName string) (*http.Request, error) {
+func NewListAppsRequest(server string, orgName string, params *ListAppsParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -3504,6 +4769,33 @@ func NewListAppsRequest(server string, orgName string) (*http.Request, error) {
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Workspace != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "workspace", *params.Workspace, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -4181,6 +5473,60 @@ func NewListMetricsRequest(server string, orgName string, appName string, params
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewMoveAppRequest calls the generic MoveApp builder with application/json body
+func NewMoveAppRequest(server string, orgName string, appName string, body MoveAppJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewMoveAppRequestWithBody(server, orgName, appName, "application/json", bodyReader)
+}
+
+// NewMoveAppRequestWithBody constructs an http.Request for the MoveApp method, with any body, and a specified content type
+func NewMoveAppRequestWithBody(server string, orgName string, appName string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "appName", appName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/apps/%s/move", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -5244,6 +6590,114 @@ func NewImportWorkflowRequestWithBody(server string, orgName string, appName str
 	return req, nil
 }
 
+// NewGetWorkflowMetricsHistoryRequest calls the generic GetWorkflowMetricsHistory builder with application/json body
+func NewGetWorkflowMetricsHistoryRequest(server string, orgName string, appName string, body GetWorkflowMetricsHistoryJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewGetWorkflowMetricsHistoryRequestWithBody(server, orgName, appName, "application/json", bodyReader)
+}
+
+// NewGetWorkflowMetricsHistoryRequestWithBody constructs an http.Request for the GetWorkflowMetricsHistory method, with any body, and a specified content type
+func NewGetWorkflowMetricsHistoryRequestWithBody(server string, orgName string, appName string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "appName", appName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/apps/%s/workflows/metrics/history", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetWorkflowMetricsLiveRequest calls the generic GetWorkflowMetricsLive builder with application/json body
+func NewGetWorkflowMetricsLiveRequest(server string, orgName string, appName string, body GetWorkflowMetricsLiveJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewGetWorkflowMetricsLiveRequestWithBody(server, orgName, appName, "application/json", bodyReader)
+}
+
+// NewGetWorkflowMetricsLiveRequestWithBody constructs an http.Request for the GetWorkflowMetricsLive method, with any body, and a specified content type
+func NewGetWorkflowMetricsLiveRequestWithBody(server string, orgName string, appName string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "appName", appName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/apps/%s/workflows/metrics/live", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewSearchWorkflowsRequest calls the generic SearchWorkflows builder with application/json body
 func NewSearchWorkflowsRequest(server string, orgName string, appName string, body SearchWorkflowsJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -5775,6 +7229,67 @@ func NewResumeWorkflowRequestWithBody(server string, orgName string, appName str
 	return req, nil
 }
 
+// NewRewindWorkflowRequest calls the generic RewindWorkflow builder with application/json body
+func NewRewindWorkflowRequest(server string, orgName string, appName string, workflowId string, body RewindWorkflowJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRewindWorkflowRequestWithBody(server, orgName, appName, workflowId, "application/json", bodyReader)
+}
+
+// NewRewindWorkflowRequestWithBody constructs an http.Request for the RewindWorkflow method, with any body, and a specified content type
+func NewRewindWorkflowRequestWithBody(server string, orgName string, appName string, workflowId string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "appName", appName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "workflowId", workflowId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/apps/%s/workflows/%s/rewind", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListWorkflowStepsRequest constructs an http.Request for the ListWorkflowSteps method
 func NewListWorkflowStepsRequest(server string, orgName string, appName string, workflowId string, params *ListWorkflowStepsParams) (*http.Request, error) {
 	var err error
@@ -6203,6 +7718,53 @@ func NewJoinOrgRequestWithBody(server string, orgName string, contentType string
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewSetOrgLimitsRequest calls the generic SetOrgLimits builder with application/json body
+func NewSetOrgLimitsRequest(server string, orgName string, body SetOrgLimitsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetOrgLimitsRequestWithBody(server, orgName, "application/json", bodyReader)
+}
+
+// NewSetOrgLimitsRequestWithBody constructs an http.Request for the SetOrgLimits method, with any body, and a specified content type
+func NewSetOrgLimitsRequestWithBody(server string, orgName string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/limits", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -6708,6 +8270,182 @@ func NewCreateTokenRequestWithBody(server string, orgName string, tokenName stri
 	return req, nil
 }
 
+// NewListWorkspacesRequest constructs an http.Request for the ListWorkspaces method
+func NewListWorkspacesRequest(server string, orgName string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/workspaces", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateWorkspaceRequest calls the generic CreateWorkspace builder with application/json body
+func NewCreateWorkspaceRequest(server string, orgName string, body CreateWorkspaceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateWorkspaceRequestWithBody(server, orgName, "application/json", bodyReader)
+}
+
+// NewCreateWorkspaceRequestWithBody constructs an http.Request for the CreateWorkspace method, with any body, and a specified content type
+func NewCreateWorkspaceRequestWithBody(server string, orgName string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/workspaces", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteWorkspaceRequest constructs an http.Request for the DeleteWorkspace method
+func NewDeleteWorkspaceRequest(server string, orgName string, workspaceName string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "workspaceName", workspaceName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/workspaces/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRenameWorkspaceRequest calls the generic RenameWorkspace builder with application/json body
+func NewRenameWorkspaceRequest(server string, orgName string, workspaceName string, body RenameWorkspaceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRenameWorkspaceRequestWithBody(server, orgName, workspaceName, "application/json", bodyReader)
+}
+
+// NewRenameWorkspaceRequestWithBody constructs an http.Request for the RenameWorkspace method, with any body, and a specified content type
+func NewRenameWorkspaceRequestWithBody(server string, orgName string, workspaceName string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "workspaceName", workspaceName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/workspaces/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewRegisterUserRequest calls the generic RegisterUser builder with application/json body
 func NewRegisterUserRequest(server string, body RegisterUserJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -6819,6 +8557,15 @@ func WithBaseURL(baseURL string) ClientOption {
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
 
+	// GetEntitlementsWithResponse Get Transact Enterprise entitlements
+	//
+	// Returns the Transact Enterprise features the calling API key's org may use; a feature reported false is not included in the org's plan. An org past its plan limit gets 403 with X-DBOS-Error: past_limit instead. Self-hosted Conductor grants every feature, and with OAuth disabled it needs no credentials. Otherwise any valid API key is accepted regardless of its permissions, and user credentials are rejected with 401.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /v2/entitlements (the `GetEntitlements` operationId).
+	GetEntitlementsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetEntitlementsResponse, error)
+
 	// GetOrgWithResponse Get org
 	//
 	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
@@ -6851,7 +8598,7 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps (the `ListApps` operationId).
-	ListAppsWithResponse(ctx context.Context, orgName string, reqEditors ...RequestEditorFn) (*ListAppsResponse, error)
+	ListAppsWithResponse(ctx context.Context, orgName string, params *ListAppsParams, reqEditors ...RequestEditorFn) (*ListAppsResponse, error)
 
 	// DeleteAppWithResponse Delete application
 	//
@@ -6883,12 +8630,16 @@ type ClientWithResponsesInterface interface {
 
 	// RegisterAppWithBodyWithResponse Register application
 	//
+	// Registers an application in a workspace. Without a workspace, it goes into the org's only workspace; when the org has more than one, registration fails with a workspace-required error.
+	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /v2/orgs/{orgName}/apps/{appName} (the `RegisterApp` operationId).
 	RegisterAppWithBodyWithResponse(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RegisterAppResponse, error)
 
 	// RegisterAppWithResponse Register application
+	//
+	// Registers an application in a workspace. Without a workspace, it goes into the org's only workspace; when the org has more than one, registration fails with a workspace-required error.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -6961,7 +8712,7 @@ type ClientWithResponsesInterface interface {
 
 	// SetAutoscalingPolicyWithBodyWithResponse Set autoscaling policy
 	//
-	// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — not partitioned, worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
+	// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -6970,7 +8721,7 @@ type ClientWithResponsesInterface interface {
 
 	// SetAutoscalingPolicyWithResponse Set autoscaling policy
 	//
-	// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — not partitioned, worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
+	// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -6990,6 +8741,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/metrics (the `ListMetrics` operationId).
 	ListMetricsWithResponse(ctx context.Context, orgName string, appName string, params *ListMetricsParams, reqEditors ...RequestEditorFn) (*ListMetricsResponse, error)
+
+	// MoveAppWithBodyWithResponse Move application
+	//
+	// Moves a Conductor application to another workspace of the org. It keeps its name, history and connected executors; moving it to the workspace it is in changes nothing. DBOS Cloud applications can't be moved.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/move (the `MoveApp` operationId).
+	MoveAppWithBodyWithResponse(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MoveAppResponse, error)
+
+	// MoveAppWithResponse Move application
+	//
+	// Moves a Conductor application to another workspace of the org. It keeps its name, history and connected executors; moving it to the workspace it is in changes nothing. DBOS Cloud applications can't be moved.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/move (the `MoveApp` operationId).
+	MoveAppWithResponse(ctx context.Context, orgName string, appName string, body MoveAppJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveAppResponse, error)
 
 	// ListQueuesWithResponse List queues
 	//
@@ -7180,6 +8949,42 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/import (the `ImportWorkflow` operationId).
 	ImportWorkflowWithResponse(ctx context.Context, orgName string, appName string, body ImportWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*ImportWorkflowResponse, error)
 
+	// GetWorkflowMetricsHistoryWithBodyWithResponse Get archived workflow metrics
+	//
+	// Renders the workflow filter charts from conductor's archive of observed terminal activity, without querying the application's database. 404 when the application has no archive yet.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/metrics/history (the `GetWorkflowMetricsHistory` operationId).
+	GetWorkflowMetricsHistoryWithBodyWithResponse(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GetWorkflowMetricsHistoryResponse, error)
+
+	// GetWorkflowMetricsHistoryWithResponse Get archived workflow metrics
+	//
+	// Renders the workflow filter charts from conductor's archive of observed terminal activity, without querying the application's database. 404 when the application has no archive yet.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/metrics/history (the `GetWorkflowMetricsHistory` operationId).
+	GetWorkflowMetricsHistoryWithResponse(ctx context.Context, orgName string, appName string, body GetWorkflowMetricsHistoryJSONRequestBody, reqEditors ...RequestEditorFn) (*GetWorkflowMetricsHistoryResponse, error)
+
+	// GetWorkflowMetricsLiveWithBodyWithResponse Get the live supplement to archived workflow metrics
+	//
+	// Asks one executor, under one 20-second budget, for terminal completions since the history response's watermark (at most 15 minutes back) and for the workflows still pending, both within the effective creation range. Source failures are per-component outcomes, never errors. 400 for a context outside this application's archive, 404 without an archive.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/metrics/live (the `GetWorkflowMetricsLive` operationId).
+	GetWorkflowMetricsLiveWithBodyWithResponse(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GetWorkflowMetricsLiveResponse, error)
+
+	// GetWorkflowMetricsLiveWithResponse Get the live supplement to archived workflow metrics
+	//
+	// Asks one executor, under one 20-second budget, for terminal completions since the history response's watermark (at most 15 minutes back) and for the workflows still pending, both within the effective creation range. Source failures are per-component outcomes, never errors. 400 for a context outside this application's archive, 404 without an archive.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/metrics/live (the `GetWorkflowMetricsLive` operationId).
+	GetWorkflowMetricsLiveWithResponse(ctx context.Context, orgName string, appName string, body GetWorkflowMetricsLiveJSONRequestBody, reqEditors ...RequestEditorFn) (*GetWorkflowMetricsLiveResponse, error)
+
 	// SearchWorkflowsWithBodyWithResponse Search workflows
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -7271,6 +9076,20 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/resume (the `ResumeWorkflow` operationId).
 	ResumeWorkflowWithResponse(ctx context.Context, orgName string, appName string, workflowId string, body ResumeWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*ResumeWorkflowResponse, error)
 
+	// RewindWorkflowWithBodyWithResponse Rewind workflow
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/rewind (the `RewindWorkflow` operationId).
+	RewindWorkflowWithBodyWithResponse(ctx context.Context, orgName string, appName string, workflowId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RewindWorkflowResponse, error)
+
+	// RewindWorkflowWithResponse Rewind workflow
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/rewind (the `RewindWorkflow` operationId).
+	RewindWorkflowWithResponse(ctx context.Context, orgName string, appName string, workflowId string, body RewindWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*RewindWorkflowResponse, error)
+
 	// ListWorkflowStepsWithResponse List workflow steps
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -7355,6 +9174,28 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /v2/orgs/{orgName}/join (the `JoinOrg` operationId).
 	JoinOrgWithResponse(ctx context.Context, orgName string, body JoinOrgJSONRequestBody, reqEditors ...RequestEditorFn) (*JoinOrgResponse, error)
+
+	// SetOrgLimitsWithBodyWithResponse Set org limits
+	//
+	// Sets the org's maxTeamMembers, maxConductorApps and maxWorkspaces to the given values and returns the updated org. At least one value must be given; an omitted value is left unchanged. Limits can only be raised here, never lowered; setting a limit to its current value is a no-op. Requires a DBOS Teams subscription.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /v2/orgs/{orgName}/limits (the `SetOrgLimits` operationId).
+	SetOrgLimitsWithBodyWithResponse(ctx context.Context, orgName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetOrgLimitsResponse, error)
+
+	// SetOrgLimitsWithResponse Set org limits
+	//
+	// Sets the org's maxTeamMembers, maxConductorApps and maxWorkspaces to the given values and returns the updated org. At least one value must be given; an omitted value is left unchanged. Limits can only be raised here, never lowered; setting a limit to its current value is a no-op. Requires a DBOS Teams subscription.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /v2/orgs/{orgName}/limits (the `SetOrgLimits` operationId).
+	SetOrgLimitsWithResponse(ctx context.Context, orgName string, body SetOrgLimitsJSONRequestBody, reqEditors ...RequestEditorFn) (*SetOrgLimitsResponse, error)
 
 	// ListMembersWithResponse List members
 	//
@@ -7477,6 +9318,60 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /v2/orgs/{orgName}/tokens/{tokenName} (the `CreateToken` operationId).
 	CreateTokenWithResponse(ctx context.Context, orgName string, tokenName string, body CreateTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTokenResponse, error)
 
+	// ListWorkspacesWithResponse List workspaces
+	//
+	// Lists every workspace of the org, ordered by name. Any member of the org, and any of its API keys, may list them regardless of permissions.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /v2/orgs/{orgName}/workspaces (the `ListWorkspaces` operationId).
+	ListWorkspacesWithResponse(ctx context.Context, orgName string, reqEditors ...RequestEditorFn) (*ListWorkspacesResponse, error)
+
+	// CreateWorkspaceWithBodyWithResponse Create workspace
+	//
+	// Creates an empty workspace. On DBOS-managed Conductor, creation is refused once the org has as many workspaces as its maxWorkspaces limit; self-hosted Conductor has no workspace limit.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/workspaces (the `CreateWorkspace` operationId).
+	CreateWorkspaceWithBodyWithResponse(ctx context.Context, orgName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateWorkspaceResponse, error)
+
+	// CreateWorkspaceWithResponse Create workspace
+	//
+	// Creates an empty workspace. On DBOS-managed Conductor, creation is refused once the org has as many workspaces as its maxWorkspaces limit; self-hosted Conductor has no workspace limit.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/workspaces (the `CreateWorkspace` operationId).
+	CreateWorkspaceWithResponse(ctx context.Context, orgName string, body CreateWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateWorkspaceResponse, error)
+
+	// DeleteWorkspaceWithResponse Delete workspace
+	//
+	// Deletes an empty workspace, as long as the org keeps another one.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /v2/orgs/{orgName}/workspaces/{workspaceName} (the `DeleteWorkspace` operationId).
+	DeleteWorkspaceWithResponse(ctx context.Context, orgName string, workspaceName string, reqEditors ...RequestEditorFn) (*DeleteWorkspaceResponse, error)
+
+	// RenameWorkspaceWithBodyWithResponse Rename workspace
+	//
+	// Renames a workspace. Its applications stay in it.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /v2/orgs/{orgName}/workspaces/{workspaceName} (the `RenameWorkspace` operationId).
+	RenameWorkspaceWithBodyWithResponse(ctx context.Context, orgName string, workspaceName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RenameWorkspaceResponse, error)
+
+	// RenameWorkspaceWithResponse Rename workspace
+	//
+	// Renames a workspace. Its applications stay in it.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /v2/orgs/{orgName}/workspaces/{workspaceName} (the `RenameWorkspace` operationId).
+	RenameWorkspaceWithResponse(ctx context.Context, orgName string, workspaceName string, body RenameWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*RenameWorkspaceResponse, error)
+
 	// RegisterUserWithBodyWithResponse Register user
 	//
 	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
@@ -7503,6 +9398,54 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /v2/users/me (the `GetCurrentUser` operationId).
 	GetCurrentUserWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetCurrentUserResponse, error)
+}
+
+type GetEntitlementsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *EntitlementsResponse
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetEntitlementsResponse) GetJSON200() *EntitlementsResponse {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r GetEntitlementsResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetEntitlementsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetEntitlementsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetEntitlementsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetEntitlementsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
 }
 
 type GetOrgResponse struct {
@@ -8273,6 +10216,47 @@ func (r ListMetricsResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListMetricsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type MoveAppResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r MoveAppResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r MoveAppResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r MoveAppResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r MoveAppResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MoveAppResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -9101,6 +11085,102 @@ func (r ImportWorkflowResponse) ContentType() string {
 	return ""
 }
 
+type GetWorkflowMetricsHistoryResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkflowMetricHistoryResponse
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetWorkflowMetricsHistoryResponse) GetJSON200() *WorkflowMetricHistoryResponse {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r GetWorkflowMetricsHistoryResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetWorkflowMetricsHistoryResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetWorkflowMetricsHistoryResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetWorkflowMetricsHistoryResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetWorkflowMetricsHistoryResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetWorkflowMetricsLiveResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkflowMetricLiveResponse
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetWorkflowMetricsLiveResponse) GetJSON200() *WorkflowMetricLiveResponse {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r GetWorkflowMetricsLiveResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetWorkflowMetricsLiveResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetWorkflowMetricsLiveResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetWorkflowMetricsLiveResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetWorkflowMetricsLiveResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type SearchWorkflowsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -9519,6 +11599,47 @@ func (r ResumeWorkflowResponse) ContentType() string {
 	return ""
 }
 
+type RewindWorkflowResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r RewindWorkflowResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r RewindWorkflowResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RewindWorkflowResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RewindWorkflowResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RewindWorkflowResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListWorkflowStepsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -9835,6 +11956,54 @@ func (r JoinOrgResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r JoinOrgResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetOrgLimitsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Organization
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetOrgLimitsResponse) GetJSON200() *Organization {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r SetOrgLimitsResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r SetOrgLimitsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetOrgLimitsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetOrgLimitsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetOrgLimitsResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -10396,6 +12565,191 @@ func (r CreateTokenResponse) ContentType() string {
 	return ""
 }
 
+type ListWorkspacesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]Workspace
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListWorkspacesResponse) GetJSON200() *[]Workspace {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r ListWorkspacesResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListWorkspacesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListWorkspacesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListWorkspacesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListWorkspacesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateWorkspaceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Workspace
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateWorkspaceResponse) GetJSON201() *Workspace {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r CreateWorkspaceResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateWorkspaceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateWorkspaceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateWorkspaceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateWorkspaceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteWorkspaceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r DeleteWorkspaceResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteWorkspaceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteWorkspaceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteWorkspaceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteWorkspaceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RenameWorkspaceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Workspace
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RenameWorkspaceResponse) GetJSON200() *Workspace {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r RenameWorkspaceResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r RenameWorkspaceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RenameWorkspaceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RenameWorkspaceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RenameWorkspaceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RegisterUserResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -10492,6 +12846,21 @@ func (r GetCurrentUserResponse) ContentType() string {
 	return ""
 }
 
+// GetEntitlementsWithResponse Get Transact Enterprise entitlements
+//
+// Returns the Transact Enterprise features the calling API key's org may use; a feature reported false is not included in the org's plan. An org past its plan limit gets 403 with X-DBOS-Error: past_limit instead. Self-hosted Conductor grants every feature, and with OAuth disabled it needs no credentials. Otherwise any valid API key is accepted regardless of its permissions, and user credentials are rejected with 401.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /v2/entitlements (the `GetEntitlements` operationId).
+func (c *ClientWithResponses) GetEntitlementsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetEntitlementsResponse, error) {
+	rsp, err := c.GetEntitlements(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetEntitlementsResponse(rsp)
+}
+
 // GetOrgWithResponse Get org
 //
 // Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
@@ -10542,8 +12911,8 @@ func (c *ClientWithResponses) UpdateOrgWithResponse(ctx context.Context, orgName
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with GET /v2/orgs/{orgName}/apps (the `ListApps` operationId).
-func (c *ClientWithResponses) ListAppsWithResponse(ctx context.Context, orgName string, reqEditors ...RequestEditorFn) (*ListAppsResponse, error) {
-	rsp, err := c.ListApps(ctx, orgName, reqEditors...)
+func (c *ClientWithResponses) ListAppsWithResponse(ctx context.Context, orgName string, params *ListAppsParams, reqEditors ...RequestEditorFn) (*ListAppsResponse, error) {
+	rsp, err := c.ListApps(ctx, orgName, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -10604,6 +12973,8 @@ func (c *ClientWithResponses) UpdateAppWithResponse(ctx context.Context, orgName
 
 // RegisterAppWithBodyWithResponse Register application
 //
+// Registers an application in a workspace. Without a workspace, it goes into the org's only workspace; when the org has more than one, registration fails with a workspace-required error.
+//
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with PUT /v2/orgs/{orgName}/apps/{appName} (the `RegisterApp` operationId).
@@ -10616,6 +12987,8 @@ func (c *ClientWithResponses) RegisterAppWithBodyWithResponse(ctx context.Contex
 }
 
 // RegisterAppWithResponse Register application
+//
+// Registers an application in a workspace. Without a workspace, it goes into the org's only workspace; when the org has more than one, registration fails with a workspace-required error.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -10742,7 +13115,7 @@ func (c *ClientWithResponses) GetAutoscalingPolicyWithResponse(ctx context.Conte
 
 // SetAutoscalingPolicyWithBodyWithResponse Set autoscaling policy
 //
-// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — not partitioned, worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
+// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -10757,7 +13130,7 @@ func (c *ClientWithResponses) SetAutoscalingPolicyWithBodyWithResponse(ctx conte
 
 // SetAutoscalingPolicyWithResponse Set autoscaling policy
 //
-// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — not partitioned, worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
+// Validates and stores the policy, echoing it back as stored. The named queue must exist and be scalable — worker_concurrency set — validated from a healthy executor. Requires a DBOS Teams subscription.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -10794,6 +13167,36 @@ func (c *ClientWithResponses) ListMetricsWithResponse(ctx context.Context, orgNa
 		return nil, err
 	}
 	return ParseListMetricsResponse(rsp)
+}
+
+// MoveAppWithBodyWithResponse Move application
+//
+// Moves a Conductor application to another workspace of the org. It keeps its name, history and connected executors; moving it to the workspace it is in changes nothing. DBOS Cloud applications can't be moved.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/move (the `MoveApp` operationId).
+func (c *ClientWithResponses) MoveAppWithBodyWithResponse(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MoveAppResponse, error) {
+	rsp, err := c.MoveAppWithBody(ctx, orgName, appName, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMoveAppResponse(rsp)
+}
+
+// MoveAppWithResponse Move application
+//
+// Moves a Conductor application to another workspace of the org. It keeps its name, history and connected executors; moving it to the workspace it is in changes nothing. DBOS Cloud applications can't be moved.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/move (the `MoveApp` operationId).
+func (c *ClientWithResponses) MoveAppWithResponse(ctx context.Context, orgName string, appName string, body MoveAppJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveAppResponse, error) {
+	rsp, err := c.MoveApp(ctx, orgName, appName, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMoveAppResponse(rsp)
 }
 
 // ListQueuesWithResponse List queues
@@ -11147,6 +13550,66 @@ func (c *ClientWithResponses) ImportWorkflowWithResponse(ctx context.Context, or
 	return ParseImportWorkflowResponse(rsp)
 }
 
+// GetWorkflowMetricsHistoryWithBodyWithResponse Get archived workflow metrics
+//
+// Renders the workflow filter charts from conductor's archive of observed terminal activity, without querying the application's database. 404 when the application has no archive yet.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/metrics/history (the `GetWorkflowMetricsHistory` operationId).
+func (c *ClientWithResponses) GetWorkflowMetricsHistoryWithBodyWithResponse(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GetWorkflowMetricsHistoryResponse, error) {
+	rsp, err := c.GetWorkflowMetricsHistoryWithBody(ctx, orgName, appName, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetWorkflowMetricsHistoryResponse(rsp)
+}
+
+// GetWorkflowMetricsHistoryWithResponse Get archived workflow metrics
+//
+// Renders the workflow filter charts from conductor's archive of observed terminal activity, without querying the application's database. 404 when the application has no archive yet.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/metrics/history (the `GetWorkflowMetricsHistory` operationId).
+func (c *ClientWithResponses) GetWorkflowMetricsHistoryWithResponse(ctx context.Context, orgName string, appName string, body GetWorkflowMetricsHistoryJSONRequestBody, reqEditors ...RequestEditorFn) (*GetWorkflowMetricsHistoryResponse, error) {
+	rsp, err := c.GetWorkflowMetricsHistory(ctx, orgName, appName, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetWorkflowMetricsHistoryResponse(rsp)
+}
+
+// GetWorkflowMetricsLiveWithBodyWithResponse Get the live supplement to archived workflow metrics
+//
+// Asks one executor, under one 20-second budget, for terminal completions since the history response's watermark (at most 15 minutes back) and for the workflows still pending, both within the effective creation range. Source failures are per-component outcomes, never errors. 400 for a context outside this application's archive, 404 without an archive.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/metrics/live (the `GetWorkflowMetricsLive` operationId).
+func (c *ClientWithResponses) GetWorkflowMetricsLiveWithBodyWithResponse(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GetWorkflowMetricsLiveResponse, error) {
+	rsp, err := c.GetWorkflowMetricsLiveWithBody(ctx, orgName, appName, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetWorkflowMetricsLiveResponse(rsp)
+}
+
+// GetWorkflowMetricsLiveWithResponse Get the live supplement to archived workflow metrics
+//
+// Asks one executor, under one 20-second budget, for terminal completions since the history response's watermark (at most 15 minutes back) and for the workflows still pending, both within the effective creation range. Source failures are per-component outcomes, never errors. 400 for a context outside this application's archive, 404 without an archive.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/metrics/live (the `GetWorkflowMetricsLive` operationId).
+func (c *ClientWithResponses) GetWorkflowMetricsLiveWithResponse(ctx context.Context, orgName string, appName string, body GetWorkflowMetricsLiveJSONRequestBody, reqEditors ...RequestEditorFn) (*GetWorkflowMetricsLiveResponse, error) {
+	rsp, err := c.GetWorkflowMetricsLive(ctx, orgName, appName, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetWorkflowMetricsLiveResponse(rsp)
+}
+
 // SearchWorkflowsWithBodyWithResponse Search workflows
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -11316,6 +13779,32 @@ func (c *ClientWithResponses) ResumeWorkflowWithResponse(ctx context.Context, or
 	return ParseResumeWorkflowResponse(rsp)
 }
 
+// RewindWorkflowWithBodyWithResponse Rewind workflow
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/rewind (the `RewindWorkflow` operationId).
+func (c *ClientWithResponses) RewindWorkflowWithBodyWithResponse(ctx context.Context, orgName string, appName string, workflowId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RewindWorkflowResponse, error) {
+	rsp, err := c.RewindWorkflowWithBody(ctx, orgName, appName, workflowId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRewindWorkflowResponse(rsp)
+}
+
+// RewindWorkflowWithResponse Rewind workflow
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/rewind (the `RewindWorkflow` operationId).
+func (c *ClientWithResponses) RewindWorkflowWithResponse(ctx context.Context, orgName string, appName string, workflowId string, body RewindWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*RewindWorkflowResponse, error) {
+	rsp, err := c.RewindWorkflow(ctx, orgName, appName, workflowId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRewindWorkflowResponse(rsp)
+}
+
 // ListWorkflowStepsWithResponse List workflow steps
 //
 // Returns a wrapper object for the known response body format(s).
@@ -11453,6 +13942,40 @@ func (c *ClientWithResponses) JoinOrgWithResponse(ctx context.Context, orgName s
 		return nil, err
 	}
 	return ParseJoinOrgResponse(rsp)
+}
+
+// SetOrgLimitsWithBodyWithResponse Set org limits
+//
+// Sets the org's maxTeamMembers, maxConductorApps and maxWorkspaces to the given values and returns the updated org. At least one value must be given; an omitted value is left unchanged. Limits can only be raised here, never lowered; setting a limit to its current value is a no-op. Requires a DBOS Teams subscription.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /v2/orgs/{orgName}/limits (the `SetOrgLimits` operationId).
+func (c *ClientWithResponses) SetOrgLimitsWithBodyWithResponse(ctx context.Context, orgName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetOrgLimitsResponse, error) {
+	rsp, err := c.SetOrgLimitsWithBody(ctx, orgName, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetOrgLimitsResponse(rsp)
+}
+
+// SetOrgLimitsWithResponse Set org limits
+//
+// Sets the org's maxTeamMembers, maxConductorApps and maxWorkspaces to the given values and returns the updated org. At least one value must be given; an omitted value is left unchanged. Limits can only be raised here, never lowered; setting a limit to its current value is a no-op. Requires a DBOS Teams subscription.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /v2/orgs/{orgName}/limits (the `SetOrgLimits` operationId).
+func (c *ClientWithResponses) SetOrgLimitsWithResponse(ctx context.Context, orgName string, body SetOrgLimitsJSONRequestBody, reqEditors ...RequestEditorFn) (*SetOrgLimitsResponse, error) {
+	rsp, err := c.SetOrgLimits(ctx, orgName, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetOrgLimitsResponse(rsp)
 }
 
 // ListMembersWithResponse List members
@@ -11666,6 +14189,96 @@ func (c *ClientWithResponses) CreateTokenWithResponse(ctx context.Context, orgNa
 	return ParseCreateTokenResponse(rsp)
 }
 
+// ListWorkspacesWithResponse List workspaces
+//
+// Lists every workspace of the org, ordered by name. Any member of the org, and any of its API keys, may list them regardless of permissions.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /v2/orgs/{orgName}/workspaces (the `ListWorkspaces` operationId).
+func (c *ClientWithResponses) ListWorkspacesWithResponse(ctx context.Context, orgName string, reqEditors ...RequestEditorFn) (*ListWorkspacesResponse, error) {
+	rsp, err := c.ListWorkspaces(ctx, orgName, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListWorkspacesResponse(rsp)
+}
+
+// CreateWorkspaceWithBodyWithResponse Create workspace
+//
+// Creates an empty workspace. On DBOS-managed Conductor, creation is refused once the org has as many workspaces as its maxWorkspaces limit; self-hosted Conductor has no workspace limit.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v2/orgs/{orgName}/workspaces (the `CreateWorkspace` operationId).
+func (c *ClientWithResponses) CreateWorkspaceWithBodyWithResponse(ctx context.Context, orgName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateWorkspaceResponse, error) {
+	rsp, err := c.CreateWorkspaceWithBody(ctx, orgName, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateWorkspaceResponse(rsp)
+}
+
+// CreateWorkspaceWithResponse Create workspace
+//
+// Creates an empty workspace. On DBOS-managed Conductor, creation is refused once the org has as many workspaces as its maxWorkspaces limit; self-hosted Conductor has no workspace limit.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v2/orgs/{orgName}/workspaces (the `CreateWorkspace` operationId).
+func (c *ClientWithResponses) CreateWorkspaceWithResponse(ctx context.Context, orgName string, body CreateWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateWorkspaceResponse, error) {
+	rsp, err := c.CreateWorkspace(ctx, orgName, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateWorkspaceResponse(rsp)
+}
+
+// DeleteWorkspaceWithResponse Delete workspace
+//
+// Deletes an empty workspace, as long as the org keeps another one.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /v2/orgs/{orgName}/workspaces/{workspaceName} (the `DeleteWorkspace` operationId).
+func (c *ClientWithResponses) DeleteWorkspaceWithResponse(ctx context.Context, orgName string, workspaceName string, reqEditors ...RequestEditorFn) (*DeleteWorkspaceResponse, error) {
+	rsp, err := c.DeleteWorkspace(ctx, orgName, workspaceName, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteWorkspaceResponse(rsp)
+}
+
+// RenameWorkspaceWithBodyWithResponse Rename workspace
+//
+// Renames a workspace. Its applications stay in it.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /v2/orgs/{orgName}/workspaces/{workspaceName} (the `RenameWorkspace` operationId).
+func (c *ClientWithResponses) RenameWorkspaceWithBodyWithResponse(ctx context.Context, orgName string, workspaceName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RenameWorkspaceResponse, error) {
+	rsp, err := c.RenameWorkspaceWithBody(ctx, orgName, workspaceName, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRenameWorkspaceResponse(rsp)
+}
+
+// RenameWorkspaceWithResponse Rename workspace
+//
+// Renames a workspace. Its applications stay in it.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /v2/orgs/{orgName}/workspaces/{workspaceName} (the `RenameWorkspace` operationId).
+func (c *ClientWithResponses) RenameWorkspaceWithResponse(ctx context.Context, orgName string, workspaceName string, body RenameWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*RenameWorkspaceResponse, error) {
+	rsp, err := c.RenameWorkspace(ctx, orgName, workspaceName, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRenameWorkspaceResponse(rsp)
+}
+
 // RegisterUserWithBodyWithResponse Register user
 //
 // Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
@@ -11709,6 +14322,39 @@ func (c *ClientWithResponses) GetCurrentUserWithResponse(ctx context.Context, re
 		return nil, err
 	}
 	return ParseGetCurrentUserResponse(rsp)
+}
+
+// ParseGetEntitlementsResponse parses an HTTP response from a GetEntitlementsWithResponse call
+func ParseGetEntitlementsResponse(rsp *http.Response) (*GetEntitlementsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetEntitlementsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest EntitlementsResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseGetOrgResponse parses an HTTP response from a GetOrgWithResponse call
@@ -12235,6 +14881,35 @@ func ParseListMetricsResponse(rsp *http.Response) (*ListMetricsResponse, error) 
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseMoveAppResponse parses an HTTP response from a MoveAppWithResponse call
+func ParseMoveAppResponse(rsp *http.Response) (*MoveAppResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &MoveAppResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest ErrorModel
@@ -12827,6 +15502,72 @@ func ParseImportWorkflowResponse(rsp *http.Response) (*ImportWorkflowResponse, e
 	return response, nil
 }
 
+// ParseGetWorkflowMetricsHistoryResponse parses an HTTP response from a GetWorkflowMetricsHistoryWithResponse call
+func ParseGetWorkflowMetricsHistoryResponse(rsp *http.Response) (*GetWorkflowMetricsHistoryResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetWorkflowMetricsHistoryResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkflowMetricHistoryResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetWorkflowMetricsLiveResponse parses an HTTP response from a GetWorkflowMetricsLiveWithResponse call
+func ParseGetWorkflowMetricsLiveResponse(rsp *http.Response) (*GetWorkflowMetricsLiveResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetWorkflowMetricsLiveResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkflowMetricLiveResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseSearchWorkflowsResponse parses an HTTP response from a SearchWorkflowsWithResponse call
 func ParseSearchWorkflowsResponse(rsp *http.Response) (*SearchWorkflowsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -13125,6 +15866,35 @@ func ParseResumeWorkflowResponse(rsp *http.Response) (*ResumeWorkflowResponse, e
 	return response, nil
 }
 
+// ParseRewindWorkflowResponse parses an HTTP response from a RewindWorkflowWithResponse call
+func ParseRewindWorkflowResponse(rsp *http.Response) (*RewindWorkflowResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RewindWorkflowResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListWorkflowStepsResponse parses an HTTP response from a ListWorkflowStepsWithResponse call
 func ParseListWorkflowStepsResponse(rsp *http.Response) (*ListWorkflowStepsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -13335,6 +16105,39 @@ func ParseJoinOrgResponse(rsp *http.Response) (*JoinOrgResponse, error) {
 	switch {
 	case rsp.StatusCode == 204:
 		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetOrgLimitsResponse parses an HTTP response from a SetOrgLimitsWithResponse call
+func ParseSetOrgLimitsResponse(rsp *http.Response) (*SetOrgLimitsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetOrgLimitsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Organization
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest ErrorModel
@@ -13728,6 +16531,134 @@ func ParseCreateTokenResponse(rsp *http.Response) (*CreateTokenResponse, error) 
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListWorkspacesResponse parses an HTTP response from a ListWorkspacesWithResponse call
+func ParseListWorkspacesResponse(rsp *http.Response) (*ListWorkspacesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListWorkspacesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Workspace
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateWorkspaceResponse parses an HTTP response from a CreateWorkspaceWithResponse call
+func ParseCreateWorkspaceResponse(rsp *http.Response) (*CreateWorkspaceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateWorkspaceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Workspace
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteWorkspaceResponse parses an HTTP response from a DeleteWorkspaceWithResponse call
+func ParseDeleteWorkspaceResponse(rsp *http.Response) (*DeleteWorkspaceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteWorkspaceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRenameWorkspaceResponse parses an HTTP response from a RenameWorkspaceWithResponse call
+func ParseRenameWorkspaceResponse(rsp *http.Response) (*RenameWorkspaceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RenameWorkspaceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Workspace
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest ErrorModel

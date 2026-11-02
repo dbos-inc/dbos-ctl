@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/dbos-inc/dbos-ctl/internal/api"
 	"github.com/dbos-inc/dbos-ctl/internal/output"
@@ -53,7 +54,11 @@ func init() {
 	addRequestFlags(apiKeyDeleteCmd, "profile", "url", "org")
 	// create's --app scopes the key to app names (repeatable), distinct from the
 	// operational -a/--app, so it's declared here rather than via addRequestFlags.
-	apiKeyCreateCmd.Flags().StringSlice("app", nil, "scope the key to these apps (repeatable; default: all apps)")
+	// The scope flags are string arrays split by scopeNames rather than string
+	// slices: a slice parses an empty value to nothing, so a mistyped
+	// `--workspace ""` could not be told apart from leaving the flag out.
+	apiKeyCreateCmd.Flags().StringArray("app", nil, "scope the key to these `apps` (repeatable or comma-separated; not with --workspace; default: all apps)")
+	apiKeyCreateCmd.Flags().StringArray("workspace", nil, "scope the key to the apps in these `workspaces`, including ones moved in later (repeatable or comma-separated; not with --app)")
 	apiKeyCreateCmd.Flags().StringSlice("permission", nil, "grant these permissions, e.g. application.read (repeatable)")
 
 	apiKeyCmd.AddCommand(apiKeyListCmd, apiKeyCreateCmd, apiKeyRenameCmd, apiKeyDeleteCmd)
@@ -89,11 +94,24 @@ func runAPIKeyCreate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	apps, _ := cmd.Flags().GetStringSlice("app")
 	perms, _ := cmd.Flags().GetStringSlice("permission")
+	if cmd.Flags().Changed("workspace") && cmd.Flags().Changed("app") {
+		return &exitError{code: 2, msg: "--workspace cannot be combined with --app: a key is scoped to either workspaces or apps"}
+	}
+	apps, err := scopeNames(cmd, "app")
+	if err != nil {
+		return err
+	}
+	workspaces, err := scopeNames(cmd, "workspace")
+	if err != nil {
+		return err
+	}
 	body := api.CreateTokenJSONRequestBody{}
 	if len(apps) > 0 {
 		body.AppNames = &apps
+	}
+	if len(workspaces) > 0 {
+		body.Workspaces = &workspaces
 	}
 	if len(perms) > 0 {
 		body.Permissions = &perms
@@ -123,6 +141,32 @@ func runAPIKeyCreate(cmd *cobra.Command, args []string) error {
 	fmt.Fprintf(cmd.ErrOrStderr(), "API key %q created — store this secret now, it is not shown again:\n", resp.JSON201.TokenName)
 	fmt.Fprintln(cmd.OutOrStdout(), resp.JSON201.Token)
 	return nil
+}
+
+// scopeNames reads a scope flag's names, splitting comma-separated values, and
+// refuses an empty one. Sending it would fail at best; dropping it could leave
+// no scope at all, which Conductor reads as every app.
+func scopeNames(cmd *cobra.Command, flag string) ([]string, error) {
+	// GetSlice, not GetStringArray: the getter round-trips through String(),
+	// which reads a lone empty value back as no value.
+	f := cmd.Flags().Lookup(flag)
+	if f == nil {
+		return nil, nil
+	}
+	values, _ := f.Value.(pflag.SliceValue)
+	if values == nil {
+		return nil, nil
+	}
+	var names []string
+	for _, v := range values.GetSlice() {
+		for _, n := range strings.Split(v, ",") {
+			if strings.TrimSpace(n) == "" {
+				return nil, &exitError{code: 2, msg: fmt.Sprintf("--%s was given an empty name: name each one, or omit --%s to scope the key to all apps", flag, flag)}
+			}
+			names = append(names, n)
+		}
+	}
+	return names, nil
 }
 
 func runAPIKeyRename(cmd *cobra.Command, args []string) error {
@@ -170,16 +214,21 @@ func runAPIKeyDelete(cmd *cobra.Command, args []string) error {
 func apiKeyColumns() []output.Column[api.Token] {
 	return []output.Column[api.Token]{
 		{Header: "NAME", Value: func(t api.Token) string { return t.TokenName }},
-		{Header: "APPS", Value: func(t api.Token) string { return joinOrAll(t.AppIds) }},
+		{Header: "SCOPE", Value: apiKeyScope},
 		{Header: "PERMISSIONS", Value: func(t api.Token) string { return strings.Join(t.Permissions, ", ") }},
 		{Header: "CREATED", Value: func(t api.Token) string { return fmtTime(t.CreatedAt) }},
 	}
 }
 
-// joinOrAll renders a key's app scope: the app list, or "(all)" when unscoped.
-func joinOrAll(apps []string) string {
-	if len(apps) == 0 {
-		return "(all)"
+// apiKeyScope renders what a key reaches: its workspaces, its apps (Conductor
+// lists them by id), or all apps when it names neither.
+func apiKeyScope(t api.Token) string {
+	switch {
+	case len(t.Workspaces) > 0:
+		return "workspaces: " + strings.Join(t.Workspaces, ", ")
+	case len(t.AppIds) > 0:
+		return "app ids: " + strings.Join(t.AppIds, ", ")
+	default:
+		return "all apps"
 	}
-	return strings.Join(apps, ", ")
 }

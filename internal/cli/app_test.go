@@ -25,6 +25,7 @@ func newCmdWithGlobals() *cobra.Command {
 	c.Flags().String("url", "", "")
 	c.Flags().String("org", "", "")
 	c.Flags().String("app", "", "")
+	c.Flags().String("workspace", "", "")
 	c.Flags().String("output", "table", "")
 	c.Flags().String("profile", "", "")
 	c.SetContext(context.Background())
@@ -39,10 +40,11 @@ func isolateConfig(t *testing.T) {
 	t.Setenv("DBOS_URL", "")
 	t.Setenv("DBOS_ORG", "")
 	t.Setenv("DBOS_APP", "")
+	t.Setenv("DBOS_WORKSPACE", "")
 	t.Setenv("DBOS_TOKEN", "")
 }
 
-const oneAppJSON = `[{"name":"myapp","status":"ACTIVE","language":"python","id":"a1","orgId":"local","dbosCloud":false,"executorTimeoutSecs":0,"privateMode":false}]`
+const oneAppJSON = `[{"name":"myapp","status":"ACTIVE","language":"python","id":"a1","orgId":"local","dbosCloud":false,"executorTimeoutSecs":0,"privateMode":false,"workspace":"staging"}]`
 
 func appServer(t *testing.T, status int, contentType, body string) *httptest.Server {
 	t.Helper()
@@ -91,11 +93,41 @@ func TestRunAppListTable(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := out.String()
-	for _, want := range []string{"NAME", "STATUS", "LANGUAGE", "myapp", "ACTIVE", "python"} {
+	for _, want := range []string{"NAME", "WORKSPACE", "STATUS", "LANGUAGE", "myapp", "staging", "ACTIVE", "python"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("table output missing %q:\n%s", want, got)
 		}
 	}
+}
+
+// --workspace filters the list. The registration workspace from the
+// environment or profile does not: it names where to register, and the WORKSPACE column
+// already shows where each app is.
+func TestRunAppListWorkspaceFilter(t *testing.T) {
+	t.Run("flag", func(t *testing.T) {
+		isolateConfig(t)
+		srv, query := appReadServer(t, "/v2/orgs/local/apps", oneAppJSON)
+		cmd, _ := appReadCmd(t, srv.URL)
+		_ = cmd.Flags().Set("workspace", "staging")
+		if err := runAppList(cmd, nil); err != nil {
+			t.Fatal(err)
+		}
+		if got := query.Get("workspace"); got != "staging" {
+			t.Errorf("workspace filter = %q, want staging", got)
+		}
+	})
+	t.Run("registration workspace does not filter", func(t *testing.T) {
+		isolateConfig(t)
+		t.Setenv("DBOS_WORKSPACE", "staging")
+		srv, query := appReadServer(t, "/v2/orgs/local/apps", oneAppJSON)
+		cmd, _ := appReadCmd(t, srv.URL)
+		if err := runAppList(cmd, nil); err != nil {
+			t.Fatal(err)
+		}
+		if query.Has("workspace") {
+			t.Errorf("unfiltered list sent workspace=%q", query.Get("workspace"))
+		}
+	})
 }
 
 func TestEffectiveOrg(t *testing.T) {
@@ -313,6 +345,76 @@ func TestRunAppRegisterOmitsUnsetPrivateMode(t *testing.T) {
 	}
 }
 
+// The registration workspace follows flag > env > profile, and an unset one is
+// left out of the body so Conductor picks the org's only workspace.
+func TestRunAppRegisterWorkspace(t *testing.T) {
+	register := func(t *testing.T, profileWS, env, flag string) map[string]any {
+		t.Helper()
+		isolateConfig(t)
+		srv, body, _ := patchServer(t, "/v2/orgs/local/apps/myapp")
+		f := &config.File{Current: "p", Profiles: map[string]config.Profile{
+			"p": {URL: srv.URL, Workspace: profileWS},
+		}}
+		if err := config.Save(f); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("DBOS_WORKSPACE", env)
+		cmd := newCmdWithGlobals()
+		if flag != "" {
+			_ = cmd.Flags().Set("workspace", flag)
+		}
+		cmd.SetOut(&bytes.Buffer{})
+		if err := runAppRegister(cmd, []string{"myapp"}); err != nil {
+			t.Fatal(err)
+		}
+		return *body
+	}
+
+	for name, c := range map[string]struct {
+		profile, env, flag, want string
+	}{
+		"profile":          {profile: "fromprofile", want: "fromprofile"},
+		"env over profile": {profile: "fromprofile", env: "fromenv", want: "fromenv"},
+		"flag over env":    {profile: "fromprofile", env: "fromenv", flag: "fromflag", want: "fromflag"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := register(t, c.profile, c.env, c.flag)["workspace"]; got != c.want {
+				t.Errorf("workspace = %v, want %q", got, c.want)
+			}
+		})
+	}
+	t.Run("unset", func(t *testing.T) {
+		if got, ok := register(t, "", "", "")["workspace"]; ok {
+			t.Errorf("workspace should be omitted, got %v", got)
+		}
+	})
+}
+
+// In an org with several workspaces Conductor refuses a registration that
+// names none; the error keeps its explanation and says how to name one.
+func TestRunAppRegisterWorkspaceRequired(t *testing.T) {
+	isolateConfig(t)
+	const detail = "[2026] workspace required: this organization has more than one workspace; specify which workspace to register the application in"
+	srv := problemServer(t, http.StatusBadRequest, "Bad Request", detail)
+
+	cmd, out := appReadCmd(t, srv.URL)
+	err := runAppRegister(cmd, []string{"myapp"})
+	if err == nil {
+		t.Fatal("want a workspace-required error")
+	}
+	for _, want := range []string{detail, "-w/--workspace", "$DBOS_WORKSPACE", "profile"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error missing %q: %v", want, err)
+		}
+	}
+	if code := exitCodeFor(err); code != 1 {
+		t.Errorf("exit code = %d, want 1", code)
+	}
+	if out.Len() != 0 {
+		t.Errorf("a refused register printed to stdout: %q", out.String())
+	}
+}
+
 // setInteractive forces the prompt-or-not decision for a test, restoring it
 // afterward, so neither path depends on the test process's real stdin.
 func setInteractive(t *testing.T, v bool) {
@@ -473,7 +575,7 @@ func appReadCmd(t *testing.T, url string) (*cobra.Command, *bytes.Buffer) {
 
 func TestRunAppGet(t *testing.T) {
 	isolateConfig(t)
-	const body = `{"name":"myapp","id":"a1","status":"ACTIVE","language":"python","orgId":"local","dbosCloud":false,"privateMode":false,"executorTimeoutSecs":60,"gcRowsThreshold":null,"gcTimeThresholdMs":null,"globalTimeoutMs":null}`
+	const body = `{"name":"myapp","id":"a1","status":"ACTIVE","language":"python","orgId":"local","dbosCloud":false,"privateMode":false,"executorTimeoutSecs":60,"gcRowsThreshold":null,"gcTimeThresholdMs":null,"globalTimeoutMs":null,"workspace":"staging"}`
 	srv, _ := appReadServer(t, "/v2/orgs/local/apps/myapp", body)
 
 	cmd, out := appReadCmd(t, srv.URL)
@@ -481,7 +583,7 @@ func TestRunAppGet(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := out.String()
-	for _, want := range []string{"name", "myapp", "status", "ACTIVE", "language", "python", "executorTimeoutSecs", "60"} {
+	for _, want := range []string{"name", "myapp", "workspace", "staging", "status", "ACTIVE", "language", "python", "executorTimeoutSecs", "60"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("app get detail missing %q:\n%s", want, got)
 		}
