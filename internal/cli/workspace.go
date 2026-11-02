@@ -38,8 +38,8 @@ var workspaceRenameCmd = &cobra.Command{
 }
 
 // Deletion is empty-only: Conductor refuses a workspace that still holds
-// applications (or is the org's last, or scopes an API key), and its refusal
-// says what to do, so there is no option to move applications along with it.
+// applications (or is the org's last), and its refusal says what to do, so
+// there is no option to move applications along with it.
 // The not-empty refusal also names the command that moves them.
 var workspaceDeleteCmd = &cobra.Command{
 	Use:   "delete <name>",
