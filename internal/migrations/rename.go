@@ -189,7 +189,7 @@ func RenameApplication(ctx context.Context, databaseURL string, in RenameInput, 
 	args := []any{in.NewName}
 	predicate := sourcePredicate(in, &args)
 	inFlightQuery := fmt.Sprintf(
-		"UPDATE %s SET application_name = $1 WHERE %s AND status IN ('PENDING', 'ENQUEUED', 'DELAYED')",
+		"UPDATE %s SET application_name = $1 WHERE %s AND status IN ('PENDING', 'ENQUEUED', 'DELAYED', 'SUSPENDED')",
 		pgx.Identifier{in.Schema, "workflow_status"}.Sanitize(), predicate)
 	tag, err := tx.Exec(execCtx, inFlightQuery, args...)
 	if err != nil {

@@ -70,8 +70,27 @@ func isWorkflowPayloadTable(table string) bool {
 	return false
 }
 
+// SparedTables are the tables in the DBOS system schema that a reset leaves
+// alone, so SystemTables does not name them.
+//
+// MigrationTable is spared because clearing it would re-run applied migrations
+// against tables that already exist.
+//
+// external_objects (migration 131) is spared because each row is the only
+// record of an object held in an external store such as S3. The rows are not
+// deleted by name. Garbage collection deletes an object, and then its row,
+// once no workflow_status row owns it. A reset that emptied this table along
+// with workflow_status would leave every stored object without a row, where no
+// later collection can find it. Left alone, the rows lose their owners with
+// the reset, and the application's next collection pass removes both the
+// objects and the rows.
+var SparedTables = []string{
+	MigrationTable,
+	"external_objects",
+}
+
 // SystemTables is every table the DBOS system schema holds, apart from
-// MigrationTable, which a reset spares.
+// SparedTables.
 //
 // Named rather than read from the catalog. This binary owns the migrations that
 // create these tables, so it knows the set exactly — and a reset that emptied
