@@ -19,8 +19,10 @@ func TestSystemTablesEndWithTheCascadeParent(t *testing.T) {
 		}
 		seen[table] = true
 	}
-	if seen[MigrationTable] {
-		t.Errorf("SystemTables includes %s, which a reset must spare", MigrationTable)
+	for _, spared := range SparedTables {
+		if seen[spared] {
+			t.Errorf("SystemTables includes %s, which a reset must spare", spared)
+		}
 	}
 }
 

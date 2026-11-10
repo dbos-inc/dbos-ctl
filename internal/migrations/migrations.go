@@ -247,6 +247,27 @@ var migration124SQL string
 //go:embed sql/125_create_application_versions_owner_timestamp_index.sql
 var migration125SQL string
 
+//go:embed sql/126_add_workflow_status_suspend_key.sql
+var migration126SQL string
+
+//go:embed sql/127_create_suspended_index.sql
+var migration127SQL string
+
+//go:embed sql/128_create_deadline_index_v2.sql
+var migration128SQL string
+
+//go:embed sql/129_drop_deadline_index.sql
+var migration129SQL string
+
+//go:embed sql/130_update_send_message.sql
+var migration130SQL string
+
+//go:embed sql/130_set_send_message_search_path.sql
+var migration130SearchPathSQL string
+
+//go:embed sql/131_create_external_objects.sql
+var migration131SQL string
+
 type MigrationFile struct {
 	Version int64
 	SQL     string
@@ -385,6 +406,14 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 		migration113SQLProcessed = migration113SQLProcessed + "\n" + fmt.Sprintf(migration113SearchPathSQL, sanitizedSchema)
 	}
 
+	// Migration 130 rewrites send_message to wake a SUSPENDED recv on its
+	// topic. Like migration 113, the signature is unchanged, so only the body
+	// is replaced, and the search_path hardening is Postgres-only.
+	migration130SQLProcessed := fmt.Sprintf(migration130SQL, sanitizedSchema)
+	if !isCockroach {
+		migration130SQLProcessed = migration130SQLProcessed + "\n" + fmt.Sprintf(migration130SearchPathSQL, sanitizedSchema)
+	}
+
 	return []MigrationFile{
 		{Version: 1, SQL: migration1SQLProcessed},
 		{Version: 2, SQL: fmt.Sprintf(migration2SQL, sanitizedSchema)},
@@ -461,6 +490,12 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 		{Version: 123, SQL: fmt.Sprintf(migration123SQL, sanitizedSchema)},
 		{Version: 124, SQL: fmt.Sprintf(migration124SQL, c, sanitizedSchema), Online: !isCockroach},
 		{Version: 125, SQL: fmt.Sprintf(migration125SQL, c, sanitizedSchema), Online: !isCockroach},
+		{Version: 126, SQL: fmt.Sprintf(migration126SQL, sanitizedSchema)},
+		{Version: 127, SQL: fmt.Sprintf(migration127SQL, c, sanitizedSchema), Online: !isCockroach},
+		{Version: 128, SQL: fmt.Sprintf(migration128SQL, c, sanitizedSchema), Online: !isCockroach},
+		{Version: 129, SQL: fmt.Sprintf(migration129SQL, c, sanitizedSchema), Online: !isCockroach},
+		{Version: 130, SQL: migration130SQLProcessed},
+		{Version: 131, SQL: fmt.Sprintf(migration131SQL, sanitizedSchema)},
 	}
 }
 
