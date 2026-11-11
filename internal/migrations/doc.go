@@ -13,7 +13,7 @@
 //
 // The set started as a copy of dbos-transact-golang v1.2.0, where equivalent
 // code lives in the unexported package dbos/internal/sysdb, and where the
-// history below migration 100 was written. The latest migration is 125.
+// history below migration 100 was written. The latest migration is 131.
 //
 // # Adding a migration
 //
@@ -24,8 +24,9 @@
 // report there rather than against a customer's database.
 //
 // A migration that creates a table takes a fourth: name it in SystemTables, in
-// the order a reset empties them. That list is what reset works from, so a
-// table missing from it is one a reset leaves full while reporting success.
+// the order a reset empties them, or in SparedTables if a reset must leave it
+// alone. That list is what reset works from, so a table missing from it is one
+// a reset leaves full while reporting success.
 // TestSystemTablesMatchTheMigratedSchemaIntegration compares the list against a
 // freshly migrated schema, so this fails in CI rather than in the field.
 //
@@ -53,8 +54,9 @@
 // both are the caller's to supply.
 //
 // The dialect reaches further than the triggers do: no ALTER FUNCTION ... SET
-// search_path anywhere (migrations 20, 38, 105, 113), a different statement for
-// migrations 10 and 28, no DROP TRIGGER (43, 44), and no CONCURRENTLY.
+// search_path anywhere (migrations 20, 38, 105, 113, 130), a different
+// statement for migrations 10 and 28, no DROP TRIGGER (43, 44), and no
+// CONCURRENTLY.
 // Measured against CockroachDB v24.1 through v26.2, the LISTEN/NOTIFY and
 // ALTER FUNCTION gaps are permanent, while DROP TRIGGER arrived between v24.3
 // and v25.2 — which is also the oldest stream the whole set applies to.

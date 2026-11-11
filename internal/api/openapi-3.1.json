@@ -366,6 +366,13 @@
           "cancelChildren": {
             "type": "boolean"
           },
+          "shardKeys": {
+            "description": "One shard key per workflow ID, in the same order. Required when the application's system database is sharded.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "workflowIds": {
             "items": {
               "type": "string"
@@ -392,6 +399,13 @@
           },
           "deleteChildren": {
             "type": "boolean"
+          },
+          "shardKeys": {
+            "description": "One shard key per workflow ID, in the same order. Required when the application's system database is sharded.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "workflowIds": {
             "items": {
@@ -494,6 +508,13 @@
           "queueName": {
             "type": "string"
           },
+          "shardKeys": {
+            "description": "One shard key per workflow ID, in the same order. Required when the application's system database is sharded.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "workflowIds": {
             "items": {
               "type": "string"
@@ -520,6 +541,10 @@
           },
           "cancelChildren": {
             "type": "boolean"
+          },
+          "shardKey": {
+            "description": "The workflow's shard key. Required when the application's system database is sharded.",
+            "type": "string"
           }
         },
         "type": "object"
@@ -775,6 +800,10 @@
             "description": "Whether the org may use auto-upgrade.",
             "type": "boolean"
           },
+          "externalStorage": {
+            "description": "Whether the org may use external storage.",
+            "type": "boolean"
+          },
           "sharding": {
             "description": "Whether the org may use sharding.",
             "type": "boolean"
@@ -787,7 +816,8 @@
         "required": [
           "sharding",
           "autoUpgrade",
-          "suspendWorkflows"
+          "suspendWorkflows",
+          "externalStorage"
         ],
         "type": "object"
       },
@@ -956,6 +986,10 @@
               "null"
             ]
           },
+          "sharded": {
+            "description": "Whether the executor's system database is sharded. If so, commands that address a workflow must pass its shard key.",
+            "type": "boolean"
+          },
           "status": {
             "enum": [
               "HEALTHY",
@@ -980,7 +1014,8 @@
           "updatedAt",
           "language",
           "dbosVersion",
-          "executorMetadata"
+          "executorMetadata",
+          "sharded"
         ],
         "type": "object"
       },
@@ -1027,6 +1062,10 @@
             "type": "string"
           },
           "queuePartitionKey": {
+            "type": "string"
+          },
+          "shardKey": {
+            "description": "The original workflow's shard key, under which the fork also runs. Required when the application's system database is sharded.",
             "type": "string"
           },
           "startStep": {
@@ -1791,6 +1830,10 @@
           },
           "queueName": {
             "type": "string"
+          },
+          "shardKey": {
+            "description": "The workflow's shard key. Required when the application's system database is sharded.",
+            "type": "string"
           }
         },
         "type": "object"
@@ -1815,6 +1858,10 @@
             "type": "string"
           },
           "queuePartitionKey": {
+            "type": "string"
+          },
+          "shardKey": {
+            "description": "The workflow's shard key. Required when the application's system database is sharded.",
             "type": "string"
           },
           "startStep": {
@@ -1925,6 +1972,13 @@
           "scheduleName": {
             "type": "string"
           },
+          "shardKey": {
+            "description": "The shard key the schedule's workflows run under. Null on an unsharded system database.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "status": {
             "description": "Schedule status as reported by DBOS Transact. Known values: ACTIVE, PAUSED. Not an enforced enum; newer SDK versions may report additional values.",
             "type": "string"
@@ -1950,7 +2004,8 @@
           "lastFiredAt",
           "automaticBackfill",
           "cronTimezone",
-          "applicationName"
+          "applicationName",
+          "shardKey"
         ],
         "type": "object"
       },
@@ -1993,6 +2048,13 @@
       "Step": {
         "additionalProperties": false,
         "properties": {
+          "childShardKey": {
+            "description": "The child workflow's shard key. Null for a step without a child workflow, or on an unsharded system database.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "childWorkflowId": {
             "type": [
               "string",
@@ -2039,6 +2101,7 @@
           "output",
           "error",
           "childWorkflowId",
+          "childShardKey",
           "startedAt",
           "completedAt"
         ],
@@ -2439,6 +2502,13 @@
               "null"
             ]
           },
+          "parentShardKey": {
+            "description": "The parent workflow's shard key. Null for a workflow without a parent, or on an unsharded system database.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "parentWorkflowId": {
             "type": [
               "string",
@@ -2473,8 +2543,15 @@
               "null"
             ]
           },
+          "shardKey": {
+            "description": "The workflow's shard key. Null on an unsharded system database.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "status": {
-            "description": "Workflow status as reported by DBOS Transact. Known values: ENQUEUED, DELAYED, PENDING, SUCCESS, ERROR, MAX_RECOVERY_ATTEMPTS_EXCEEDED, CANCELLED. Not an enforced enum; newer SDK versions may report additional values.",
+            "description": "Workflow status as reported by DBOS Transact. Known values: ENQUEUED, DELAYED, SUSPENDED, PENDING, SUCCESS, ERROR, MAX_RECOVERY_ATTEMPTS_EXCEEDED, CANCELLED. Not an enforced enum; newer SDK versions may report additional values.",
             "type": "string"
           },
           "timeoutMs": {
@@ -2549,7 +2626,9 @@
           "completedAt",
           "attributes",
           "scheduleName",
-          "applicationName"
+          "applicationName",
+          "shardKey",
+          "parentShardKey"
         ],
         "type": "object"
       },
@@ -3242,7 +3321,7 @@
           },
           "nonterminal": {
             "$ref": "#/components/schemas/WorkflowMetricLiveComponent",
-            "description": "PENDING, ENQUEUED and DELAYED workflows created in the effective range, regardless of age."
+            "description": "PENDING, ENQUEUED and DELAYED workflows, and SUSPENDED ones on SDK releases that can report them, created in the effective range, regardless of age."
           },
           "terminal": {
             "$ref": "#/components/schemas/WorkflowMetricLiveComponent",
@@ -3741,6 +3820,16 @@
             "format": "int64",
             "type": "integer"
           },
+          "parentShardKey": {
+            "description": "Match workflows whose parents are under any of these shard keys.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "parentWorkflowId": {
             "items": {
               "type": "string"
@@ -3763,6 +3852,16 @@
             "type": "boolean"
           },
           "scheduleName": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "shardKey": {
+            "description": "Match workflows under any of these shard keys.",
             "items": {
               "type": "string"
             },
@@ -6374,6 +6473,16 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "description": "The workflow's shard key. Required when the application's system database is sharded.",
+            "explode": false,
+            "in": "query",
+            "name": "shardKey",
+            "schema": {
+              "description": "The workflow's shard key. Required when the application's system database is sharded.",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -6426,6 +6535,16 @@
             "name": "workflowId",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's shard key. Required when the application's system database is sharded.",
+            "explode": false,
+            "in": "query",
+            "name": "shardKey",
+            "schema": {
+              "description": "The workflow's shard key. Required when the application's system database is sharded.",
               "type": "string"
             }
           }
@@ -6554,6 +6673,16 @@
             "name": "workflowId",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's shard key. Required when the application's system database is sharded.",
+            "explode": false,
+            "in": "query",
+            "name": "shardKey",
+            "schema": {
+              "description": "The workflow's shard key. Required when the application's system database is sharded.",
               "type": "string"
             }
           }
@@ -6772,6 +6901,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "The workflow's shard key. Required when the application's system database is sharded.",
+            "explode": false,
+            "in": "query",
+            "name": "shardKey",
+            "schema": {
+              "description": "The workflow's shard key. Required when the application's system database is sharded.",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -6986,6 +7125,16 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "description": "The workflow's shard key. Required when the application's system database is sharded.",
+            "explode": false,
+            "in": "query",
+            "name": "shardKey",
+            "schema": {
+              "description": "The workflow's shard key. Required when the application's system database is sharded.",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -7050,6 +7199,16 @@
             "name": "workflowId",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The workflow's shard key. Required when the application's system database is sharded.",
+            "explode": false,
+            "in": "query",
+            "name": "shardKey",
+            "schema": {
+              "description": "The workflow's shard key. Required when the application's system database is sharded.",
               "type": "string"
             }
           }

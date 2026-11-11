@@ -454,7 +454,7 @@ func runWorkflowGet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	resp, err := c.GetWorkflowWithResponse(cmd.Context(), org, app, args[0])
+	resp, err := c.GetWorkflowWithResponse(cmd.Context(), org, app, args[0], nil)
 	if err != nil {
 		return err
 	}
@@ -492,7 +492,7 @@ func runWorkflowEvents(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	resp, err := c.ListWorkflowEventsWithResponse(cmd.Context(), org, app, args[0])
+	resp, err := c.ListWorkflowEventsWithResponse(cmd.Context(), org, app, args[0], nil)
 	if err != nil {
 		return err
 	}

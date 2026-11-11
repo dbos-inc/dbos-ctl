@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"testing"
 
@@ -171,19 +172,26 @@ func TestSystemTablesMatchTheMigratedSchemaIntegration(t *testing.T) {
 	}
 	defer rows.Close()
 
-	actual := map[string]bool{}
+	actual, spared := map[string]bool{}, map[string]bool{}
 	for rows.Next() {
 		var name string
 		if err := rows.Scan(&name); err != nil {
 			t.Fatal(err)
 		}
-		// The migration table is the one a reset spares, so it is not in the list.
-		if name != migrations.MigrationTable {
+		// The tables a reset spares are deliberately not in the list.
+		if slices.Contains(migrations.SparedTables, name) {
+			spared[name] = true
+		} else {
 			actual[name] = true
 		}
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
+	}
+	for _, table := range migrations.SparedTables {
+		if !spared[table] {
+			t.Errorf("SparedTables names %q, which a migrated schema does not have", table)
+		}
 	}
 
 	named := map[string]bool{}
@@ -415,6 +423,8 @@ func TestRenameMovesEveryOwnedKindIntegration(t *testing.T) {
 	// DELAYED counts as in-flight: it is scheduled to run, not finished, so it
 	// must move with the version rows rather than in the batched tail.
 	seedWorkflow(t, conn, "wf-delayed", "DELAYED", "old-app")
+	// SUSPENDED likewise: a recv parked in the database, waiting on a send.
+	seedWorkflow(t, conn, "wf-suspended", "SUSPENDED", "old-app")
 	seedOwnedRows(t, conn, "old", "old-app")
 	seedWorkflow(t, conn, "wf-other", "SUCCESS", "other-app")
 
@@ -426,11 +436,11 @@ func TestRenameMovesEveryOwnedKindIntegration(t *testing.T) {
 	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.workflow_status WHERE application_name = 'old-app'`); n != 0 {
 		t.Errorf("%d workflow(s) left under the old name", n)
 	}
-	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.workflow_status WHERE application_name = 'new-app'`); n != 4 {
-		t.Errorf("new-app owns %d workflow(s), want 4", n)
+	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.workflow_status WHERE application_name = 'new-app'`); n != 5 {
+		t.Errorf("new-app owns %d workflow(s), want 5", n)
 	}
-	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.operation_outputs WHERE application_name = 'new-app'`); n != 4 {
-		t.Errorf("new-app owns %d step(s), want 4", n)
+	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.operation_outputs WHERE application_name = 'new-app'`); n != 5 {
+		t.Errorf("new-app owns %d step(s), want 5", n)
 	}
 	for _, table := range []string{"queues", "workflow_schedules", "application_versions"} {
 		n := scalar[int64](t, conn, fmt.Sprintf(`SELECT count(*) FROM dbos.%s WHERE application_name = 'new-app'`, table))
@@ -442,7 +452,7 @@ func TestRenameMovesEveryOwnedKindIntegration(t *testing.T) {
 	if n := scalar[int64](t, conn, `SELECT count(*) FROM dbos.workflow_status WHERE application_name = 'other-app'`); n != 1 {
 		t.Errorf("another application's workflows were re-owned: %d row(s), want 1", n)
 	}
-	for _, want := range []string{`"workflows": 4`, `"steps": 4`, `"queues": 1`, `"schedules": 1`, `"versions": 1`} {
+	for _, want := range []string{`"workflows": 5`, `"steps": 5`, `"queues": 1`, `"schedules": 1`, `"versions": 1`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("reported counts are missing %s:\n%s", want, out)
 		}

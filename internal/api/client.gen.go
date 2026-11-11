@@ -578,9 +578,12 @@ type BulkCancelInputBody struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: //schemas/BulkCancelInputBody.json
-	Schema         *string  `json:"$schema,omitempty"`
-	CancelChildren *bool    `json:"cancelChildren,omitempty"`
-	WorkflowIds    []string `json:"workflowIds"`
+	Schema         *string `json:"$schema,omitempty"`
+	CancelChildren *bool   `json:"cancelChildren,omitempty"`
+
+	// ShardKeys One shard key per workflow ID, in the same order. Required when the application's system database is sharded.
+	ShardKeys   *[]string `json:"shardKeys,omitempty"`
+	WorkflowIds []string  `json:"workflowIds"`
 }
 
 // BulkDeleteInputBody defines model for BulkDeleteInputBody.
@@ -588,9 +591,12 @@ type BulkDeleteInputBody struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: //schemas/BulkDeleteInputBody.json
-	Schema         *string  `json:"$schema,omitempty"`
-	DeleteChildren *bool    `json:"deleteChildren,omitempty"`
-	WorkflowIds    []string `json:"workflowIds"`
+	Schema         *string `json:"$schema,omitempty"`
+	DeleteChildren *bool   `json:"deleteChildren,omitempty"`
+
+	// ShardKeys One shard key per workflow ID, in the same order. Required when the application's system database is sharded.
+	ShardKeys   *[]string `json:"shardKeys,omitempty"`
+	WorkflowIds []string  `json:"workflowIds"`
 }
 
 // BulkForkFromFailureBody defines model for BulkForkFromFailureBody.
@@ -631,9 +637,12 @@ type BulkResumeInputBody struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: //schemas/BulkResumeInputBody.json
-	Schema      *string  `json:"$schema,omitempty"`
-	QueueName   *string  `json:"queueName,omitempty"`
-	WorkflowIds []string `json:"workflowIds"`
+	Schema    *string `json:"$schema,omitempty"`
+	QueueName *string `json:"queueName,omitempty"`
+
+	// ShardKeys One shard key per workflow ID, in the same order. Required when the application's system database is sharded.
+	ShardKeys   *[]string `json:"shardKeys,omitempty"`
+	WorkflowIds []string  `json:"workflowIds"`
 }
 
 // CancelWorkflowInputBody defines model for CancelWorkflowInputBody.
@@ -643,6 +652,9 @@ type CancelWorkflowInputBody struct {
 	// Examples: //schemas/CancelWorkflowInputBody.json
 	Schema         *string `json:"$schema,omitempty"`
 	CancelChildren *bool   `json:"cancelChildren,omitempty"`
+
+	// ShardKey The workflow's shard key. Required when the application's system database is sharded.
+	ShardKey *string `json:"shardKey,omitempty"`
 }
 
 // CreateAlertInputBody defines model for CreateAlertInputBody.
@@ -741,6 +753,9 @@ type Entitlements struct {
 	// AutoUpgrade Whether the org may use auto-upgrade.
 	AutoUpgrade bool `json:"autoUpgrade"`
 
+	// ExternalStorage Whether the org may use external storage.
+	ExternalStorage bool `json:"externalStorage"`
+
 	// Sharding Whether the org may use sharding.
 	Sharding bool `json:"sharding"`
 
@@ -822,8 +837,11 @@ type Executor struct {
 	HostId           *string                 `json:"hostId"`
 	Hostname         *string                 `json:"hostname"`
 	Language         *string                 `json:"language"`
-	Status           ExecutorStatus          `json:"status"`
-	UpdatedAt        time.Time               `json:"updatedAt"`
+
+	// Sharded Whether the executor's system database is sharded. If so, commands that address a workflow must pass its shard key.
+	Sharded   bool           `json:"sharded"`
+	Status    ExecutorStatus `json:"status"`
+	UpdatedAt time.Time      `json:"updatedAt"`
 }
 
 // ExecutorStatus defines model for Executor.Status.
@@ -848,7 +866,10 @@ type ForkWorkflowInputBody struct {
 	NewWorkflowId     *string `json:"newWorkflowId,omitempty"`
 	QueueName         *string `json:"queueName,omitempty"`
 	QueuePartitionKey *string `json:"queuePartitionKey,omitempty"`
-	StartStep         *int32  `json:"startStep,omitempty"`
+
+	// ShardKey The original workflow's shard key, under which the fork also runs. Required when the application's system database is sharded.
+	ShardKey  *string `json:"shardKey,omitempty"`
+	StartStep *int32  `json:"startStep,omitempty"`
 }
 
 // ForkWorkflowOutputBody defines model for ForkWorkflowOutputBody.
@@ -1141,6 +1162,9 @@ type ResumeWorkflowInputBody struct {
 	// Examples: //schemas/ResumeWorkflowInputBody.json
 	Schema    *string `json:"$schema,omitempty"`
 	QueueName *string `json:"queueName,omitempty"`
+
+	// ShardKey The workflow's shard key. Required when the application's system database is sharded.
+	ShardKey *string `json:"shardKey,omitempty"`
 }
 
 // RewindWorkflowInputBody defines model for RewindWorkflowInputBody.
@@ -1154,6 +1178,9 @@ type RewindWorkflowInputBody struct {
 	AppVersion        *string `json:"appVersion,omitempty"`
 	QueueName         *string `json:"queueName,omitempty"`
 	QueuePartitionKey *string `json:"queuePartitionKey,omitempty"`
+
+	// ShardKey The workflow's shard key. Required when the application's system database is sharded.
+	ShardKey *string `json:"shardKey,omitempty"`
 
 	// StartStep Step to rewind to. Defaults to the workflow's first step, discarding its whole history.
 	StartStep *int32 `json:"startStep,omitempty"`
@@ -1196,6 +1223,9 @@ type Schedule struct {
 	ScheduleId        string     `json:"scheduleId"`
 	ScheduleName      string     `json:"scheduleName"`
 
+	// ShardKey The shard key the schedule's workflows run under. Null on an unsharded system database.
+	ShardKey *string `json:"shardKey"`
+
 	// Status Schedule status as reported by DBOS Transact. Known values: ACTIVE, PAUSED. Not an enforced enum; newer SDK versions may report additional values.
 	Status        string  `json:"status"`
 	WorkflowClass *string `json:"workflowClass"`
@@ -1221,6 +1251,8 @@ type SetOrgLimitsInputBody struct {
 
 // Step defines model for Step.
 type Step struct {
+	// ChildShardKey The child workflow's shard key. Null for a step without a child workflow, or on an unsharded system database.
+	ChildShardKey   *string    `json:"childShardKey"`
 	ChildWorkflowId *string    `json:"childWorkflowId"`
 	CompletedAt     *time.Time `json:"completedAt"`
 	Error           *string    `json:"error"`
@@ -1342,28 +1374,34 @@ type Workflow struct {
 	AppVersion *string `json:"appVersion"`
 
 	// ApplicationName The application that owns this workflow, when several applications share a system database. Null for workflows recorded before DBOS Transact tracked application names.
-	ApplicationName   *string    `json:"applicationName"`
-	AssumedRole       *string    `json:"assumedRole"`
-	Attributes        *string    `json:"attributes"`
-	CompletedAt       *time.Time `json:"completedAt"`
-	CreatedAt         time.Time  `json:"createdAt"`
-	Deadline          *time.Time `json:"deadline"`
-	DeduplicationId   *string    `json:"deduplicationId"`
-	DelayUntil        *time.Time `json:"delayUntil"`
-	DequeuedAt        *time.Time `json:"dequeuedAt"`
-	Error             *string    `json:"error"`
-	ExecutorId        *string    `json:"executorId"`
-	ForkedFrom        *string    `json:"forkedFrom"`
-	Input             *string    `json:"input"`
-	Output            *string    `json:"output"`
-	ParentWorkflowId  *string    `json:"parentWorkflowId"`
-	Priority          int32      `json:"priority"`
-	QueueName         *string    `json:"queueName"`
-	QueuePartitionKey *string    `json:"queuePartitionKey"`
-	Roles             *string    `json:"roles"`
-	ScheduleName      *string    `json:"scheduleName"`
+	ApplicationName *string    `json:"applicationName"`
+	AssumedRole     *string    `json:"assumedRole"`
+	Attributes      *string    `json:"attributes"`
+	CompletedAt     *time.Time `json:"completedAt"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	Deadline        *time.Time `json:"deadline"`
+	DeduplicationId *string    `json:"deduplicationId"`
+	DelayUntil      *time.Time `json:"delayUntil"`
+	DequeuedAt      *time.Time `json:"dequeuedAt"`
+	Error           *string    `json:"error"`
+	ExecutorId      *string    `json:"executorId"`
+	ForkedFrom      *string    `json:"forkedFrom"`
+	Input           *string    `json:"input"`
+	Output          *string    `json:"output"`
 
-	// Status Workflow status as reported by DBOS Transact. Known values: ENQUEUED, DELAYED, PENDING, SUCCESS, ERROR, MAX_RECOVERY_ATTEMPTS_EXCEEDED, CANCELLED. Not an enforced enum; newer SDK versions may report additional values.
+	// ParentShardKey The parent workflow's shard key. Null for a workflow without a parent, or on an unsharded system database.
+	ParentShardKey    *string `json:"parentShardKey"`
+	ParentWorkflowId  *string `json:"parentWorkflowId"`
+	Priority          int32   `json:"priority"`
+	QueueName         *string `json:"queueName"`
+	QueuePartitionKey *string `json:"queuePartitionKey"`
+	Roles             *string `json:"roles"`
+	ScheduleName      *string `json:"scheduleName"`
+
+	// ShardKey The workflow's shard key. Null on an unsharded system database.
+	ShardKey *string `json:"shardKey"`
+
+	// Status Workflow status as reported by DBOS Transact. Known values: ENQUEUED, DELAYED, SUSPENDED, PENDING, SUCCESS, ERROR, MAX_RECOVERY_ATTEMPTS_EXCEEDED, CANCELLED. Not an enforced enum; newer SDK versions may report additional values.
 	Status         string    `json:"status"`
 	TimeoutMs      *int64    `json:"timeoutMs"`
 	UpdatedAt      time.Time `json:"updatedAt"`
@@ -1637,7 +1675,7 @@ type WorkflowMetricLiveResponse struct {
 	LiveContext WorkflowMetricLiveContext `json:"liveContext"`
 	Meta        WorkflowMetricLiveMeta    `json:"meta"`
 
-	// Nonterminal PENDING, ENQUEUED and DELAYED workflows created in the effective range, regardless of age.
+	// Nonterminal PENDING, ENQUEUED and DELAYED workflows, and SUSPENDED ones on SDK releases that can report them, created in the effective range, regardless of age.
 	Nonterminal WorkflowMetricLiveComponent `json:"nonterminal"`
 
 	// Terminal Terminal completions since the watermark, within the lookback, created in the effective range.
@@ -1802,34 +1840,40 @@ type WorkflowSearchBody struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: //schemas/WorkflowSearchBody.json
-	Schema           *string                 `json:"$schema,omitempty"`
-	AppVersion       *[]string               `json:"appVersion,omitempty"`
-	Attributes       *map[string]interface{} `json:"attributes,omitempty"`
-	CompletedAfter   *time.Time              `json:"completedAfter,omitempty"`
-	CompletedBefore  *time.Time              `json:"completedBefore,omitempty"`
-	DequeuedAfter    *time.Time              `json:"dequeuedAfter,omitempty"`
-	DequeuedBefore   *time.Time              `json:"dequeuedBefore,omitempty"`
-	EndTime          *time.Time              `json:"endTime,omitempty"`
-	ExecutorId       *[]string               `json:"executorId,omitempty"`
-	ForkedFrom       *[]string               `json:"forkedFrom,omitempty"`
-	HasParent        *bool                   `json:"hasParent,omitempty"`
-	IsFork           *bool                   `json:"isFork,omitempty"`
-	Limit            *int64                  `json:"limit,omitempty"`
-	LoadInput        *bool                   `json:"loadInput,omitempty"`
-	LoadOutput       *bool                   `json:"loadOutput,omitempty"`
-	Offset           *int64                  `json:"offset,omitempty"`
-	ParentWorkflowId *[]string               `json:"parentWorkflowId,omitempty"`
-	QueueName        *[]string               `json:"queueName,omitempty"`
-	QueuesOnly       *bool                   `json:"queuesOnly,omitempty"`
-	ScheduleName     *[]string               `json:"scheduleName,omitempty"`
-	SortDesc         *bool                   `json:"sortDesc,omitempty"`
-	StartTime        *time.Time              `json:"startTime,omitempty"`
-	Status           *[]string               `json:"status,omitempty"`
-	User             *[]string               `json:"user,omitempty"`
-	WasForkedFrom    *bool                   `json:"wasForkedFrom,omitempty"`
-	WorkflowIdPrefix *[]string               `json:"workflowIdPrefix,omitempty"`
-	WorkflowIds      *[]string               `json:"workflowIds,omitempty"`
-	WorkflowName     *[]string               `json:"workflowName,omitempty"`
+	Schema          *string                 `json:"$schema,omitempty"`
+	AppVersion      *[]string               `json:"appVersion,omitempty"`
+	Attributes      *map[string]interface{} `json:"attributes,omitempty"`
+	CompletedAfter  *time.Time              `json:"completedAfter,omitempty"`
+	CompletedBefore *time.Time              `json:"completedBefore,omitempty"`
+	DequeuedAfter   *time.Time              `json:"dequeuedAfter,omitempty"`
+	DequeuedBefore  *time.Time              `json:"dequeuedBefore,omitempty"`
+	EndTime         *time.Time              `json:"endTime,omitempty"`
+	ExecutorId      *[]string               `json:"executorId,omitempty"`
+	ForkedFrom      *[]string               `json:"forkedFrom,omitempty"`
+	HasParent       *bool                   `json:"hasParent,omitempty"`
+	IsFork          *bool                   `json:"isFork,omitempty"`
+	Limit           *int64                  `json:"limit,omitempty"`
+	LoadInput       *bool                   `json:"loadInput,omitempty"`
+	LoadOutput      *bool                   `json:"loadOutput,omitempty"`
+	Offset          *int64                  `json:"offset,omitempty"`
+
+	// ParentShardKey Match workflows whose parents are under any of these shard keys.
+	ParentShardKey   *[]string `json:"parentShardKey,omitempty"`
+	ParentWorkflowId *[]string `json:"parentWorkflowId,omitempty"`
+	QueueName        *[]string `json:"queueName,omitempty"`
+	QueuesOnly       *bool     `json:"queuesOnly,omitempty"`
+	ScheduleName     *[]string `json:"scheduleName,omitempty"`
+
+	// ShardKey Match workflows under any of these shard keys.
+	ShardKey         *[]string  `json:"shardKey,omitempty"`
+	SortDesc         *bool      `json:"sortDesc,omitempty"`
+	StartTime        *time.Time `json:"startTime,omitempty"`
+	Status           *[]string  `json:"status,omitempty"`
+	User             *[]string  `json:"user,omitempty"`
+	WasForkedFrom    *bool      `json:"wasForkedFrom,omitempty"`
+	WorkflowIdPrefix *[]string  `json:"workflowIdPrefix,omitempty"`
+	WorkflowIds      *[]string  `json:"workflowIds,omitempty"`
+	WorkflowName     *[]string  `json:"workflowName,omitempty"`
 }
 
 // Workspace defines model for Workspace.
@@ -1877,6 +1921,21 @@ type ListWorkflowsParams struct {
 // DeleteWorkflowParams defines parameters for DeleteWorkflow.
 type DeleteWorkflowParams struct {
 	DeleteChildren *bool `form:"deleteChildren,omitempty" json:"deleteChildren,omitempty"`
+
+	// ShardKey The workflow's shard key. Required when the application's system database is sharded.
+	ShardKey *string `form:"shardKey,omitempty" json:"shardKey,omitempty"`
+}
+
+// GetWorkflowParams defines parameters for GetWorkflow.
+type GetWorkflowParams struct {
+	// ShardKey The workflow's shard key. Required when the application's system database is sharded.
+	ShardKey *string `form:"shardKey,omitempty" json:"shardKey,omitempty"`
+}
+
+// ListWorkflowEventsParams defines parameters for ListWorkflowEvents.
+type ListWorkflowEventsParams struct {
+	// ShardKey The workflow's shard key. Required when the application's system database is sharded.
+	ShardKey *string `form:"shardKey,omitempty" json:"shardKey,omitempty"`
 }
 
 // ExportWorkflowParams defines parameters for ExportWorkflow.
@@ -1884,10 +1943,25 @@ type ExportWorkflowParams struct {
 	ExportChildren *bool `form:"exportChildren,omitempty" json:"exportChildren,omitempty"`
 }
 
+// ListWorkflowNotificationsParams defines parameters for ListWorkflowNotifications.
+type ListWorkflowNotificationsParams struct {
+	// ShardKey The workflow's shard key. Required when the application's system database is sharded.
+	ShardKey *string `form:"shardKey,omitempty" json:"shardKey,omitempty"`
+}
+
 // ListWorkflowStepsParams defines parameters for ListWorkflowSteps.
 type ListWorkflowStepsParams struct {
 	Limit  *int64 `form:"limit,omitempty" json:"limit,omitempty"`
 	Offset *int64 `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// ShardKey The workflow's shard key. Required when the application's system database is sharded.
+	ShardKey *string `form:"shardKey,omitempty" json:"shardKey,omitempty"`
+}
+
+// ListWorkflowStreamsParams defines parameters for ListWorkflowStreams.
+type ListWorkflowStreamsParams struct {
+	// ShardKey The workflow's shard key. Required when the application's system database is sharded.
+	ShardKey *string `form:"shardKey,omitempty" json:"shardKey,omitempty"`
 }
 
 // ListAuditLogsParams defines parameters for ListAuditLogs.
@@ -2474,7 +2548,7 @@ type ClientInterface interface {
 	// GetWorkflow Get workflow
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId} (the `GetWorkflow` operationId).
-	GetWorkflow(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetWorkflow(ctx context.Context, orgName string, appName string, workflowId string, params *GetWorkflowParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CancelWorkflowWithBody Cancel workflow
 	//
@@ -2493,7 +2567,7 @@ type ClientInterface interface {
 	// ListWorkflowEvents List workflow events
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/events (the `ListWorkflowEvents` operationId).
-	ListWorkflowEvents(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ListWorkflowEvents(ctx context.Context, orgName string, appName string, workflowId string, params *ListWorkflowEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ExportWorkflow Export workflow
 	//
@@ -2517,7 +2591,7 @@ type ClientInterface interface {
 	// ListWorkflowNotifications List workflow notifications
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/notifications (the `ListWorkflowNotifications` operationId).
-	ListWorkflowNotifications(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ListWorkflowNotifications(ctx context.Context, orgName string, appName string, workflowId string, params *ListWorkflowNotificationsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ResumeWorkflowWithBody Resume workflow
 	//
@@ -2555,7 +2629,7 @@ type ClientInterface interface {
 	// ListWorkflowStreams List workflow streams
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/streams (the `ListWorkflowStreams` operationId).
-	ListWorkflowStreams(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ListWorkflowStreams(ctx context.Context, orgName string, appName string, workflowId string, params *ListWorkflowStreamsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListAuditLogs List audit logs
 	//
@@ -3819,8 +3893,8 @@ func (c *Client) DeleteWorkflow(ctx context.Context, orgName string, appName str
 // GetWorkflow Get workflow
 //
 // Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId} (the `GetWorkflow` operationId).
-func (c *Client) GetWorkflow(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetWorkflowRequest(c.Server, orgName, appName, workflowId)
+func (c *Client) GetWorkflow(ctx context.Context, orgName string, appName string, workflowId string, params *GetWorkflowParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetWorkflowRequest(c.Server, orgName, appName, workflowId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -3868,8 +3942,8 @@ func (c *Client) CancelWorkflow(ctx context.Context, orgName string, appName str
 // ListWorkflowEvents List workflow events
 //
 // Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/events (the `ListWorkflowEvents` operationId).
-func (c *Client) ListWorkflowEvents(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListWorkflowEventsRequest(c.Server, orgName, appName, workflowId)
+func (c *Client) ListWorkflowEvents(ctx context.Context, orgName string, appName string, workflowId string, params *ListWorkflowEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListWorkflowEventsRequest(c.Server, orgName, appName, workflowId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -3932,8 +4006,8 @@ func (c *Client) ForkWorkflow(ctx context.Context, orgName string, appName strin
 // ListWorkflowNotifications List workflow notifications
 //
 // Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/notifications (the `ListWorkflowNotifications` operationId).
-func (c *Client) ListWorkflowNotifications(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListWorkflowNotificationsRequest(c.Server, orgName, appName, workflowId)
+func (c *Client) ListWorkflowNotifications(ctx context.Context, orgName string, appName string, workflowId string, params *ListWorkflowNotificationsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListWorkflowNotificationsRequest(c.Server, orgName, appName, workflowId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -4030,8 +4104,8 @@ func (c *Client) ListWorkflowSteps(ctx context.Context, orgName string, appName 
 // ListWorkflowStreams List workflow streams
 //
 // Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/streams (the `ListWorkflowStreams` operationId).
-func (c *Client) ListWorkflowStreams(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListWorkflowStreamsRequest(c.Server, orgName, appName, workflowId)
+func (c *Client) ListWorkflowStreams(ctx context.Context, orgName string, appName string, workflowId string, params *ListWorkflowStreamsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListWorkflowStreamsRequest(c.Server, orgName, appName, workflowId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -6813,6 +6887,18 @@ func NewDeleteWorkflowRequest(server string, orgName string, appName string, wor
 
 		}
 
+		if params.ShardKey != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "shardKey", *params.ShardKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
 		if encoded := queryValues.Encode(); encoded != "" {
 			rawQueryFragments = append(rawQueryFragments, encoded)
 		}
@@ -6828,7 +6914,7 @@ func NewDeleteWorkflowRequest(server string, orgName string, appName string, wor
 }
 
 // NewGetWorkflowRequest constructs an http.Request for the GetWorkflow method
-func NewGetWorkflowRequest(server string, orgName string, appName string, workflowId string) (*http.Request, error) {
+func NewGetWorkflowRequest(server string, orgName string, appName string, workflowId string, params *GetWorkflowParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -6865,6 +6951,33 @@ func NewGetWorkflowRequest(server string, orgName string, appName string, workfl
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.ShardKey != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "shardKey", *params.ShardKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -6937,7 +7050,7 @@ func NewCancelWorkflowRequestWithBody(server string, orgName string, appName str
 }
 
 // NewListWorkflowEventsRequest constructs an http.Request for the ListWorkflowEvents method
-func NewListWorkflowEventsRequest(server string, orgName string, appName string, workflowId string) (*http.Request, error) {
+func NewListWorkflowEventsRequest(server string, orgName string, appName string, workflowId string, params *ListWorkflowEventsParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -6974,6 +7087,33 @@ func NewListWorkflowEventsRequest(server string, orgName string, appName string,
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.ShardKey != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "shardKey", *params.ShardKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -7121,7 +7261,7 @@ func NewForkWorkflowRequestWithBody(server string, orgName string, appName strin
 }
 
 // NewListWorkflowNotificationsRequest constructs an http.Request for the ListWorkflowNotifications method
-func NewListWorkflowNotificationsRequest(server string, orgName string, appName string, workflowId string) (*http.Request, error) {
+func NewListWorkflowNotificationsRequest(server string, orgName string, appName string, workflowId string, params *ListWorkflowNotificationsParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -7158,6 +7298,33 @@ func NewListWorkflowNotificationsRequest(server string, orgName string, appName 
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.ShardKey != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "shardKey", *params.ShardKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -7363,6 +7530,18 @@ func NewListWorkflowStepsRequest(server string, orgName string, appName string, 
 
 		}
 
+		if params.ShardKey != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "shardKey", *params.ShardKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
 		if encoded := queryValues.Encode(); encoded != "" {
 			rawQueryFragments = append(rawQueryFragments, encoded)
 		}
@@ -7378,7 +7557,7 @@ func NewListWorkflowStepsRequest(server string, orgName string, appName string, 
 }
 
 // NewListWorkflowStreamsRequest constructs an http.Request for the ListWorkflowStreams method
-func NewListWorkflowStreamsRequest(server string, orgName string, appName string, workflowId string) (*http.Request, error) {
+func NewListWorkflowStreamsRequest(server string, orgName string, appName string, workflowId string, params *ListWorkflowStreamsParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -7415,6 +7594,33 @@ func NewListWorkflowStreamsRequest(server string, orgName string, appName string
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.ShardKey != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "shardKey", *params.ShardKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -9011,7 +9217,7 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId} (the `GetWorkflow` operationId).
-	GetWorkflowWithResponse(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*GetWorkflowResponse, error)
+	GetWorkflowWithResponse(ctx context.Context, orgName string, appName string, workflowId string, params *GetWorkflowParams, reqEditors ...RequestEditorFn) (*GetWorkflowResponse, error)
 
 	// CancelWorkflowWithBodyWithResponse Cancel workflow
 	//
@@ -9032,7 +9238,7 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/events (the `ListWorkflowEvents` operationId).
-	ListWorkflowEventsWithResponse(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*ListWorkflowEventsResponse, error)
+	ListWorkflowEventsWithResponse(ctx context.Context, orgName string, appName string, workflowId string, params *ListWorkflowEventsParams, reqEditors ...RequestEditorFn) (*ListWorkflowEventsResponse, error)
 
 	// ExportWorkflowWithResponse Export workflow
 	//
@@ -9060,7 +9266,7 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/notifications (the `ListWorkflowNotifications` operationId).
-	ListWorkflowNotificationsWithResponse(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*ListWorkflowNotificationsResponse, error)
+	ListWorkflowNotificationsWithResponse(ctx context.Context, orgName string, appName string, workflowId string, params *ListWorkflowNotificationsParams, reqEditors ...RequestEditorFn) (*ListWorkflowNotificationsResponse, error)
 
 	// ResumeWorkflowWithBodyWithResponse Resume workflow
 	//
@@ -9102,7 +9308,7 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/streams (the `ListWorkflowStreams` operationId).
-	ListWorkflowStreamsWithResponse(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*ListWorkflowStreamsResponse, error)
+	ListWorkflowStreamsWithResponse(ctx context.Context, orgName string, appName string, workflowId string, params *ListWorkflowStreamsParams, reqEditors ...RequestEditorFn) (*ListWorkflowStreamsResponse, error)
 
 	// ListAuditLogsWithResponse List audit logs
 	//
@@ -13654,8 +13860,8 @@ func (c *ClientWithResponses) DeleteWorkflowWithResponse(ctx context.Context, or
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId} (the `GetWorkflow` operationId).
-func (c *ClientWithResponses) GetWorkflowWithResponse(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*GetWorkflowResponse, error) {
-	rsp, err := c.GetWorkflow(ctx, orgName, appName, workflowId, reqEditors...)
+func (c *ClientWithResponses) GetWorkflowWithResponse(ctx context.Context, orgName string, appName string, workflowId string, params *GetWorkflowParams, reqEditors ...RequestEditorFn) (*GetWorkflowResponse, error) {
+	rsp, err := c.GetWorkflow(ctx, orgName, appName, workflowId, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -13693,8 +13899,8 @@ func (c *ClientWithResponses) CancelWorkflowWithResponse(ctx context.Context, or
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/events (the `ListWorkflowEvents` operationId).
-func (c *ClientWithResponses) ListWorkflowEventsWithResponse(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*ListWorkflowEventsResponse, error) {
-	rsp, err := c.ListWorkflowEvents(ctx, orgName, appName, workflowId, reqEditors...)
+func (c *ClientWithResponses) ListWorkflowEventsWithResponse(ctx context.Context, orgName string, appName string, workflowId string, params *ListWorkflowEventsParams, reqEditors ...RequestEditorFn) (*ListWorkflowEventsResponse, error) {
+	rsp, err := c.ListWorkflowEvents(ctx, orgName, appName, workflowId, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -13745,8 +13951,8 @@ func (c *ClientWithResponses) ForkWorkflowWithResponse(ctx context.Context, orgN
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/notifications (the `ListWorkflowNotifications` operationId).
-func (c *ClientWithResponses) ListWorkflowNotificationsWithResponse(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*ListWorkflowNotificationsResponse, error) {
-	rsp, err := c.ListWorkflowNotifications(ctx, orgName, appName, workflowId, reqEditors...)
+func (c *ClientWithResponses) ListWorkflowNotificationsWithResponse(ctx context.Context, orgName string, appName string, workflowId string, params *ListWorkflowNotificationsParams, reqEditors ...RequestEditorFn) (*ListWorkflowNotificationsResponse, error) {
+	rsp, err := c.ListWorkflowNotifications(ctx, orgName, appName, workflowId, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -13823,8 +14029,8 @@ func (c *ClientWithResponses) ListWorkflowStepsWithResponse(ctx context.Context,
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/workflows/{workflowId}/streams (the `ListWorkflowStreams` operationId).
-func (c *ClientWithResponses) ListWorkflowStreamsWithResponse(ctx context.Context, orgName string, appName string, workflowId string, reqEditors ...RequestEditorFn) (*ListWorkflowStreamsResponse, error) {
-	rsp, err := c.ListWorkflowStreams(ctx, orgName, appName, workflowId, reqEditors...)
+func (c *ClientWithResponses) ListWorkflowStreamsWithResponse(ctx context.Context, orgName string, appName string, workflowId string, params *ListWorkflowStreamsParams, reqEditors ...RequestEditorFn) (*ListWorkflowStreamsResponse, error) {
+	rsp, err := c.ListWorkflowStreams(ctx, orgName, appName, workflowId, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
