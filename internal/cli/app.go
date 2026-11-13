@@ -123,7 +123,7 @@ func runAppList(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	resp, err := c.ListAppsWithResponse(cmd.Context(), org)
+	resp, err := c.ListAppsWithResponse(cmd.Context(), org, nil)
 	if err != nil {
 		return err
 	}
