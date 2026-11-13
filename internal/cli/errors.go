@@ -63,6 +63,36 @@ func apiError(status int, header http.Header, problem *api.ErrorModel, body []by
 	}
 }
 
+// Conductor error codes the CLI adds a hint to. Conductor has no structured
+// code field; the code leads its problem detail, as in "[2026] workspace
+// required: ...".
+const (
+	codeWorkspaceRequired = "2026"
+	codeWorkspaceNotEmpty = "2029"
+)
+
+// conductorCode returns the code a Conductor problem detail starts with, or ""
+// when it has none.
+func conductorCode(problem *api.ErrorModel) string {
+	if problem == nil || problem.Detail == nil {
+		return ""
+	}
+	rest, ok := strings.CutPrefix(*problem.Detail, "[")
+	if !ok {
+		return ""
+	}
+	code, _, ok := strings.Cut(rest, "]")
+	if !ok {
+		return ""
+	}
+	return code
+}
+
+// withHint appends a hint to err's message, keeping its exit code.
+func withHint(err error, hint string) error {
+	return &exitError{code: exitCodeFor(err), msg: err.Error() + " — " + hint}
+}
+
 // problemMessage extracts the best human message from a problem+json body,
 // falling back to a non-JSON raw body, then the HTTP status text.
 func problemMessage(status int, problem *api.ErrorModel, body []byte) string {

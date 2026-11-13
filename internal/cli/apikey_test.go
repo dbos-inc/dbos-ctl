@@ -15,7 +15,10 @@ import (
 
 func TestRunAPIKeyList(t *testing.T) {
 	isolateConfig(t)
-	const body = `[{"tokenName":"ci","appIds":["app-1"],"permissions":["application.read"],"createdAt":"2026-07-30T10:00:00Z"},{"tokenName":"admin","appIds":[],"permissions":["application.write"],"createdAt":"2026-07-30T11:00:00Z"},{"tokenName":"prod","appIds":[],"workspaces":["production"],"permissions":["application.read"],"createdAt":"2026-07-30T12:00:00Z"}]`
+	const body = `[` +
+		`{"tokenName":"ci","appIds":["app-1","app-2"],"workspaces":[],"permissions":["application.read"],"createdAt":"2026-07-30T10:00:00Z"},` +
+		`{"tokenName":"admin","appIds":[],"workspaces":[],"permissions":["application.write"],"createdAt":"2026-07-30T11:00:00Z"},` +
+		`{"tokenName":"stage","appIds":[],"workspaces":["prod","staging"],"permissions":["websocket.connect"],"createdAt":"2026-07-30T12:00:00Z"}]`
 	srv, _ := appReadServer(t, "/v2/orgs/local/tokens", body)
 
 	cmd, out := appReadCmd(t, srv.URL)
@@ -23,38 +26,36 @@ func TestRunAPIKeyList(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := out.String()
-	for _, want := range []string{"NAME", "SCOPE", "PERMISSIONS", "ci", "app-1", "application.read", "admin"} {
+	for _, want := range []string{"NAME", "SCOPE", "PERMISSIONS", "application.read"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("api-key list missing %q:\n%s", want, got)
 		}
 	}
-	// Only the key limited to neither applications nor workspaces reads as
-	// "(all)"; the workspace-scoped one names its workspace.
-	for _, line := range strings.Split(got, "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 0 {
-			continue
-		}
-		all := strings.Contains(line, "(all)")
-		switch fields[0] {
-		case "admin":
-			if !all {
-				t.Errorf("api-key list should show (all) for an unscoped key: %q", line)
-			}
-		case "ci", "prod":
-			if all {
-				t.Errorf("api-key list shows (all) for a scoped key: %q", line)
-			}
-		}
-		if fields[0] == "prod" && !strings.Contains(line, "workspace: production") {
-			t.Errorf("api-key list should name the workspace of a workspace-scoped key: %q", line)
+	// Each key's row names its scope: apps (by id), all apps, or workspaces.
+	for key, scope := range map[string]string{
+		"ci":    "app ids: app-1, app-2",
+		"admin": "all apps",
+		"stage": "workspaces: prod, staging",
+	} {
+		if !rowContains(got, key, scope) {
+			t.Errorf("row %q should show scope %q:\n%s", key, scope, got)
 		}
 	}
 }
 
+// rowContains reports whether the table row starting with key contains want.
+func rowContains(table, key, want string) bool {
+	for _, line := range strings.Split(table, "\n") {
+		if strings.HasPrefix(line, key+" ") && strings.Contains(line, want) {
+			return true
+		}
+	}
+	return false
+}
+
 // newAPIKeyCreateCmd builds a create command with the request flags plus the
-// repeatable --app/--permission scope flags (StringSlice, not the operational
-// string --app).
+// repeatable --app/--workspace/--permission scope flags (arrays and a slice, not
+// the operational string --app).
 func newAPIKeyCreateCmd(t *testing.T, url string) (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
 	t.Helper()
 	c := &cobra.Command{}
@@ -62,7 +63,8 @@ func newAPIKeyCreateCmd(t *testing.T, url string) (*cobra.Command, *bytes.Buffer
 	c.Flags().String("org", "", "")
 	c.Flags().String("output", "table", "")
 	c.Flags().String("profile", "", "")
-	c.Flags().StringSlice("app", nil, "")
+	c.Flags().StringArray("app", nil, "")
+	c.Flags().StringArray("workspace", nil, "")
 	c.Flags().StringSlice("permission", nil, "")
 	c.SetContext(context.Background())
 	_ = c.Flags().Set("url", url)
@@ -117,6 +119,85 @@ func TestRunAPIKeyCreate(t *testing.T) {
 	}
 	if perms, _ := (*body)["permissions"].([]any); len(perms) != 1 || perms[0] != "application.read" {
 		t.Errorf("permissions not sent: %v", (*body)["permissions"])
+	}
+}
+
+func TestRunAPIKeyCreateWorkspaceScoped(t *testing.T) {
+	isolateConfig(t)
+	srv, body := createTokenServer(t, "/v2/orgs/local/tokens/ci", "dbos_secret123")
+
+	cmd, _, _ := newAPIKeyCreateCmd(t, srv.URL)
+	_ = cmd.Flags().Set("workspace", "staging")
+	_ = cmd.Flags().Set("workspace", "prod")
+	_ = cmd.Flags().Set("permission", "websocket.connect")
+	if err := runAPIKeyCreate(cmd, []string{"ci"}); err != nil {
+		t.Fatal(err)
+	}
+	if ws, _ := (*body)["workspaces"].([]any); len(ws) != 2 || ws[0] != "staging" || ws[1] != "prod" {
+		t.Errorf("workspaces = %v, want [staging prod]", (*body)["workspaces"])
+	}
+	if _, ok := (*body)["appNames"]; ok {
+		t.Errorf("a workspace-scoped create should omit appNames, got %v", (*body)["appNames"])
+	}
+}
+
+// unreachedServer fails the test on any request: the command must refuse first.
+func unreachedServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("unexpected %s %s: the command should refuse before sending", r.Method, r.URL.Path)
+		http.Error(w, "unexpected request", http.StatusNotFound)
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestRunAPIKeyCreateWorkspaceWithAppRefused(t *testing.T) {
+	isolateConfig(t)
+	cmd, out, _ := newAPIKeyCreateCmd(t, unreachedServer(t).URL)
+	_ = cmd.Flags().Set("workspace", "staging")
+	_ = cmd.Flags().Set("app", "myapp")
+	err := runAPIKeyCreate(cmd, []string{"ci"})
+	if err == nil || !strings.Contains(err.Error(), "--workspace cannot be combined with --app") {
+		t.Fatalf("want a --workspace/--app conflict, got %v", err)
+	}
+	if code := exitCodeFor(err); code != 2 {
+		t.Errorf("exit code = %d, want 2 (usage)", code)
+	}
+	if out.Len() != 0 {
+		t.Errorf("a refused create printed to stdout: %q", out.String())
+	}
+}
+
+// An empty scope value is refused rather than dropped: dropping the only one
+// would leave no scope, and Conductor reads that as every app.
+func TestRunAPIKeyCreateEmptyScopeRefused(t *testing.T) {
+	for _, tc := range []struct {
+		flag   string
+		values []string
+	}{
+		{"workspace", []string{""}},
+		{"workspace", []string{"staging,"}},
+		{"workspace", []string{" "}},
+		{"workspace", []string{"staging", ""}},
+		{"app", []string{""}},
+		{"app", []string{"myapp,"}},
+		{"app", []string{"myapp", ""}},
+	} {
+		t.Run(tc.flag+"="+strings.Join(tc.values, "|"), func(t *testing.T) {
+			isolateConfig(t)
+			cmd, _, _ := newAPIKeyCreateCmd(t, unreachedServer(t).URL)
+			for _, v := range tc.values {
+				_ = cmd.Flags().Set(tc.flag, v)
+			}
+			err := runAPIKeyCreate(cmd, []string{"ci"})
+			if err == nil || !strings.Contains(err.Error(), "--"+tc.flag+" was given an empty name") {
+				t.Fatalf("want an empty-name refusal, got %v", err)
+			}
+			if code := exitCodeFor(err); code != 2 {
+				t.Errorf("exit code = %d, want 2 (usage)", code)
+			}
+		})
 	}
 }
 
