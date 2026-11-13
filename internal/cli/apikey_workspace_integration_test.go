@@ -134,8 +134,9 @@ func TestAPIKeyWorkspaceIntegration(t *testing.T) {
 
 // TestAPIKeyWorkspaceEscalationIntegration proves a refused escalation reaches
 // the CLI user readably: against an OAuth Conductor (self-hosted orgs are
-// Enterprise, so custom roles work), a member whose role holds token.write but
-// only reads in `staging` can mint a read key for `staging`, not a write key.
+// Enterprise, so custom roles work), a member whose org role holds token.write
+// and whose role in `staging` only reads can mint a read key for `staging`, not
+// a write key.
 func TestAPIKeyWorkspaceEscalationIntegration(t *testing.T) {
 	oc := conductortest.StartOAuth(t)
 	ctx := context.Background()
@@ -166,13 +167,17 @@ func TestAPIKeyWorkspaceEscalationIntegration(t *testing.T) {
 
 	ws, err := admin.CreateWorkspaceWithResponse(ctx, org, api.CreateWorkspaceJSONRequestBody{Name: "staging"})
 	mustSucceed("create workspace", ws.StatusCode(), ws.Body, err)
-	staging := "staging"
+	// Bob's org-wide role manages keys; his role in staging only reads apps.
 	orgPerms := []string{"token.read", "token.write"}
-	grants := []api.Grant{{Permission: "application.read", Workspace: &staging}}
 	role, err := admin.CreateRoleWithResponse(ctx, org, api.CreateRoleJSONRequestBody{
-		Name: "keylead", Permissions: &orgPerms, Grants: &grants,
+		Name: "keylead", Permissions: &orgPerms,
 	})
 	mustSucceed("create role", role.StatusCode(), role.Body, err)
+	wsPerms := []string{"application.read"}
+	wsRole, err := admin.CreateRoleWithResponse(ctx, org, api.CreateRoleJSONRequestBody{
+		Name: "appreader", Permissions: &wsPerms,
+	})
+	mustSucceed("create workspace role", wsRole.StatusCode(), wsRole.Body, err)
 
 	sec, err := admin.GenerateSecretWithResponse(ctx, org)
 	mustSucceed("generate invite secret", sec.StatusCode(), sec.Body, err)
@@ -188,6 +193,8 @@ func TestAPIKeyWorkspaceEscalationIntegration(t *testing.T) {
 	mustSucceed("register bob", join.StatusCode(), join.Body, err)
 	grant, err := admin.GrantRoleWithResponse(ctx, org, "bob", "keylead")
 	mustSucceed("grant role", grant.StatusCode(), grant.Body, err)
+	wsGrant, err := admin.GrantWorkspaceRoleWithResponse(ctx, org, "staging", "bob", "appreader")
+	mustSucceed("grant workspace role", wsGrant.StatusCode(), wsGrant.Body, err)
 
 	isolateConfig(t)
 	t.Setenv("DBOS_TOKEN", bobToken)

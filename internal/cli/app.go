@@ -168,8 +168,8 @@ func runAppRegister(cmd *cobra.Command, args []string) error {
 	// deploy); the remaining tuning fields land with D3 `app update`.
 	var body api.RegisterAppJSONRequestBody
 	patchBool(cmd, "private-mode", &body.PrivateMode, nil)
-	// Left out, Conductor registers into the org's only workspace, or refuses
-	// if it has several.
+	// Left out, Conductor places a new app in the org's only workspace (or
+	// refuses if it has several) and matches an existing app wherever it lives.
 	if s.Workspace != "" {
 		body.Workspace = &s.Workspace
 	}

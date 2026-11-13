@@ -677,13 +677,8 @@ type CreateRoleInputBody struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: //schemas/CreateRoleInputBody.json
-	Schema *string `json:"$schema,omitempty"`
-
-	// Grants Permissions to grant, each for the whole organization or one workspace. Adds to permissions.
-	Grants *[]Grant `json:"grants,omitempty"`
-	Name   string   `json:"name"`
-
-	// Permissions Permissions to grant for the whole organization.
+	Schema      *string   `json:"$schema,omitempty"`
+	Name        string    `json:"name"`
 	Permissions *[]string `json:"permissions,omitempty"`
 }
 
@@ -692,14 +687,23 @@ type CreateRoleOutputBody struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: //schemas/CreateRoleOutputBody.json
+	Schema      *string  `json:"$schema,omitempty"`
+	Name        string   `json:"name"`
+	Permissions []string `json:"permissions"`
+}
+
+// CreateSavedViewInputBody defines model for CreateSavedViewInputBody.
+type CreateSavedViewInputBody struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/CreateSavedViewInputBody.json
 	Schema *string `json:"$schema,omitempty"`
 
-	// Grants Every grant of the role, each with its scope.
-	Grants []Grant `json:"grants"`
-	Name   string  `json:"name"`
+	// Name Trimmed by the server; 1–80 characters once trimmed. Unique among the caller's saved views on the application, ignoring case.
+	Name string `json:"name"`
 
-	// Permissions The role's organization-scoped grants.
-	Permissions []string `json:"permissions"`
+	// SearchState The workflow search state: any JSON object, which Conductor stores without interpreting it. At most 16 KiB serialized compactly. It is stored compacted: whitespace is dropped, key order is kept.
+	SearchState map[string]interface{} `json:"searchState"`
 }
 
 // CreateTokenInputBody defines model for CreateTokenInputBody.
@@ -756,11 +760,17 @@ type Entitlements struct {
 	// ExternalStorage Whether the org may use external storage.
 	ExternalStorage bool `json:"externalStorage"`
 
+	// MessageQueueIntegration Whether the org may use message queue integration.
+	MessageQueueIntegration bool `json:"messageQueueIntegration"`
+
 	// Sharding Whether the org may use sharding.
 	Sharding bool `json:"sharding"`
 
 	// SuspendWorkflows Whether the org may suspend workflows.
 	SuspendWorkflows bool `json:"suspendWorkflows"`
+
+	// WorkflowArchive Whether the org may use workflow archive.
+	WorkflowArchive bool `json:"workflowArchive"`
 }
 
 // EntitlementsResponse defines model for EntitlementsResponse.
@@ -890,14 +900,6 @@ type GenerateSecretOutputBody struct {
 	Secret string  `json:"secret"`
 }
 
-// Grant defines model for Grant.
-type Grant struct {
-	Permission string `json:"permission"`
-
-	// Workspace Name of the workspace the grant is scoped to. Omitted for the whole organization.
-	Workspace *string `json:"workspace,omitempty"`
-}
-
 // ImportWorkflowInputBody defines model for ImportWorkflowInputBody.
 type ImportWorkflowInputBody struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -976,9 +978,14 @@ type OrgMembers struct {
 	// Schema A URL to the JSON Schema for this object.
 	//
 	// Examples: //schemas/OrgMembers.json
-	Schema  *string               `json:"$schema,omitempty"`
-	OrgName string                `json:"orgName"`
-	Users   map[string]RoleOutput `json:"users"`
+	Schema  *string `json:"$schema,omitempty"`
+	OrgName string  `json:"orgName"`
+
+	// Users Each member's role for the whole organization, keyed by user name. A member without one is omitted.
+	Users map[string]RoleOutput `json:"users"`
+
+	// WorkspaceRoles Each member's roles in single workspaces, keyed by user name. Lists every member.
+	WorkspaceRoles map[string]*[]WorkspaceRole `json:"workspaceRoles"`
 }
 
 // Organization defines model for Organization.
@@ -1188,12 +1195,8 @@ type RewindWorkflowInputBody struct {
 
 // RoleOutput defines model for RoleOutput.
 type RoleOutput struct {
-	// Grants Every grant of the role, each with its scope.
-	Grants   []Grant `json:"grants"`
-	IsGlobal bool    `json:"isGlobal"`
-	Name     string  `json:"name"`
-
-	// Permissions The role's organization-scoped grants.
+	IsGlobal    bool     `json:"isGlobal"`
+	Name        string   `json:"name"`
 	Permissions []string `json:"permissions"`
 }
 
@@ -1204,6 +1207,21 @@ type RolloutPolicy struct {
 
 	// MaxOldApplicationVersions How many old application versions the autoscale response may include, newest registered first. Defaults to 0: only the latest version is reported.
 	MaxOldApplicationVersions *int64 `json:"maxOldApplicationVersions,omitempty"`
+}
+
+// SavedView defines model for SavedView.
+type SavedView struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/SavedView.json
+	Schema    *string   `json:"$schema,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
+	Id        string    `json:"id"`
+	Name      string    `json:"name"`
+
+	// SearchState The workflow search state: any JSON object, which Conductor stores without interpreting it. At most 16 KiB serialized compactly. It is stored compacted: whitespace is dropped, key order is kept.
+	SearchState map[string]interface{} `json:"searchState"`
+	UpdatedAt   time.Time              `json:"updatedAt"`
 }
 
 // Schedule defines model for Schedule.
@@ -1335,6 +1353,20 @@ type UpdateOrgInputBody struct {
 	NewName               *string `json:"newName,omitempty"`
 }
 
+// UpdateSavedViewInputBody defines model for UpdateSavedViewInputBody.
+type UpdateSavedViewInputBody struct {
+	// Schema A URL to the JSON Schema for this object.
+	//
+	// Examples: //schemas/UpdateSavedViewInputBody.json
+	Schema *string `json:"$schema,omitempty"`
+
+	// Name Trimmed by the server; 1–80 characters once trimmed. Unique among the caller's saved views on the application, ignoring case.
+	Name *string `json:"name,omitempty"`
+
+	// SearchState The workflow search state: any JSON object, which Conductor stores without interpreting it. At most 16 KiB serialized compactly. It is stored compacted: whitespace is dropped, key order is kept.
+	SearchState *map[string]interface{} `json:"searchState,omitempty"`
+}
+
 // UpdateTokenInputBody defines model for UpdateTokenInputBody.
 type UpdateTokenInputBody struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -1354,12 +1386,17 @@ type UserProfile struct {
 	Email     string    `json:"email"`
 
 	// IsDbosAdmin Present and true only for DBOS administrators; omitted otherwise.
-	IsDbosAdmin      *bool                       `json:"isDbosAdmin,omitempty"`
-	Name             string                      `json:"name"`
-	OrgId            string                      `json:"orgId"`
-	OrgName          string                      `json:"orgName"`
+	IsDbosAdmin *bool  `json:"isDbosAdmin,omitempty"`
+	Name        string `json:"name"`
+	OrgId       string `json:"orgId"`
+	OrgName     string `json:"orgName"`
+
+	// Role The user's role for the whole organization. Omitted when they have none.
 	Role             *RoleOutput                 `json:"role,omitempty"`
 	SubscriptionPlan UserProfileSubscriptionPlan `json:"subscriptionPlan"`
+
+	// WorkspaceRoles The user's roles in single workspaces.
+	WorkspaceRoles []WorkspaceRole `json:"workspaceRoles"`
 }
 
 // UserProfileSubscriptionPlan defines model for UserProfile.SubscriptionPlan.
@@ -1886,6 +1923,14 @@ type Workspace struct {
 	Name      string    `json:"name"`
 }
 
+// WorkspaceRole defines model for WorkspaceRole.
+type WorkspaceRole struct {
+	Role RoleOutput `json:"role"`
+
+	// Workspace Name of the workspace.
+	Workspace string `json:"workspace"`
+}
+
 // ListAppsParams defines parameters for ListApps.
 type ListAppsParams struct {
 	// Workspace Lists only the applications in the workspace of this name.
@@ -1992,6 +2037,12 @@ type SetAutoscalingPolicyJSONRequestBody = AutoscalePolicy
 
 // MoveAppJSONRequestBody defines body for MoveApp for application/json ContentType.
 type MoveAppJSONRequestBody = MoveAppInputBody
+
+// CreateSavedViewJSONRequestBody defines body for CreateSavedView for application/json ContentType.
+type CreateSavedViewJSONRequestBody = CreateSavedViewInputBody
+
+// UpdateSavedViewJSONRequestBody defines body for UpdateSavedView for application/json ContentType.
+type UpdateSavedViewJSONRequestBody = UpdateSavedViewInputBody
 
 // BackfillScheduleJSONRequestBody defines body for BackfillSchedule for application/json ContentType.
 type BackfillScheduleJSONRequestBody = BackfillInputBody
@@ -2181,6 +2232,8 @@ type ClientInterface interface {
 
 	// DeleteApp Delete application
 	//
+	// Deletes an application. API keys left with no access are revoked.
+	//
 	// Corresponds with DELETE /v2/orgs/{orgName}/apps/{appName} (the `DeleteApp` operationId).
 	DeleteApp(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -2205,7 +2258,7 @@ type ClientInterface interface {
 
 	// RegisterAppWithBody Register application
 	//
-	// Registers an application in a workspace. Without a workspace, it goes into the org's only workspace; when the org has more than one, registration fails with a workspace-required error.
+	// Registers an application in a workspace, or confirms the one already registered under this name, so it is safe to repeat. Without a workspace, a new application goes into the org's only workspace; when the org has more than one, creating it fails with a workspace-required error, while an existing application matches wherever it is. Confirming an existing application changes only privateMode, and only if the request sets it. Either way the caller needs application.write in the application's workspace; a grant on the application alone is not enough. Returns 409 if the name belongs to an application the caller cannot write, that DBOS Cloud manages, or that is in a workspace other than the one named, or if creating the application would exceed the organization's application limit.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -2214,7 +2267,7 @@ type ClientInterface interface {
 
 	// RegisterApp Register application
 	//
-	// Registers an application in a workspace. Without a workspace, it goes into the org's only workspace; when the org has more than one, registration fails with a workspace-required error.
+	// Registers an application in a workspace, or confirms the one already registered under this name, so it is safe to repeat. Without a workspace, a new application goes into the org's only workspace; when the org has more than one, creating it fails with a workspace-required error, while an existing application matches wherever it is. Confirming an existing application changes only privateMode, and only if the request sets it. Either way the caller needs application.write in the application's workspace; a grant on the application alone is not enough. Returns 409 if the name belongs to an application the caller cannot write, that DBOS Cloud manages, or that is in a workspace other than the one named, or if creating the application would exceed the organization's application limit.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -2328,6 +2381,68 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/queues/{queueName} (the `GetQueue` operationId).
 	GetQueue(ctx context.Context, orgName string, appName string, queueName string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListSavedViews List saved views
+	//
+	// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. Ordered by name, ignoring case.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/saved-views (the `ListSavedViews` operationId).
+	ListSavedViews(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateSavedViewWithBody Create saved view
+	//
+	// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. A user may keep at most 100 saved views per application; beyond that, and for a name already taken, the response is 409.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/saved-views (the `CreateSavedView` operationId).
+	CreateSavedViewWithBody(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateSavedView Create saved view
+	//
+	// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. A user may keep at most 100 saved views per application; beyond that, and for a name already taken, the response is 409.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/saved-views (the `CreateSavedView` operationId).
+	CreateSavedView(ctx context.Context, orgName string, appName string, body CreateSavedViewJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteSavedView Delete saved view
+	//
+	// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Corresponds with DELETE /v2/orgs/{orgName}/apps/{appName}/saved-views/{savedViewId} (the `DeleteSavedView` operationId).
+	DeleteSavedView(ctx context.Context, orgName string, appName string, savedViewId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateSavedViewWithBody Update saved view
+	//
+	// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. Changes the name and/or the search state; at least one must be given. Last write wins.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /v2/orgs/{orgName}/apps/{appName}/saved-views/{savedViewId} (the `UpdateSavedView` operationId).
+	UpdateSavedViewWithBody(ctx context.Context, orgName string, appName string, savedViewId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateSavedView Update saved view
+	//
+	// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. Changes the name and/or the search state; at least one must be given. Last write wins.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /v2/orgs/{orgName}/apps/{appName}/saved-views/{savedViewId} (the `UpdateSavedView` operationId).
+	UpdateSavedView(ctx context.Context, orgName string, appName string, savedViewId string, body UpdateSavedViewJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListSchedules List schedules
 	//
@@ -2732,7 +2847,18 @@ type ClientInterface interface {
 	// Corresponds with DELETE /v2/orgs/{orgName}/members/{username} (the `RemoveMember` operationId).
 	RemoveMember(ctx context.Context, orgName string, username string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// RevokeRole Revoke role
+	//
+	// Removes the member's role for the whole organization, leaving only their roles in single workspaces.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Corresponds with DELETE /v2/orgs/{orgName}/members/{username}/role (the `RevokeRole` operationId).
+	RevokeRole(ctx context.Context, orgName string, username string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GrantRole Grant role
+	//
+	// Sets the member's role for the whole organization, replacing the one they hold.
 	//
 	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
 	//
@@ -2809,12 +2935,16 @@ type ClientInterface interface {
 
 	// CreateTokenWithBody Create token
 	//
+	// Creates an API key for all applications, for the applications in appNames, or for those in workspaces.
+	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /v2/orgs/{orgName}/tokens/{tokenName} (the `CreateToken` operationId).
 	CreateTokenWithBody(ctx context.Context, orgName string, tokenName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateToken Create token
+	//
+	// Creates an API key for all applications, for the applications in appNames, or for those in workspaces.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -2848,7 +2978,7 @@ type ClientInterface interface {
 
 	// DeleteWorkspace Delete workspace
 	//
-	// Deletes an empty workspace, as long as the org keeps another one.
+	// Deletes an empty workspace, as long as the org keeps another one. API keys left with no access are revoked.
 	//
 	// Corresponds with DELETE /v2/orgs/{orgName}/workspaces/{workspaceName} (the `DeleteWorkspace` operationId).
 	DeleteWorkspace(ctx context.Context, orgName string, workspaceName string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2870,6 +3000,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with PATCH /v2/orgs/{orgName}/workspaces/{workspaceName} (the `RenameWorkspace` operationId).
 	RenameWorkspace(ctx context.Context, orgName string, workspaceName string, body RenameWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RevokeWorkspaceRole Revoke workspace role
+	//
+	// Removes the member's role in the workspace.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Corresponds with DELETE /v2/orgs/{orgName}/workspaces/{workspaceName}/members/{username}/role (the `RevokeWorkspaceRole` operationId).
+	RevokeWorkspaceRole(ctx context.Context, orgName string, workspaceName string, username string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GrantWorkspaceRole Grant workspace role
+	//
+	// Sets the member's role in the workspace, replacing the one they hold there. The role may hold only application.read, application.write, metric.read, websocket.connect.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Corresponds with PUT /v2/orgs/{orgName}/workspaces/{workspaceName}/members/{username}/roles/{roleName} (the `GrantWorkspaceRole` operationId).
+	GrantWorkspaceRole(ctx context.Context, orgName string, workspaceName string, username string, roleName string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RegisterUserWithBody Register user
 	//
@@ -2986,6 +3134,8 @@ func (c *Client) ListApps(ctx context.Context, orgName string, params *ListAppsP
 
 // DeleteApp Delete application
 //
+// Deletes an application. API keys left with no access are revoked.
+//
 // Corresponds with DELETE /v2/orgs/{orgName}/apps/{appName} (the `DeleteApp` operationId).
 func (c *Client) DeleteApp(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeleteAppRequest(c.Server, orgName, appName)
@@ -3050,7 +3200,7 @@ func (c *Client) UpdateApp(ctx context.Context, orgName string, appName string, 
 
 // RegisterAppWithBody Register application
 //
-// Registers an application in a workspace. Without a workspace, it goes into the org's only workspace; when the org has more than one, registration fails with a workspace-required error.
+// Registers an application in a workspace, or confirms the one already registered under this name, so it is safe to repeat. Without a workspace, a new application goes into the org's only workspace; when the org has more than one, creating it fails with a workspace-required error, while an existing application matches wherever it is. Confirming an existing application changes only privateMode, and only if the request sets it. Either way the caller needs application.write in the application's workspace; a grant on the application alone is not enough. Returns 409 if the name belongs to an application the caller cannot write, that DBOS Cloud manages, or that is in a workspace other than the one named, or if creating the application would exceed the organization's application limit.
 //
 // Takes any type of body and a specified content type.
 //
@@ -3069,7 +3219,7 @@ func (c *Client) RegisterAppWithBody(ctx context.Context, orgName string, appNam
 
 // RegisterApp Register application
 //
-// Registers an application in a workspace. Without a workspace, it goes into the org's only workspace; when the org has more than one, registration fails with a workspace-required error.
+// Registers an application in a workspace, or confirms the one already registered under this name, so it is safe to repeat. Without a workspace, a new application goes into the org's only workspace; when the org has more than one, creating it fails with a workspace-required error, while an existing application matches wherever it is. Confirming an existing application changes only privateMode, and only if the request sets it. Either way the caller needs application.write in the application's workspace; a grant on the application alone is not enough. Returns 409 if the name belongs to an application the caller cannot write, that DBOS Cloud manages, or that is in a workspace other than the one named, or if creating the application would exceed the organization's application limit.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -3344,6 +3494,128 @@ func (c *Client) ListQueues(ctx context.Context, orgName string, appName string,
 // Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/queues/{queueName} (the `GetQueue` operationId).
 func (c *Client) GetQueue(ctx context.Context, orgName string, appName string, queueName string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetQueueRequest(c.Server, orgName, appName, queueName)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListSavedViews List saved views
+//
+// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. Ordered by name, ignoring case.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/saved-views (the `ListSavedViews` operationId).
+func (c *Client) ListSavedViews(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListSavedViewsRequest(c.Server, orgName, appName)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateSavedViewWithBody Create saved view
+//
+// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. A user may keep at most 100 saved views per application; beyond that, and for a name already taken, the response is 409.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/saved-views (the `CreateSavedView` operationId).
+func (c *Client) CreateSavedViewWithBody(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateSavedViewRequestWithBody(c.Server, orgName, appName, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateSavedView Create saved view
+//
+// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. A user may keep at most 100 saved views per application; beyond that, and for a name already taken, the response is 409.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/saved-views (the `CreateSavedView` operationId).
+func (c *Client) CreateSavedView(ctx context.Context, orgName string, appName string, body CreateSavedViewJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateSavedViewRequest(c.Server, orgName, appName, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteSavedView Delete saved view
+//
+// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Corresponds with DELETE /v2/orgs/{orgName}/apps/{appName}/saved-views/{savedViewId} (the `DeleteSavedView` operationId).
+func (c *Client) DeleteSavedView(ctx context.Context, orgName string, appName string, savedViewId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteSavedViewRequest(c.Server, orgName, appName, savedViewId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateSavedViewWithBody Update saved view
+//
+// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. Changes the name and/or the search state; at least one must be given. Last write wins.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /v2/orgs/{orgName}/apps/{appName}/saved-views/{savedViewId} (the `UpdateSavedView` operationId).
+func (c *Client) UpdateSavedViewWithBody(ctx context.Context, orgName string, appName string, savedViewId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateSavedViewRequestWithBody(c.Server, orgName, appName, savedViewId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateSavedView Update saved view
+//
+// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. Changes the name and/or the search state; at least one must be given. Last write wins.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /v2/orgs/{orgName}/apps/{appName}/saved-views/{savedViewId} (the `UpdateSavedView` operationId).
+func (c *Client) UpdateSavedView(ctx context.Context, orgName string, appName string, savedViewId string, body UpdateSavedViewJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateSavedViewRequest(c.Server, orgName, appName, savedViewId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -4327,7 +4599,28 @@ func (c *Client) RemoveMember(ctx context.Context, orgName string, username stri
 	return c.Client.Do(req)
 }
 
+// RevokeRole Revoke role
+//
+// Removes the member's role for the whole organization, leaving only their roles in single workspaces.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Corresponds with DELETE /v2/orgs/{orgName}/members/{username}/role (the `RevokeRole` operationId).
+func (c *Client) RevokeRole(ctx context.Context, orgName string, username string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRevokeRoleRequest(c.Server, orgName, username)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // GrantRole Grant role
+//
+// Sets the member's role for the whole organization, replacing the one they hold.
 //
 // Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
 //
@@ -4514,6 +4807,8 @@ func (c *Client) UpdateToken(ctx context.Context, orgName string, tokenName stri
 
 // CreateTokenWithBody Create token
 //
+// Creates an API key for all applications, for the applications in appNames, or for those in workspaces.
+//
 // Takes any type of body and a specified content type.
 //
 // Corresponds with POST /v2/orgs/{orgName}/tokens/{tokenName} (the `CreateToken` operationId).
@@ -4530,6 +4825,8 @@ func (c *Client) CreateTokenWithBody(ctx context.Context, orgName string, tokenN
 }
 
 // CreateToken Create token
+//
+// Creates an API key for all applications, for the applications in appNames, or for those in workspaces.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -4603,7 +4900,7 @@ func (c *Client) CreateWorkspace(ctx context.Context, orgName string, body Creat
 
 // DeleteWorkspace Delete workspace
 //
-// Deletes an empty workspace, as long as the org keeps another one.
+// Deletes an empty workspace, as long as the org keeps another one. API keys left with no access are revoked.
 //
 // Corresponds with DELETE /v2/orgs/{orgName}/workspaces/{workspaceName} (the `DeleteWorkspace` operationId).
 func (c *Client) DeleteWorkspace(ctx context.Context, orgName string, workspaceName string, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -4646,6 +4943,44 @@ func (c *Client) RenameWorkspaceWithBody(ctx context.Context, orgName string, wo
 // Corresponds with PATCH /v2/orgs/{orgName}/workspaces/{workspaceName} (the `RenameWorkspace` operationId).
 func (c *Client) RenameWorkspace(ctx context.Context, orgName string, workspaceName string, body RenameWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRenameWorkspaceRequest(c.Server, orgName, workspaceName, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RevokeWorkspaceRole Revoke workspace role
+//
+// Removes the member's role in the workspace.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Corresponds with DELETE /v2/orgs/{orgName}/workspaces/{workspaceName}/members/{username}/role (the `RevokeWorkspaceRole` operationId).
+func (c *Client) RevokeWorkspaceRole(ctx context.Context, orgName string, workspaceName string, username string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRevokeWorkspaceRoleRequest(c.Server, orgName, workspaceName, username)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GrantWorkspaceRole Grant workspace role
+//
+// Sets the member's role in the workspace, replacing the one they hold there. The role may hold only application.read, application.write, metric.read, websocket.connect.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Corresponds with PUT /v2/orgs/{orgName}/workspaces/{workspaceName}/members/{username}/roles/{roleName} (the `GrantWorkspaceRole` operationId).
+func (c *Client) GrantWorkspaceRole(ctx context.Context, orgName string, workspaceName string, username string, roleName string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGrantWorkspaceRoleRequest(c.Server, orgName, workspaceName, username, roleName)
 	if err != nil {
 		return nil, err
 	}
@@ -5690,6 +6025,210 @@ func NewGetQueueRequest(server string, orgName string, appName string, queueName
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewListSavedViewsRequest constructs an http.Request for the ListSavedViews method
+func NewListSavedViewsRequest(server string, orgName string, appName string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "appName", appName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/apps/%s/saved-views", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateSavedViewRequest calls the generic CreateSavedView builder with application/json body
+func NewCreateSavedViewRequest(server string, orgName string, appName string, body CreateSavedViewJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateSavedViewRequestWithBody(server, orgName, appName, "application/json", bodyReader)
+}
+
+// NewCreateSavedViewRequestWithBody constructs an http.Request for the CreateSavedView method, with any body, and a specified content type
+func NewCreateSavedViewRequestWithBody(server string, orgName string, appName string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "appName", appName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/apps/%s/saved-views", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteSavedViewRequest constructs an http.Request for the DeleteSavedView method
+func NewDeleteSavedViewRequest(server string, orgName string, appName string, savedViewId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "appName", appName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "savedViewId", savedViewId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/apps/%s/saved-views/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateSavedViewRequest calls the generic UpdateSavedView builder with application/json body
+func NewUpdateSavedViewRequest(server string, orgName string, appName string, savedViewId string, body UpdateSavedViewJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateSavedViewRequestWithBody(server, orgName, appName, savedViewId, "application/json", bodyReader)
+}
+
+// NewUpdateSavedViewRequestWithBody constructs an http.Request for the UpdateSavedView method, with any body, and a specified content type
+func NewUpdateSavedViewRequestWithBody(server string, orgName string, appName string, savedViewId string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "appName", appName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "savedViewId", savedViewId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/apps/%s/saved-views/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -8055,6 +8594,47 @@ func NewRemoveMemberRequest(server string, orgName string, username string) (*ht
 	return req, nil
 }
 
+// NewRevokeRoleRequest constructs an http.Request for the RevokeRole method
+func NewRevokeRoleRequest(server string, orgName string, username string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "username", username, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/members/%s/role", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGrantRoleRequest constructs an http.Request for the GrantRole method
 func NewGrantRoleRequest(server string, orgName string, username string, roleName string) (*http.Request, error) {
 	var err error
@@ -8652,6 +9232,109 @@ func NewRenameWorkspaceRequestWithBody(server string, orgName string, workspaceN
 	return req, nil
 }
 
+// NewRevokeWorkspaceRoleRequest constructs an http.Request for the RevokeWorkspaceRole method
+func NewRevokeWorkspaceRoleRequest(server string, orgName string, workspaceName string, username string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "workspaceName", workspaceName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "username", username, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/workspaces/%s/members/%s/role", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGrantWorkspaceRoleRequest constructs an http.Request for the GrantWorkspaceRole method
+func NewGrantWorkspaceRoleRequest(server string, orgName string, workspaceName string, username string, roleName string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "orgName", orgName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "workspaceName", workspaceName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "username", username, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam3 string
+
+	pathParam3, err = runtime.StyleParamWithOptions("simple", false, "roleName", roleName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/orgs/%s/workspaces/%s/members/%s/roles/%s", pathParam0, pathParam1, pathParam2, pathParam3)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewRegisterUserRequest calls the generic RegisterUser builder with application/json body
 func NewRegisterUserRequest(server string, body RegisterUserJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -8808,6 +9491,8 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteAppWithResponse Delete application
 	//
+	// Deletes an application. API keys left with no access are revoked.
+	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with DELETE /v2/orgs/{orgName}/apps/{appName} (the `DeleteApp` operationId).
@@ -8836,7 +9521,7 @@ type ClientWithResponsesInterface interface {
 
 	// RegisterAppWithBodyWithResponse Register application
 	//
-	// Registers an application in a workspace. Without a workspace, it goes into the org's only workspace; when the org has more than one, registration fails with a workspace-required error.
+	// Registers an application in a workspace, or confirms the one already registered under this name, so it is safe to repeat. Without a workspace, a new application goes into the org's only workspace; when the org has more than one, creating it fails with a workspace-required error, while an existing application matches wherever it is. Confirming an existing application changes only privateMode, and only if the request sets it. Either way the caller needs application.write in the application's workspace; a grant on the application alone is not enough. Returns 409 if the name belongs to an application the caller cannot write, that DBOS Cloud manages, or that is in a workspace other than the one named, or if creating the application would exceed the organization's application limit.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -8845,7 +9530,7 @@ type ClientWithResponsesInterface interface {
 
 	// RegisterAppWithResponse Register application
 	//
-	// Registers an application in a workspace. Without a workspace, it goes into the org's only workspace; when the org has more than one, registration fails with a workspace-required error.
+	// Registers an application in a workspace, or confirms the one already registered under this name, so it is safe to repeat. Without a workspace, a new application goes into the org's only workspace; when the org has more than one, creating it fails with a workspace-required error, while an existing application matches wherever it is. Confirming an existing application changes only privateMode, and only if the request sets it. Either way the caller needs application.write in the application's workspace; a grant on the application alone is not enough. Returns 409 if the name belongs to an application the caller cannot write, that DBOS Cloud manages, or that is in a workspace other than the one named, or if creating the application would exceed the organization's application limit.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -8979,6 +9664,72 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/queues/{queueName} (the `GetQueue` operationId).
 	GetQueueWithResponse(ctx context.Context, orgName string, appName string, queueName string, reqEditors ...RequestEditorFn) (*GetQueueResponse, error)
+
+	// ListSavedViewsWithResponse List saved views
+	//
+	// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. Ordered by name, ignoring case.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/saved-views (the `ListSavedViews` operationId).
+	ListSavedViewsWithResponse(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*ListSavedViewsResponse, error)
+
+	// CreateSavedViewWithBodyWithResponse Create saved view
+	//
+	// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. A user may keep at most 100 saved views per application; beyond that, and for a name already taken, the response is 409.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/saved-views (the `CreateSavedView` operationId).
+	CreateSavedViewWithBodyWithResponse(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSavedViewResponse, error)
+
+	// CreateSavedViewWithResponse Create saved view
+	//
+	// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. A user may keep at most 100 saved views per application; beyond that, and for a name already taken, the response is 409.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/saved-views (the `CreateSavedView` operationId).
+	CreateSavedViewWithResponse(ctx context.Context, orgName string, appName string, body CreateSavedViewJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSavedViewResponse, error)
+
+	// DeleteSavedViewWithResponse Delete saved view
+	//
+	// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /v2/orgs/{orgName}/apps/{appName}/saved-views/{savedViewId} (the `DeleteSavedView` operationId).
+	DeleteSavedViewWithResponse(ctx context.Context, orgName string, appName string, savedViewId string, reqEditors ...RequestEditorFn) (*DeleteSavedViewResponse, error)
+
+	// UpdateSavedViewWithBodyWithResponse Update saved view
+	//
+	// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. Changes the name and/or the search state; at least one must be given. Last write wins.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /v2/orgs/{orgName}/apps/{appName}/saved-views/{savedViewId} (the `UpdateSavedView` operationId).
+	UpdateSavedViewWithBodyWithResponse(ctx context.Context, orgName string, appName string, savedViewId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateSavedViewResponse, error)
+
+	// UpdateSavedViewWithResponse Update saved view
+	//
+	// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. Changes the name and/or the search state; at least one must be given. Last write wins.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /v2/orgs/{orgName}/apps/{appName}/saved-views/{savedViewId} (the `UpdateSavedView` operationId).
+	UpdateSavedViewWithResponse(ctx context.Context, orgName string, appName string, savedViewId string, body UpdateSavedViewJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateSavedViewResponse, error)
 
 	// ListSchedulesWithResponse List schedules
 	//
@@ -9421,7 +10172,20 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with DELETE /v2/orgs/{orgName}/members/{username} (the `RemoveMember` operationId).
 	RemoveMemberWithResponse(ctx context.Context, orgName string, username string, reqEditors ...RequestEditorFn) (*RemoveMemberResponse, error)
 
+	// RevokeRoleWithResponse Revoke role
+	//
+	// Removes the member's role for the whole organization, leaving only their roles in single workspaces.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /v2/orgs/{orgName}/members/{username}/role (the `RevokeRole` operationId).
+	RevokeRoleWithResponse(ctx context.Context, orgName string, username string, reqEditors ...RequestEditorFn) (*RevokeRoleResponse, error)
+
 	// GrantRoleWithResponse Grant role
+	//
+	// Sets the member's role for the whole organization, replacing the one they hold.
 	//
 	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
 	//
@@ -9512,12 +10276,16 @@ type ClientWithResponsesInterface interface {
 
 	// CreateTokenWithBodyWithResponse Create token
 	//
+	// Creates an API key for all applications, for the applications in appNames, or for those in workspaces.
+	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /v2/orgs/{orgName}/tokens/{tokenName} (the `CreateToken` operationId).
 	CreateTokenWithBodyWithResponse(ctx context.Context, orgName string, tokenName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTokenResponse, error)
 
 	// CreateTokenWithResponse Create token
+	//
+	// Creates an API key for all applications, for the applications in appNames, or for those in workspaces.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -9553,7 +10321,7 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteWorkspaceWithResponse Delete workspace
 	//
-	// Deletes an empty workspace, as long as the org keeps another one.
+	// Deletes an empty workspace, as long as the org keeps another one. API keys left with no access are revoked.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -9577,6 +10345,28 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PATCH /v2/orgs/{orgName}/workspaces/{workspaceName} (the `RenameWorkspace` operationId).
 	RenameWorkspaceWithResponse(ctx context.Context, orgName string, workspaceName string, body RenameWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*RenameWorkspaceResponse, error)
+
+	// RevokeWorkspaceRoleWithResponse Revoke workspace role
+	//
+	// Removes the member's role in the workspace.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /v2/orgs/{orgName}/workspaces/{workspaceName}/members/{username}/role (the `RevokeWorkspaceRole` operationId).
+	RevokeWorkspaceRoleWithResponse(ctx context.Context, orgName string, workspaceName string, username string, reqEditors ...RequestEditorFn) (*RevokeWorkspaceRoleResponse, error)
+
+	// GrantWorkspaceRoleWithResponse Grant workspace role
+	//
+	// Sets the member's role in the workspace, replacing the one they hold there. The role may hold only application.read, application.write, metric.read, websocket.connect.
+	//
+	// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /v2/orgs/{orgName}/workspaces/{workspaceName}/members/{username}/roles/{roleName} (the `GrantWorkspaceRole` operationId).
+	GrantWorkspaceRoleWithResponse(ctx context.Context, orgName string, workspaceName string, username string, roleName string, reqEditors ...RequestEditorFn) (*GrantWorkspaceRoleResponse, error)
 
 	// RegisterUserWithBodyWithResponse Register user
 	//
@@ -10559,6 +11349,191 @@ func (r GetQueueResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetQueueResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListSavedViewsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]SavedView
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListSavedViewsResponse) GetJSON200() *[]SavedView {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r ListSavedViewsResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListSavedViewsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSavedViewsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSavedViewsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListSavedViewsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateSavedViewResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *SavedView
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateSavedViewResponse) GetJSON201() *SavedView {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r CreateSavedViewResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateSavedViewResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateSavedViewResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateSavedViewResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateSavedViewResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteSavedViewResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r DeleteSavedViewResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteSavedViewResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteSavedViewResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteSavedViewResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteSavedViewResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateSavedViewResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SavedView
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateSavedViewResponse) GetJSON200() *SavedView {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r UpdateSavedViewResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateSavedViewResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateSavedViewResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateSavedViewResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateSavedViewResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -12312,6 +13287,47 @@ func (r RemoveMemberResponse) ContentType() string {
 	return ""
 }
 
+type RevokeRoleResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r RevokeRoleResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r RevokeRoleResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RevokeRoleResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RevokeRoleResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RevokeRoleResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GrantRoleResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -12956,6 +13972,88 @@ func (r RenameWorkspaceResponse) ContentType() string {
 	return ""
 }
 
+type RevokeWorkspaceRoleResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r RevokeWorkspaceRoleResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r RevokeWorkspaceRoleResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RevokeWorkspaceRoleResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RevokeWorkspaceRoleResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RevokeWorkspaceRoleResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GrantWorkspaceRoleResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r GrantWorkspaceRoleResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GrantWorkspaceRoleResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GrantWorkspaceRoleResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GrantWorkspaceRoleResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GrantWorkspaceRoleResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RegisterUserResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -13127,6 +14225,8 @@ func (c *ClientWithResponses) ListAppsWithResponse(ctx context.Context, orgName 
 
 // DeleteAppWithResponse Delete application
 //
+// Deletes an application. API keys left with no access are revoked.
+//
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with DELETE /v2/orgs/{orgName}/apps/{appName} (the `DeleteApp` operationId).
@@ -13179,7 +14279,7 @@ func (c *ClientWithResponses) UpdateAppWithResponse(ctx context.Context, orgName
 
 // RegisterAppWithBodyWithResponse Register application
 //
-// Registers an application in a workspace. Without a workspace, it goes into the org's only workspace; when the org has more than one, registration fails with a workspace-required error.
+// Registers an application in a workspace, or confirms the one already registered under this name, so it is safe to repeat. Without a workspace, a new application goes into the org's only workspace; when the org has more than one, creating it fails with a workspace-required error, while an existing application matches wherever it is. Confirming an existing application changes only privateMode, and only if the request sets it. Either way the caller needs application.write in the application's workspace; a grant on the application alone is not enough. Returns 409 if the name belongs to an application the caller cannot write, that DBOS Cloud manages, or that is in a workspace other than the one named, or if creating the application would exceed the organization's application limit.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -13194,7 +14294,7 @@ func (c *ClientWithResponses) RegisterAppWithBodyWithResponse(ctx context.Contex
 
 // RegisterAppWithResponse Register application
 //
-// Registers an application in a workspace. Without a workspace, it goes into the org's only workspace; when the org has more than one, registration fails with a workspace-required error.
+// Registers an application in a workspace, or confirms the one already registered under this name, so it is safe to repeat. Without a workspace, a new application goes into the org's only workspace; when the org has more than one, creating it fails with a workspace-required error, while an existing application matches wherever it is. Confirming an existing application changes only privateMode, and only if the request sets it. Either way the caller needs application.write in the application's workspace; a grant on the application alone is not enough. Returns 409 if the name belongs to an application the caller cannot write, that DBOS Cloud manages, or that is in a workspace other than the one named, or if creating the application would exceed the organization's application limit.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -13429,6 +14529,108 @@ func (c *ClientWithResponses) GetQueueWithResponse(ctx context.Context, orgName 
 		return nil, err
 	}
 	return ParseGetQueueResponse(rsp)
+}
+
+// ListSavedViewsWithResponse List saved views
+//
+// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. Ordered by name, ignoring case.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /v2/orgs/{orgName}/apps/{appName}/saved-views (the `ListSavedViews` operationId).
+func (c *ClientWithResponses) ListSavedViewsWithResponse(ctx context.Context, orgName string, appName string, reqEditors ...RequestEditorFn) (*ListSavedViewsResponse, error) {
+	rsp, err := c.ListSavedViews(ctx, orgName, appName, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSavedViewsResponse(rsp)
+}
+
+// CreateSavedViewWithBodyWithResponse Create saved view
+//
+// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. A user may keep at most 100 saved views per application; beyond that, and for a name already taken, the response is 409.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/saved-views (the `CreateSavedView` operationId).
+func (c *ClientWithResponses) CreateSavedViewWithBodyWithResponse(ctx context.Context, orgName string, appName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSavedViewResponse, error) {
+	rsp, err := c.CreateSavedViewWithBody(ctx, orgName, appName, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateSavedViewResponse(rsp)
+}
+
+// CreateSavedViewWithResponse Create saved view
+//
+// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. A user may keep at most 100 saved views per application; beyond that, and for a name already taken, the response is 409.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v2/orgs/{orgName}/apps/{appName}/saved-views (the `CreateSavedView` operationId).
+func (c *ClientWithResponses) CreateSavedViewWithResponse(ctx context.Context, orgName string, appName string, body CreateSavedViewJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSavedViewResponse, error) {
+	rsp, err := c.CreateSavedView(ctx, orgName, appName, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateSavedViewResponse(rsp)
+}
+
+// DeleteSavedViewWithResponse Delete saved view
+//
+// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /v2/orgs/{orgName}/apps/{appName}/saved-views/{savedViewId} (the `DeleteSavedView` operationId).
+func (c *ClientWithResponses) DeleteSavedViewWithResponse(ctx context.Context, orgName string, appName string, savedViewId string, reqEditors ...RequestEditorFn) (*DeleteSavedViewResponse, error) {
+	rsp, err := c.DeleteSavedView(ctx, orgName, appName, savedViewId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteSavedViewResponse(rsp)
+}
+
+// UpdateSavedViewWithBodyWithResponse Update saved view
+//
+// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. Changes the name and/or the search state; at least one must be given. Last write wins.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /v2/orgs/{orgName}/apps/{appName}/saved-views/{savedViewId} (the `UpdateSavedView` operationId).
+func (c *ClientWithResponses) UpdateSavedViewWithBodyWithResponse(ctx context.Context, orgName string, appName string, savedViewId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateSavedViewResponse, error) {
+	rsp, err := c.UpdateSavedViewWithBody(ctx, orgName, appName, savedViewId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateSavedViewResponse(rsp)
+}
+
+// UpdateSavedViewWithResponse Update saved view
+//
+// A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. Changes the name and/or the search state; at least one must be given. Last write wins.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /v2/orgs/{orgName}/apps/{appName}/saved-views/{savedViewId} (the `UpdateSavedView` operationId).
+func (c *ClientWithResponses) UpdateSavedViewWithResponse(ctx context.Context, orgName string, appName string, savedViewId string, body UpdateSavedViewJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateSavedViewResponse, error) {
+	rsp, err := c.UpdateSavedView(ctx, orgName, appName, savedViewId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateSavedViewResponse(rsp)
 }
 
 // ListSchedulesWithResponse List schedules
@@ -14214,7 +15416,26 @@ func (c *ClientWithResponses) RemoveMemberWithResponse(ctx context.Context, orgN
 	return ParseRemoveMemberResponse(rsp)
 }
 
+// RevokeRoleWithResponse Revoke role
+//
+// Removes the member's role for the whole organization, leaving only their roles in single workspaces.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /v2/orgs/{orgName}/members/{username}/role (the `RevokeRole` operationId).
+func (c *ClientWithResponses) RevokeRoleWithResponse(ctx context.Context, orgName string, username string, reqEditors ...RequestEditorFn) (*RevokeRoleResponse, error) {
+	rsp, err := c.RevokeRole(ctx, orgName, username, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRevokeRoleResponse(rsp)
+}
+
 // GrantRoleWithResponse Grant role
+//
+// Sets the member's role for the whole organization, replacing the one they hold.
 //
 // Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
 //
@@ -14371,6 +15592,8 @@ func (c *ClientWithResponses) UpdateTokenWithResponse(ctx context.Context, orgNa
 
 // CreateTokenWithBodyWithResponse Create token
 //
+// Creates an API key for all applications, for the applications in appNames, or for those in workspaces.
+//
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /v2/orgs/{orgName}/tokens/{tokenName} (the `CreateToken` operationId).
@@ -14383,6 +15606,8 @@ func (c *ClientWithResponses) CreateTokenWithBodyWithResponse(ctx context.Contex
 }
 
 // CreateTokenWithResponse Create token
+//
+// Creates an API key for all applications, for the applications in appNames, or for those in workspaces.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -14442,7 +15667,7 @@ func (c *ClientWithResponses) CreateWorkspaceWithResponse(ctx context.Context, o
 
 // DeleteWorkspaceWithResponse Delete workspace
 //
-// Deletes an empty workspace, as long as the org keeps another one.
+// Deletes an empty workspace, as long as the org keeps another one. API keys left with no access are revoked.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -14483,6 +15708,40 @@ func (c *ClientWithResponses) RenameWorkspaceWithResponse(ctx context.Context, o
 		return nil, err
 	}
 	return ParseRenameWorkspaceResponse(rsp)
+}
+
+// RevokeWorkspaceRoleWithResponse Revoke workspace role
+//
+// Removes the member's role in the workspace.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /v2/orgs/{orgName}/workspaces/{workspaceName}/members/{username}/role (the `RevokeWorkspaceRole` operationId).
+func (c *ClientWithResponses) RevokeWorkspaceRoleWithResponse(ctx context.Context, orgName string, workspaceName string, username string, reqEditors ...RequestEditorFn) (*RevokeWorkspaceRoleResponse, error) {
+	rsp, err := c.RevokeWorkspaceRole(ctx, orgName, workspaceName, username, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRevokeWorkspaceRoleResponse(rsp)
+}
+
+// GrantWorkspaceRoleWithResponse Grant workspace role
+//
+// Sets the member's role in the workspace, replacing the one they hold there. The role may hold only application.read, application.write, metric.read, websocket.connect.
+//
+// Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /v2/orgs/{orgName}/workspaces/{workspaceName}/members/{username}/roles/{roleName} (the `GrantWorkspaceRole` operationId).
+func (c *ClientWithResponses) GrantWorkspaceRoleWithResponse(ctx context.Context, orgName string, workspaceName string, username string, roleName string, reqEditors ...RequestEditorFn) (*GrantWorkspaceRoleResponse, error) {
+	rsp, err := c.GrantWorkspaceRole(ctx, orgName, workspaceName, username, roleName, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGrantWorkspaceRoleResponse(rsp)
 }
 
 // RegisterUserWithBodyWithResponse Register user
@@ -15178,6 +16437,134 @@ func ParseGetQueueResponse(rsp *http.Response) (*GetQueueResponse, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Queue
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListSavedViewsResponse parses an HTTP response from a ListSavedViewsWithResponse call
+func ParseListSavedViewsResponse(rsp *http.Response) (*ListSavedViewsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListSavedViewsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []SavedView
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateSavedViewResponse parses an HTTP response from a CreateSavedViewWithResponse call
+func ParseCreateSavedViewResponse(rsp *http.Response) (*CreateSavedViewResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateSavedViewResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest SavedView
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteSavedViewResponse parses an HTTP response from a DeleteSavedViewWithResponse call
+func ParseDeleteSavedViewResponse(rsp *http.Response) (*DeleteSavedViewResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteSavedViewResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateSavedViewResponse parses an HTTP response from a UpdateSavedViewWithResponse call
+func ParseUpdateSavedViewResponse(rsp *http.Response) (*UpdateSavedViewResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateSavedViewResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SavedView
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -16423,6 +17810,35 @@ func ParseRemoveMemberResponse(rsp *http.Response) (*RemoveMemberResponse, error
 	return response, nil
 }
 
+// ParseRevokeRoleResponse parses an HTTP response from a RevokeRoleWithResponse call
+func ParseRevokeRoleResponse(rsp *http.Response) (*RevokeRoleResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RevokeRoleResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGrantRoleResponse parses an HTTP response from a GrantRoleWithResponse call
 func ParseGrantRoleResponse(rsp *http.Response) (*GrantRoleResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -16865,6 +18281,64 @@ func ParseRenameWorkspaceResponse(rsp *http.Response) (*RenameWorkspaceResponse,
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRevokeWorkspaceRoleResponse parses an HTTP response from a RevokeWorkspaceRoleWithResponse call
+func ParseRevokeWorkspaceRoleResponse(rsp *http.Response) (*RevokeWorkspaceRoleResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RevokeWorkspaceRoleResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGrantWorkspaceRoleResponse parses an HTTP response from a GrantWorkspaceRoleWithResponse call
+func ParseGrantWorkspaceRoleResponse(rsp *http.Response) (*GrantWorkspaceRoleResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GrantWorkspaceRoleResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest ErrorModel

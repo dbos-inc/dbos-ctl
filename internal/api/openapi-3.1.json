@@ -596,16 +596,6 @@
             "readOnly": true,
             "type": "string"
           },
-          "grants": {
-            "description": "Permissions to grant, each for the whole organization or one workspace. Adds to permissions.",
-            "items": {
-              "$ref": "#/components/schemas/Grant"
-            },
-            "type": [
-              "array",
-              "null"
-            ]
-          },
           "name": {
             "maxLength": 30,
             "minLength": 3,
@@ -613,7 +603,6 @@
             "type": "string"
           },
           "permissions": {
-            "description": "Permissions to grant for the whole organization.",
             "items": {
               "type": "string"
             },
@@ -640,18 +629,10 @@
             "readOnly": true,
             "type": "string"
           },
-          "grants": {
-            "description": "Every grant of the role, each with its scope.",
-            "items": {
-              "$ref": "#/components/schemas/Grant"
-            },
-            "type": "array"
-          },
           "name": {
             "type": "string"
           },
           "permissions": {
-            "description": "The role's organization-scoped grants.",
             "items": {
               "type": "string"
             },
@@ -660,8 +641,35 @@
         },
         "required": [
           "name",
-          "permissions",
-          "grants"
+          "permissions"
+        ],
+        "type": "object"
+      },
+      "CreateSavedViewInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/CreateSavedViewInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "name": {
+            "description": "Trimmed by the server; 1–80 characters once trimmed. Unique among the caller's saved views on the application, ignoring case.",
+            "type": "string"
+          },
+          "searchState": {
+            "additionalProperties": true,
+            "description": "The workflow search state: any JSON object, which Conductor stores without interpreting it. At most 16 KiB serialized compactly. It is stored compacted: whitespace is dropped, key order is kept.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "name",
+          "searchState"
         ],
         "type": "object"
       },
@@ -804,6 +812,10 @@
             "description": "Whether the org may use external storage.",
             "type": "boolean"
           },
+          "messageQueueIntegration": {
+            "description": "Whether the org may use message queue integration.",
+            "type": "boolean"
+          },
           "sharding": {
             "description": "Whether the org may use sharding.",
             "type": "boolean"
@@ -811,13 +823,19 @@
           "suspendWorkflows": {
             "description": "Whether the org may suspend workflows.",
             "type": "boolean"
+          },
+          "workflowArchive": {
+            "description": "Whether the org may use workflow archive.",
+            "type": "boolean"
           }
         },
         "required": [
           "sharding",
           "autoUpgrade",
           "suspendWorkflows",
-          "externalStorage"
+          "externalStorage",
+          "workflowArchive",
+          "messageQueueIntegration"
         ],
         "type": "object"
       },
@@ -1117,22 +1135,6 @@
         ],
         "type": "object"
       },
-      "Grant": {
-        "additionalProperties": false,
-        "properties": {
-          "permission": {
-            "type": "string"
-          },
-          "workspace": {
-            "description": "Name of the workspace the grant is scoped to. Omitted for the whole organization.",
-            "type": "string"
-          }
-        },
-        "required": [
-          "permission"
-        ],
-        "type": "object"
-      },
       "ImportWorkflowInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -1352,12 +1354,27 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/RoleOutput"
             },
+            "description": "Each member's role for the whole organization, keyed by user name. A member without one is omitted.",
+            "type": "object"
+          },
+          "workspaceRoles": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/WorkspaceRole"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "description": "Each member's roles in single workspaces, keyed by user name. Lists every member.",
             "type": "object"
           }
         },
         "required": [
           "orgName",
-          "users"
+          "users",
+          "workspaceRoles"
         ],
         "type": "object"
       },
@@ -1875,13 +1892,6 @@
       "RoleOutput": {
         "additionalProperties": false,
         "properties": {
-          "grants": {
-            "description": "Every grant of the role, each with its scope.",
-            "items": {
-              "$ref": "#/components/schemas/Grant"
-            },
-            "type": "array"
-          },
           "isGlobal": {
             "type": "boolean"
           },
@@ -1889,7 +1899,6 @@
             "type": "string"
           },
           "permissions": {
-            "description": "The role's organization-scoped grants.",
             "items": {
               "type": "string"
             },
@@ -1899,8 +1908,7 @@
         "required": [
           "name",
           "isGlobal",
-          "permissions",
-          "grants"
+          "permissions"
         ],
         "type": "object"
       },
@@ -1920,6 +1928,47 @@
             "type": "integer"
           }
         },
+        "type": "object"
+      },
+      "SavedView": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/SavedView.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "searchState": {
+            "additionalProperties": true,
+            "description": "The workflow search state: any JSON object, which Conductor stores without interpreting it. At most 16 KiB serialized compactly. It is stored compacted: whitespace is dropped, key order is kept.",
+            "type": "object"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "searchState",
+          "createdAt",
+          "updatedAt"
+        ],
         "type": "object"
       },
       "Schedule": {
@@ -2322,6 +2371,30 @@
         },
         "type": "object"
       },
+      "UpdateSavedViewInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "//schemas/UpdateSavedViewInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "name": {
+            "description": "Trimmed by the server; 1–80 characters once trimmed. Unique among the caller's saved views on the application, ignoring case.",
+            "type": "string"
+          },
+          "searchState": {
+            "additionalProperties": true,
+            "description": "The workflow search state: any JSON object, which Conductor stores without interpreting it. At most 16 KiB serialized compactly. It is stored compacted: whitespace is dropped, key order is kept.",
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "UpdateTokenInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -2374,7 +2447,8 @@
             "type": "string"
           },
           "role": {
-            "$ref": "#/components/schemas/RoleOutput"
+            "$ref": "#/components/schemas/RoleOutput",
+            "description": "The user's role for the whole organization. Omitted when they have none."
           },
           "subscriptionPlan": {
             "enum": [
@@ -2385,6 +2459,13 @@
               "enterprise"
             ],
             "type": "string"
+          },
+          "workspaceRoles": {
+            "description": "The user's roles in single workspaces.",
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceRole"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -2393,7 +2474,8 @@
           "orgName",
           "orgId",
           "subscriptionPlan",
-          "createdAt"
+          "createdAt",
+          "workspaceRoles"
         ],
         "type": "object"
       },
@@ -3953,6 +4035,23 @@
           "createdAt"
         ],
         "type": "object"
+      },
+      "WorkspaceRole": {
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/RoleOutput"
+          },
+          "workspace": {
+            "description": "Name of the workspace.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace",
+          "role"
+        ],
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -4159,6 +4258,7 @@
     },
     "/v2/orgs/{orgName}/apps/{appName}": {
       "delete": {
+        "description": "Deletes an application. API keys left with no access are revoked.",
         "operationId": "deleteApp",
         "parameters": [
           {
@@ -4314,7 +4414,7 @@
         ]
       },
       "put": {
-        "description": "Registers an application in a workspace. Without a workspace, it goes into the org's only workspace; when the org has more than one, registration fails with a workspace-required error.",
+        "description": "Registers an application in a workspace, or confirms the one already registered under this name, so it is safe to repeat. Without a workspace, a new application goes into the org's only workspace; when the org has more than one, creating it fails with a workspace-required error, while an existing application matches wherever it is. Confirming an existing application changes only privateMode, and only if the request sets it. Either way the caller needs application.write in the application's workspace; a grant on the application alone is not enough. Returns 409 if the name belongs to an application the caller cannot write, that DBOS Cloud manages, or that is in a workspace other than the one named, or if creating the application would exceed the organization's application limit.",
         "operationId": "registerApp",
         "parameters": [
           {
@@ -5158,6 +5258,262 @@
         "tags": [
           "Queues"
         ]
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/saved-views": {
+      "get": {
+        "description": "A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. Ordered by name, ignoring case.\n\nRequires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "listSavedViews",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SavedView"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List saved views",
+        "tags": [
+          "Saved Views"
+        ],
+        "x-dbos-requires-oauth": true
+      },
+      "post": {
+        "description": "A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. A user may keep at most 100 saved views per application; beyond that, and for a name already taken, the response is 409.\n\nRequires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "createSavedView",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSavedViewInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedView"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create saved view",
+        "tags": [
+          "Saved Views"
+        ],
+        "x-dbos-requires-oauth": true
+      }
+    },
+    "/v2/orgs/{orgName}/apps/{appName}/saved-views/{savedViewId}": {
+      "delete": {
+        "description": "A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404.\n\nRequires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "deleteSavedView",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "savedViewId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete saved view",
+        "tags": [
+          "Saved Views"
+        ],
+        "x-dbos-requires-oauth": true
+      },
+      "patch": {
+        "description": "A saved view is a user's own named workflow search state on one application. Only the caller's saved views are visible, and only a user can have them: an API key gets 403. A saved view that is not the caller's, or not on this application, is 404. Changes the name and/or the search state; at least one must be given. Last write wins.\n\nRequires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "updateSavedView",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appName",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "savedViewId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSavedViewInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Update saved view",
+        "tags": [
+          "Saved Views"
+        ],
+        "x-dbos-requires-oauth": true
       }
     },
     "/v2/orgs/{orgName}/apps/{appName}/schedules": {
@@ -7710,9 +8066,59 @@
         "x-dbos-requires-oauth": true
       }
     },
+    "/v2/orgs/{orgName}/members/{username}/role": {
+      "delete": {
+        "description": "Removes the member's role for the whole organization, leaving only their roles in single workspaces.\n\nRequires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "revokeRole",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Revoke role",
+        "tags": [
+          "Roles"
+        ],
+        "x-dbos-requires-oauth": true
+      }
+    },
     "/v2/orgs/{orgName}/members/{username}/roles/{roleName}": {
       "put": {
-        "description": "Requires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "description": "Sets the member's role for the whole organization, replacing the one they hold.\n\nRequires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
         "operationId": "grantRole",
         "parameters": [
           {
@@ -8169,6 +8575,7 @@
         ]
       },
       "post": {
+        "description": "Creates an API key for all applications, for the applications in appNames, or for those in workspaces.",
         "operationId": "createToken",
         "parameters": [
           {
@@ -8331,7 +8738,7 @@
     },
     "/v2/orgs/{orgName}/workspaces/{workspaceName}": {
       "delete": {
-        "description": "Deletes an empty workspace, as long as the org keeps another one.",
+        "description": "Deletes an empty workspace, as long as the org keeps another one. API keys left with no access are revoked.",
         "operationId": "deleteWorkspace",
         "parameters": [
           {
@@ -8440,6 +8847,139 @@
         "tags": [
           "Workspaces"
         ]
+      }
+    },
+    "/v2/orgs/{orgName}/workspaces/{workspaceName}/members/{username}/role": {
+      "delete": {
+        "description": "Removes the member's role in the workspace.\n\nRequires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "revokeWorkspaceRole",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workspaceName",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Revoke workspace role",
+        "tags": [
+          "Roles"
+        ],
+        "x-dbos-requires-oauth": true
+      }
+    },
+    "/v2/orgs/{orgName}/workspaces/{workspaceName}/members/{username}/roles/{roleName}": {
+      "put": {
+        "description": "Sets the member's role in the workspace, replacing the one they hold there. The role may hold only application.read, application.write, metric.read, websocket.connect.\n\nRequires OAuth. This operation is not registered when the server runs with OAuth disabled (self-hosted no-auth mode), where it responds 404.",
+        "operationId": "grantWorkspaceRole",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orgName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workspaceName",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 3,
+              "pattern": "^[a-z0-9-_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "roleName",
+            "required": true,
+            "schema": {
+              "maxLength": 30,
+              "minLength": 3,
+              "pattern": "^[a-zA-Z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Grant workspace role",
+        "tags": [
+          "Roles"
+        ],
+        "x-dbos-requires-oauth": true
       }
     },
     "/v2/users": {
