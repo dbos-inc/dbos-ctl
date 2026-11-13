@@ -340,8 +340,9 @@ func TestMigrateBackfillsLegacyNotificationsPrimaryKeyIntegration(t *testing.T) 
 // created cannot be migrated past 129.
 //
 // The fixture is the migrated database rewound to 129, with send_message
-// recreated from today's migration 130 under the Java parameter name: the
-// state such a database is in, differing from the fixture only in the name.
+// recreated from today's migration 130 under the Java parameter name. A real
+// Java database also has migration 14's older body, but 130 drops the function
+// whatever its body, so the name is the only difference that matters.
 // Rewinding a second time, with message_id already in place, proves 130 is
 // still safe on the databases every other test starts from.
 func TestMigrateRenamesJavaSendMessageParameterIntegration(t *testing.T) {

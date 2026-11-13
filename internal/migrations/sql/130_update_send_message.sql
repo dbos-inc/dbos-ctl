@@ -3,8 +3,11 @@
 -- migration 14, but not every database has the same parameter names: the Java
 -- SDK's migration 14 names the fourth one idempotency_key, where everyone else
 -- names it message_id. CREATE OR REPLACE cannot rename an input parameter, so
--- the function is dropped first, in the same transaction, and recreated. Only
--- SQL clients call it, and nothing depends on it.
+-- the function is dropped first and recreated. The runner applies both in one
+-- transaction; a script printed for psql, which runs outside one, leaves a
+-- moment with no send_message. Only SQL clients call it, and nothing depends
+-- on it. Dropping it resets its owner and grants, as migration 105 did for
+-- enqueue_workflow.
 
 DROP FUNCTION IF EXISTS %[1]s.send_message(TEXT, JSON, TEXT, TEXT);
 
