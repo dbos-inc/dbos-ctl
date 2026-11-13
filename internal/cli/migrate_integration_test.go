@@ -331,3 +331,80 @@ func TestMigrateBackfillsLegacyNotificationsPrimaryKeyIntegration(t *testing.T) 
 		t.Errorf("re-running migrate left the notifications primary key as %q", pk)
 	}
 }
+
+// TestMigrateRenamesJavaSendMessageParameterIntegration migrates a database
+// whose send_message names its fourth parameter idempotency_key, as the Java
+// SDK's migration 14 always has, where every other implementation names it
+// message_id. CREATE OR REPLACE cannot rename an input parameter, so migration
+// 130 has to drop the function first; without that, a database the Java SDK
+// created cannot be migrated past 129.
+//
+// The fixture is the migrated database rewound to 129, with send_message
+// recreated from today's migration 130 under the Java parameter name. A real
+// Java database also has migration 14's older body, but 130 drops the function
+// whatever its body, so the name is the only difference that matters.
+// Rewinding a second time, with message_id already in place, proves 130 is
+// still safe on the databases every other test starts from.
+func TestMigrateRenamesJavaSendMessageParameterIntegration(t *testing.T) {
+	t.Parallel()
+	e := startEngine(t)
+	dbURL := e.url(e.migratedDatabase(t))
+	conn := connect(t, dbURL)
+
+	var migration130 string
+	for _, m := range migrations.BuildMigrations("dbos", e.cockroach, e.listenNotify) {
+		if m.Version == 130 {
+			migration130 = m.SQL
+		}
+	}
+	javaForm := migration130
+	for _, rename := range []struct{ from, to string }{
+		{"message_id TEXT DEFAULT NULL", "idempotency_key TEXT DEFAULT NULL"},
+		{"COALESCE(message_id,", "COALESCE(idempotency_key,"},
+	} {
+		if n := strings.Count(javaForm, rename.from); n != 1 {
+			t.Fatalf("migration 130 contains %d copies of %q, want 1: the fixture no longer renames what it thinks it does",
+				n, rename.from)
+		}
+		javaForm = strings.Replace(javaForm, rename.from, rename.to, 1)
+	}
+
+	argNames := func() string {
+		t.Helper()
+		return scalar[string](t, conn, `SELECT string_agg(array_to_string(p.proargnames, ','), ';') FROM pg_proc p
+			JOIN pg_namespace n ON n.oid = p.pronamespace
+			WHERE n.nspname = 'dbos' AND p.proname = 'send_message'`)
+	}
+	const javaArgs = "destination_id,message,topic,idempotency_key"
+	const sharedArgs = "destination_id,message,topic,message_id"
+
+	// Dropped here rather than by the rendered migration, so the seed does not
+	// depend on the fix it is there to test.
+	exec(t, conn, `DROP FUNCTION "dbos".send_message(TEXT, JSON, TEXT, TEXT)`)
+	exec(t, conn, javaForm)
+	if got := argNames(); got != javaArgs {
+		t.Fatalf("seeded send_message has parameters %q, want %q", got, javaArgs)
+	}
+
+	for _, from := range []string{javaArgs, sharedArgs} {
+		exec(t, conn, `UPDATE "dbos".dbos_migrations SET version = 129`)
+		runMigrateOrFail(t, "--db-url", dbURL)
+
+		if got := argNames(); got != sharedArgs {
+			t.Errorf("migrating from %q left send_message with parameters %q, want %q", from, got, sharedArgs)
+		}
+		if got := scalar[int64](t, conn, `SELECT version FROM "dbos".dbos_migrations`); got != migrations.LatestVersion() {
+			t.Errorf("migrating from %q recorded version %d, want %d", from, got, migrations.LatestVersion())
+		}
+		// Dropping the function discards its settings, so the hardening has to
+		// be reapplied, not inherited.
+		if !e.cockroach {
+			config := scalar[string](t, conn, `SELECT COALESCE(array_to_string(p.proconfig, ','), '') FROM pg_proc p
+				JOIN pg_namespace n ON n.oid = p.pronamespace
+				WHERE n.nspname = 'dbos' AND p.proname = 'send_message'`)
+			if !strings.Contains(config, "search_path=pg_catalog, pg_temp") {
+				t.Errorf("migrating from %q left send_message without its search_path setting: %q", from, config)
+			}
+		}
+	}
+}
