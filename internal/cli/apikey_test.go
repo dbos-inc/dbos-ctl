@@ -15,7 +15,7 @@ import (
 
 func TestRunAPIKeyList(t *testing.T) {
 	isolateConfig(t)
-	const body = `[{"tokenName":"ci","appIds":["app-1"],"permissions":["application.read"],"createdAt":"2026-07-30T10:00:00Z"},{"tokenName":"admin","appIds":[],"permissions":["application.write"],"createdAt":"2026-07-30T11:00:00Z"}]`
+	const body = `[{"tokenName":"ci","appIds":["app-1"],"permissions":["application.read"],"createdAt":"2026-07-30T10:00:00Z"},{"tokenName":"admin","appIds":[],"permissions":["application.write"],"createdAt":"2026-07-30T11:00:00Z"},{"tokenName":"prod","appIds":[],"workspaces":["production"],"permissions":["application.read"],"createdAt":"2026-07-30T12:00:00Z"}]`
 	srv, _ := appReadServer(t, "/v2/orgs/local/tokens", body)
 
 	cmd, out := appReadCmd(t, srv.URL)
@@ -23,14 +23,32 @@ func TestRunAPIKeyList(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := out.String()
-	for _, want := range []string{"NAME", "APPS", "PERMISSIONS", "ci", "app-1", "application.read", "admin"} {
+	for _, want := range []string{"NAME", "SCOPE", "PERMISSIONS", "ci", "app-1", "application.read", "admin"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("api-key list missing %q:\n%s", want, got)
 		}
 	}
-	// An unscoped key (no appIds) reads as "(all)".
-	if !strings.Contains(got, "(all)") {
-		t.Errorf("api-key list should show (all) for an unscoped key:\n%s", got)
+	// Only the key limited to neither applications nor workspaces reads as
+	// "(all)"; the workspace-scoped one names its workspace.
+	for _, line := range strings.Split(got, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		all := strings.Contains(line, "(all)")
+		switch fields[0] {
+		case "admin":
+			if !all {
+				t.Errorf("api-key list should show (all) for an unscoped key: %q", line)
+			}
+		case "ci", "prod":
+			if all {
+				t.Errorf("api-key list shows (all) for a scoped key: %q", line)
+			}
+		}
+		if fields[0] == "prod" && !strings.Contains(line, "workspace: production") {
+			t.Errorf("api-key list should name the workspace of a workspace-scoped key: %q", line)
+		}
 	}
 }
 
