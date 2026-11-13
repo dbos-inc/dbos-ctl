@@ -170,16 +170,22 @@ func runAPIKeyDelete(cmd *cobra.Command, args []string) error {
 func apiKeyColumns() []output.Column[api.Token] {
 	return []output.Column[api.Token]{
 		{Header: "NAME", Value: func(t api.Token) string { return t.TokenName }},
-		{Header: "APPS", Value: func(t api.Token) string { return joinOrAll(t.AppIds) }},
+		{Header: "SCOPE", Value: keyScope},
 		{Header: "PERMISSIONS", Value: func(t api.Token) string { return strings.Join(t.Permissions, ", ") }},
 		{Header: "CREATED", Value: func(t api.Token) string { return fmtTime(t.CreatedAt) }},
 	}
 }
 
-// joinOrAll renders a key's app scope: the app list, or "(all)" when unscoped.
-func joinOrAll(apps []string) string {
-	if len(apps) == 0 {
+// keyScope renders what a key may reach. A key is limited to applications or
+// to workspaces, never both, so it shows the applications, the workspaces
+// marked as such, or "(all)" when it is limited to neither.
+func keyScope(t api.Token) string {
+	switch {
+	case len(t.AppIds) > 0:
+		return strings.Join(t.AppIds, ", ")
+	case len(t.Workspaces) > 0:
+		return "workspace: " + strings.Join(t.Workspaces, ", ")
+	default:
 		return "(all)"
 	}
-	return strings.Join(apps, ", ")
 }
