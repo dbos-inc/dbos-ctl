@@ -313,6 +313,57 @@ func TestRunAppRegisterOmitsUnsetPrivateMode(t *testing.T) {
 	}
 }
 
+func TestRunAppRegisterWorkspace(t *testing.T) {
+	isolateConfig(t)
+	srv, body, _ := patchServer(t, "/v2/orgs/local/apps/myapp")
+
+	cmd := newCmdWithGlobals()
+	cmd.Flags().String("workspace", "", "")
+	_ = cmd.Flags().Set("url", srv.URL)
+	_ = cmd.Flags().Set("workspace", "w")
+	cmd.SetOut(&bytes.Buffer{})
+	if err := runAppRegister(cmd, []string{"myapp"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := (*body)["workspace"]; got != "w" {
+		t.Errorf("workspace = %v, want %q", got, "w")
+	}
+}
+
+// An unset --workspace sends no field, so the server places a new app in the
+// org's only workspace and matches an existing app wherever it lives.
+func TestRunAppRegisterOmitsUnsetWorkspace(t *testing.T) {
+	isolateConfig(t)
+	srv, body, _ := patchServer(t, "/v2/orgs/local/apps/myapp")
+
+	cmd := newCmdWithGlobals()
+	cmd.Flags().String("workspace", "", "")
+	_ = cmd.Flags().Set("url", srv.URL)
+	cmd.SetOut(&bytes.Buffer{})
+	if err := runAppRegister(cmd, []string{"myapp"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := (*body)["workspace"]; ok {
+		t.Errorf("workspace should be omitted, got %v", (*body)["workspace"])
+	}
+}
+
+// In an org with several workspaces, registering a new app without one is a
+// 400 whose detail tells the user to name one; that message must reach them.
+func TestRunAppRegisterWorkspaceRequired(t *testing.T) {
+	isolateConfig(t)
+	srv, _ := appItemServer(t, "myapp", http.StatusBadRequest, "application/problem+json",
+		`{"title":"workspace required","detail":"this organization has more than one workspace; specify which workspace to register the application in","status":400}`)
+
+	cmd := newCmdWithGlobals()
+	_ = cmd.Flags().Set("url", srv.URL)
+	cmd.SetOut(&bytes.Buffer{})
+	err := runAppRegister(cmd, []string{"myapp"})
+	if err == nil || !strings.Contains(err.Error(), "specify which workspace") {
+		t.Errorf("want the workspace-required message, got %v", err)
+	}
+}
+
 // setInteractive forces the prompt-or-not decision for a test, restoring it
 // afterward, so neither path depends on the test process's real stdin.
 func setInteractive(t *testing.T, v bool) {

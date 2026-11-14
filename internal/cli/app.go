@@ -85,6 +85,7 @@ func init() {
 	addRequestFlags(appListCmd, "profile", "url", "org", "output")
 	addRequestFlags(appRegisterCmd, "profile", "url", "org")
 	appRegisterCmd.Flags().Bool("private-mode", false, "prevent sending workflow payload data (e.g., inputs, outputs, events) to Conductor")
+	appRegisterCmd.Flags().String("workspace", "", "workspace to register a new application in (required when the org has more than one)")
 	addRequestFlags(appDeleteCmd, "profile", "url", "org")
 	appDeleteCmd.Flags().Bool("force", false, "skip the confirmation prompt (required when non-interactive)")
 	addRequestFlags(appGetCmd, "profile", "url", "org", "output")
@@ -123,7 +124,7 @@ func runAppList(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	resp, err := c.ListAppsWithResponse(cmd.Context(), org)
+	resp, err := c.ListAppsWithResponse(cmd.Context(), org, &api.ListAppsParams{})
 	if err != nil {
 		return err
 	}
@@ -148,6 +149,10 @@ func runAppRegister(cmd *cobra.Command, args []string) error {
 	// deploy); the remaining tuning fields land with D3 `app update`.
 	var body api.RegisterAppJSONRequestBody
 	patchBool(cmd, "private-mode", &body.PrivateMode, nil)
+	// Left unset, the server places a new app in the org's only workspace and
+	// matches an existing app wherever it lives; only a new app in an org with
+	// several workspaces needs one named.
+	body.Workspace = optString(cmd, "workspace")
 	resp, err := c.RegisterAppWithResponse(cmd.Context(), org, name, body)
 	if err != nil {
 		return err
