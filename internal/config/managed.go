@@ -28,9 +28,16 @@ const (
 	managedAudience = "dbos-cloud-api"
 )
 
+// ManagedCloudURL is the DBOS Cloud API base URL for a DBOS-managed domain: the
+// routes cloud serves itself, rather than the Conductor API it proxies under
+// /conductor.
+func ManagedCloudURL(domain string) string {
+	return "https://" + domain
+}
+
 // managedURL is the conductor base URL for a DBOS-managed domain.
 func managedURL(domain string) string {
-	return "https://" + domain + managedConductorPath
+	return ManagedCloudURL(domain) + managedConductorPath
 }
 
 // isManagedProd reports whether a domain — a bare host, optionally with a port —
