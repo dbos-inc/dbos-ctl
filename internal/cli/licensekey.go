@@ -26,7 +26,7 @@ var licenseKeyCmd = &cobra.Command{
 var licenseKeyCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a limited-time trial license key for self-hosting Conductor",
-	Long: `Create a license key for self-hosted Conductor, issued by DBOS to
+	Long: `Create a license key for trialing self-hosted Conductor, issued by DBOS to
 your organization. The key is printed once, along with when it expires. Pass it
 to self-hosted Conductor as DBOS_CONDUCTOR_LICENSE_KEY.
 
