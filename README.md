@@ -73,6 +73,9 @@ dbosctl app register <app-name>     # must match app name in DBOS config
 
 # Creating an API key
 dbosctl api-key create <key-name>   # typically provided to app via DBOS_CONDUCTOR_KEY env var
+
+# A trial license key for self-hosted Conductor
+dbosctl license-key create --profile managed   # provide to self-hosted Conductor via DBOS_CONDUCTOR_LICENSE_KEY
 ```
 
 ## Profiles
@@ -155,6 +158,7 @@ Two ways to bypass the flow:
 | `dbosctl api-key create <name>` | Create an API key — prints the secret once; scope with `--app`/`--permission` |
 | `dbosctl api-key rename <name> <new-name>` | Rename an API key; the secret is unchanged |
 | `dbosctl api-key delete <name>` | Delete an API key |
+| `dbosctl license-key create` | Create a limited-time trial license key for a self-hosted Conductor (prints the key once; needs a managed profile) |
 | `dbosctl permission list` | List grantable permissions |
 | `dbosctl config list \| show \| use \| set` | Manage profiles |
 | `dbosctl sysdb migrate` | Create or upgrade a DBOS system database |

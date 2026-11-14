@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/dbos-inc/dbos-ctl/internal/api"
+	"github.com/dbos-inc/dbos-ctl/internal/cloud"
 )
 
 // exitError carries a process exit code alongside its message. See the Exit
@@ -60,6 +61,25 @@ func apiError(status int, header http.Header, problem *api.ErrorModel, body []by
 		return &exitError{code: 4, msg: msg}
 	default:
 		return &exitError{code: 1, msg: msg}
+	}
+}
+
+// cloudError gives a DBOS Cloud API failure the same exit codes apiError gives
+// a Conductor one: 401 -> "run dbosctl login" (3), 404 -> (4), else (1). Cloud
+// reports plan limits as a plain 500 whose message already says what to do, so
+// they need no special case. Transport errors pass through unchanged.
+func cloudError(err error) error {
+	var e *cloud.Error
+	if !errors.As(err, &e) {
+		return err
+	}
+	switch e.StatusCode {
+	case http.StatusUnauthorized:
+		return &exitError{code: 3, msg: e.Error() + "; run `dbosctl login`"}
+	case http.StatusNotFound:
+		return &exitError{code: 4, msg: e.Error()}
+	default:
+		return &exitError{code: 1, msg: e.Error()}
 	}
 }
 
