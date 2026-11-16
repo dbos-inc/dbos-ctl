@@ -407,8 +407,10 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 	}
 
 	// Migration 130 rewrites send_message to wake a SUSPENDED recv on its
-	// topic. Like migration 113, the signature is unchanged, so only the body
-	// is replaced, and the search_path hardening is Postgres-only.
+	// topic. It drops the function and recreates it, because a database the
+	// Java SDK created names the fourth parameter differently and CREATE OR
+	// REPLACE cannot rename one. Like migration 105, the search_path hardening
+	// is Postgres-only.
 	migration130SQLProcessed := fmt.Sprintf(migration130SQL, sanitizedSchema)
 	if !isCockroach {
 		migration130SQLProcessed = migration130SQLProcessed + "\n" + fmt.Sprintf(migration130SearchPathSQL, sanitizedSchema)
