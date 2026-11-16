@@ -1,8 +1,17 @@
 -- Migration 130: Rewrite send_message so it also wakes a SUSPENDED recv on its
--- topic, as every SDK send does. The signature is unchanged from migration 14,
--- so CREATE OR REPLACE suffices and nothing is dropped first.
+-- topic, as every SDK send does. The argument types are unchanged from
+-- migration 14, but not every database has the same parameter names: the Java
+-- SDK's migration 14 names the fourth one idempotency_key, where everyone else
+-- names it message_id. CREATE OR REPLACE cannot rename an input parameter, so
+-- the function is dropped first and recreated. The runner applies both in one
+-- transaction; a script printed for psql, which runs outside one, leaves a
+-- moment with no send_message. Only SQL clients call it, and nothing depends
+-- on it. Dropping it resets its owner and grants, as migration 105 did for
+-- enqueue_workflow.
 
-CREATE OR REPLACE FUNCTION %[1]s.send_message(
+DROP FUNCTION IF EXISTS %[1]s.send_message(TEXT, JSON, TEXT, TEXT);
+
+CREATE FUNCTION %[1]s.send_message(
     destination_id TEXT,
     message JSON,
     topic TEXT DEFAULT NULL,
