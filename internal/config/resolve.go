@@ -26,21 +26,23 @@ func (fs FieldSource) pick(profileVal string) string {
 
 // Inputs are the flag/env sources for the resolvable settings.
 type Inputs struct {
-	Profile FieldSource
-	URL     FieldSource
-	Org     FieldSource
-	App     FieldSource
+	Profile   FieldSource
+	URL       FieldSource
+	Org       FieldSource
+	App       FieldSource
+	Workspace FieldSource
 }
 
 // Settings are the effective settings after applying precedence.
 type Settings struct {
-	Profile string // active profile name, or "" for ad-hoc use
-	Domain  string // DBOS-managed domain, or "" when not a managed target
-	URL     string
-	Org     string
-	App     string
-	Auth    Auth
-	OIDC    *OIDC
+	Profile   string // active profile name, or "" for ad-hoc use
+	Domain    string // DBOS-managed domain, or "" when not a managed target
+	URL       string
+	Org       string
+	App       string
+	Workspace string
+	Auth      Auth
+	OIDC      *OIDC
 }
 
 // Resolve computes effective settings: for each field, flag > env > active
@@ -83,13 +85,14 @@ func (f *File) Resolve(in Inputs) (Settings, error) {
 	}
 
 	s := Settings{
-		Profile: name,
-		Domain:  domain,
-		URL:     resolvedURL,
-		Org:     in.Org.pick(p.Org),
-		App:     in.App.pick(p.App),
-		Auth:    p.Auth,
-		OIDC:    p.OIDC,
+		Profile:   name,
+		Domain:    domain,
+		URL:       resolvedURL,
+		Org:       in.Org.pick(p.Org),
+		App:       in.App.pick(p.App),
+		Workspace: in.Workspace.pick(p.Workspace),
+		Auth:      p.Auth,
+		OIDC:      p.OIDC,
 	}
 	// A managed target always authenticates and, absent an explicit oidc block,
 	// uses the Auth0 tenant for its domain.

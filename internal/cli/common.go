@@ -41,7 +41,11 @@ func settings(cmd *cobra.Command) (config.Settings, error) {
 	if err != nil {
 		return config.Settings{}, err
 	}
-	return f.Resolve(config.Inputs{Profile: profile, URL: urlSrc, Org: org, App: app})
+	workspace, err := field(cmd, "workspace", "DBOS_WORKSPACE")
+	if err != nil {
+		return config.Settings{}, err
+	}
+	return f.Resolve(config.Inputs{Profile: profile, URL: urlSrc, Org: org, App: app, Workspace: workspace})
 }
 
 // addRequestFlags installs the request-shaping flags a command honors, by name.
@@ -61,6 +65,8 @@ func addRequestFlags(cmd *cobra.Command, names ...string) {
 			f.String("org", "", "organization (overrides $DBOS_ORG and the profile)")
 		case "app":
 			f.StringP("app", "a", "", "application name (overrides $DBOS_APP and the profile)")
+		case "workspace":
+			f.StringP("workspace", "w", "", "workspace (overrides $DBOS_WORKSPACE and the profile)")
 		case "output":
 			f.StringP("output", "o", "table", "output format: table, json")
 		default:

@@ -61,6 +61,7 @@ func init() {
 	configSetCmd.Flags().String("url", "", "self-hosted Conductor base URL")
 	configSetCmd.Flags().String("org", "", "organization (only needed when it can't be derived from a login)")
 	configSetCmd.Flags().String("app", "", "default application for this profile")
+	configSetCmd.Flags().String("workspace", "", "workspace to register applications into for this profile")
 	configSetCmd.Flags().String("auth", "", "force bearer auth without OIDC (a dbos_ API key)")
 	configSetCmd.Flags().String("issuer", "", "OIDC issuer URL (implies bearer auth)")
 	configSetCmd.Flags().String("audience", "", "OIDC audience (bearer profiles)")
@@ -139,6 +140,9 @@ func runConfigShow(cmd *cobra.Command, args []string) error {
 	if p.App != "" {
 		fmt.Fprintf(w, "app       %s\n", p.App)
 	}
+	if p.Workspace != "" {
+		fmt.Fprintf(w, "workspace %s\n", p.Workspace)
+	}
 	if p.OIDC != nil {
 		fmt.Fprintf(w, "issuer    %s\n", p.OIDC.Issuer)
 		fmt.Fprintf(w, "audience  %s\n", p.OIDC.Audience)
@@ -205,6 +209,9 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 	}
 	if cmd.Flags().Changed("app") {
 		p.App, _ = cmd.Flags().GetString("app")
+	}
+	if cmd.Flags().Changed("workspace") {
+		p.Workspace, _ = cmd.Flags().GetString("workspace")
 	}
 	if cmd.Flags().Changed("auth") {
 		v, _ := cmd.Flags().GetString("auth")

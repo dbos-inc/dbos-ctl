@@ -16,6 +16,7 @@ func newConfigSetCmd() *cobra.Command {
 	c.Flags().String("url", "", "")
 	c.Flags().String("org", "", "")
 	c.Flags().String("app", "", "")
+	c.Flags().String("workspace", "", "")
 	c.Flags().String("auth", "", "")
 	c.Flags().String("issuer", "", "")
 	c.Flags().String("audience", "", "")
@@ -173,6 +174,36 @@ func TestConfigSetUseListShow(t *testing.T) {
 	}
 	if !strings.Contains(showOut.String(), "auth      bearer") {
 		t.Errorf("show missing bearer auth:\n%s", showOut.String())
+	}
+}
+
+// The profile's registration workspace is set and shown like its org and app.
+func TestConfigSetShowWorkspace(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	set := newConfigSetCmd()
+	_ = set.Flags().Set("url", "http://localhost:8090")
+	_ = set.Flags().Set("workspace", "staging")
+	set.SetOut(&bytes.Buffer{})
+	if err := runConfigSet(set, []string{"local"}); err != nil {
+		t.Fatal(err)
+	}
+	f, err := config.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := f.Profiles["local"].Workspace; got != "staging" {
+		t.Errorf("workspace = %q, not saved", got)
+	}
+
+	var showOut bytes.Buffer
+	show := &cobra.Command{}
+	show.SetOut(&showOut)
+	if err := runConfigShow(show, []string{"local"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(showOut.String(), "workspace staging") {
+		t.Errorf("show missing workspace:\n%s", showOut.String())
 	}
 }
 
