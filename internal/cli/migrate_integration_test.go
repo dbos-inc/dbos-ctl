@@ -408,3 +408,56 @@ func TestMigrateRenamesJavaSendMessageParameterIntegration(t *testing.T) {
 		}
 	}
 }
+
+// TestMigrateTimestampsEnqueuedWorkflowsAtStatementTimeIntegration checks
+// migration 132: enqueue_workflow stamps a workflow when the row is written,
+// not when the enqueuing transaction began, so a transaction that starts first
+// but enqueues after another has committed sorts behind it. Before 132 the
+// function wrote now(), the transaction's start time, and the order inverted.
+func TestMigrateTimestampsEnqueuedWorkflowsAtStatementTimeIntegration(t *testing.T) {
+	t.Parallel()
+	e := startEngine(t)
+	dbURL := e.url(e.migratedDatabase(t))
+	early, late := connect(t, dbURL), connect(t, dbURL)
+	ctx := context.Background()
+
+	const enqueue = `SELECT "dbos".enqueue_workflow(
+		workflow_name => 'wf', queue_name => 'unserved_queue', workflow_id => $1)`
+	const clockMs = `SELECT (EXTRACT(epoch FROM clock_timestamp()) * 1000)::bigint`
+
+	tx, err := early.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	var earlyStart int64
+	if err := tx.QueryRow(ctx, `SELECT (EXTRACT(epoch FROM now()) * 1000)::bigint`).Scan(&earlyStart); err != nil {
+		t.Fatalf("read transaction start: %v", err)
+	}
+	// Let the clock pass the early transaction's start, so the two
+	// timestamps cannot tie.
+	for deadline := time.Now().Add(5 * time.Second); scalar[int64](t, late, clockMs) <= earlyStart; {
+		if time.Now().After(deadline) {
+			t.Fatal("the database clock did not advance past the transaction start")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	exec(t, late, enqueue, "late")
+	if _, err := tx.Exec(ctx, enqueue, "early"); err != nil {
+		t.Fatalf("enqueue in the early transaction: %v", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+
+	order := scalar[string](t, late, `SELECT string_agg(workflow_uuid, ',' ORDER BY created_at, workflow_uuid)
+		FROM "dbos".workflow_status WHERE workflow_uuid IN ('early', 'late')`)
+	if order != "late,early" {
+		t.Errorf("workflows ordered by created_at are %q, want %q", order, "late,early")
+	}
+	if n := scalar[int64](t, late, `SELECT count(*) FROM "dbos".workflow_input
+		WHERE workflow_uuid IN ('early', 'late')`); n != 2 {
+		t.Errorf("%d of 2 enqueued workflows have their inputs recorded", n)
+	}
+}

@@ -268,6 +268,15 @@ var migration130SearchPathSQL string
 //go:embed sql/131_create_external_objects.sql
 var migration131SQL string
 
+//go:embed sql/132_update_enqueue_workflow.sql
+var migration132SQL string
+
+//go:embed sql/132_set_enqueue_workflow_search_path.sql
+var migration132SearchPathSQL string
+
+//go:embed sql/132_set_workflow_status_clock_defaults.sql
+var migration132ClockDefaultsSQL string
+
 type MigrationFile struct {
 	Version int64
 	SQL     string
@@ -416,6 +425,17 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 		migration130SQLProcessed = migration130SQLProcessed + "\n" + fmt.Sprintf(migration130SearchPathSQL, sanitizedSchema)
 	}
 
+	// Migration 132 rewrites enqueue_workflow to take created_at and
+	// updated_at from the column defaults, then moves those defaults to
+	// clock_timestamp(). The signature is the one migration 105 settled, and
+	// as in migration 113 the search_path hardening is Postgres-only. The
+	// default change runs everywhere, after it.
+	migration132SQLProcessed := fmt.Sprintf(migration132SQL, sanitizedSchema)
+	if !isCockroach {
+		migration132SQLProcessed = migration132SQLProcessed + "\n" + fmt.Sprintf(migration132SearchPathSQL, sanitizedSchema)
+	}
+	migration132SQLProcessed = migration132SQLProcessed + "\n" + fmt.Sprintf(migration132ClockDefaultsSQL, sanitizedSchema)
+
 	return []MigrationFile{
 		{Version: 1, SQL: migration1SQLProcessed},
 		{Version: 2, SQL: fmt.Sprintf(migration2SQL, sanitizedSchema)},
@@ -498,6 +518,7 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 		{Version: 129, SQL: fmt.Sprintf(migration129SQL, c, sanitizedSchema), Online: !isCockroach},
 		{Version: 130, SQL: migration130SQLProcessed},
 		{Version: 131, SQL: fmt.Sprintf(migration131SQL, sanitizedSchema)},
+		{Version: 132, SQL: migration132SQLProcessed},
 	}
 }
 
