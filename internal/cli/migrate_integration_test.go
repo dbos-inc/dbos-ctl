@@ -421,8 +421,12 @@ func TestMigrateTimestampsEnqueuedWorkflowsAtStatementTimeIntegration(t *testing
 	early, late := connect(t, dbURL), connect(t, dbURL)
 	ctx := context.Background()
 
+	// Positional, because CockroachDB does not parse named-argument notation
+	// (name => value). The parameters are workflow_name, queue_name,
+	// positional_args, named_args, class_name, config_name and workflow_id;
+	// the rest take their defaults.
 	const enqueue = `SELECT "dbos".enqueue_workflow(
-		workflow_name => 'wf', queue_name => 'unserved_queue', workflow_id => $1)`
+		'wf', 'unserved_queue', ARRAY[]::JSON[], '{}'::JSON, NULL, NULL, $1::TEXT)`
 	const clockMs = `SELECT (EXTRACT(epoch FROM clock_timestamp()) * 1000)::bigint`
 
 	tx, err := early.Begin(ctx)
