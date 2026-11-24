@@ -277,6 +277,18 @@ var migration132SearchPathSQL string
 //go:embed sql/132_set_workflow_status_clock_defaults.sql
 var migration132ClockDefaultsSQL string
 
+//go:embed sql/133_set_workflow_input_retention_clock_default.sql
+var migration133SQL string
+
+//go:embed sql/134_add_workflow_status_archive_pending.sql
+var migration134SQL string
+
+//go:embed sql/135_create_archive_pending_index.sql
+var migration135SQL string
+
+//go:embed sql/136_add_workflow_status_result_waiter_ids.sql
+var migration136SQL string
+
 type MigrationFile struct {
 	Version int64
 	SQL     string
@@ -519,6 +531,10 @@ func BuildMigrations(schema string, isCockroach, listenNotify bool) []MigrationF
 		{Version: 130, SQL: migration130SQLProcessed},
 		{Version: 131, SQL: fmt.Sprintf(migration131SQL, sanitizedSchema)},
 		{Version: 132, SQL: migration132SQLProcessed},
+		{Version: 133, SQL: fmt.Sprintf(migration133SQL, sanitizedSchema)},
+		{Version: 134, SQL: fmt.Sprintf(migration134SQL, sanitizedSchema)},
+		{Version: 135, SQL: fmt.Sprintf(migration135SQL, c, sanitizedSchema), Online: !isCockroach},
+		{Version: 136, SQL: fmt.Sprintf(migration136SQL, sanitizedSchema)},
 	}
 }
 
